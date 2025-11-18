@@ -1,3 +1,12 @@
+import { FilterChip } from '@/components/FilterChip';
+import { Screen } from '@/components/Screen';
+import { StatusBadge } from '@/components/StatusBadge';
+import { dummyForms } from '@/constants/forms';
+import { useThemeMode } from '@/providers/ThemeProvider';
+import { fonts, FormStatus, spacing } from '@/theme';
+import { ValidationForm } from '@/types/forms';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -7,18 +16,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Screen } from '@/components/Screen';
-import { FilterChip } from '@/components/FilterChip';
-import { StatusBadge } from '@/components/StatusBadge';
-import { fonts, FormStatus, spacing, typography } from '@/theme';
-import { dummyForms } from '@/constants/forms';
-import { ValidationForm } from '@/types/forms';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useThemeMode } from '@/providers/ThemeProvider';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -39,15 +41,22 @@ export function FormListScreen() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All');
   const [statIndex, setStatIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const statsRef = useRef<ScrollView>(null);
   const { colors, mode } = useThemeMode();
+  const insets = useSafeAreaInsets();
 
   const forms = useMemo(() => {
-    if (activeFilter === 'All') {
-      return dummyForms;
-    }
-    return dummyForms.filter((form) => form.status === activeFilter);
-  }, [activeFilter]);
+    const base = activeFilter === 'All' ? dummyForms : dummyForms.filter((form) => form.status === activeFilter);
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return base;
+    return base.filter((form) =>
+      [form.nameOfProject, form.locationBarangay, form.locationMunicipality]
+        .join(' ')
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [activeFilter, searchQuery]);
 
   const handleFormPress = (form: ValidationForm) => {
     router.push({
@@ -109,7 +118,7 @@ export function FormListScreen() {
   }, []);
 
   const screenWidth = Dimensions.get('window').width;
-  const heroCardWidth = Math.max(screenWidth - spacing.lg * 2, 240);
+  const heroCardWidth = Math.min(280, screenWidth - spacing.lg * 2);
   const heroSnapInterval = heroCardWidth + spacing.sm;
 
   useEffect(() => {
@@ -132,6 +141,12 @@ export function FormListScreen() {
     }
   };
 
+  const fabBottomInset = spacing.lg + insets.bottom;
+  const listBottomSpacer = fabBottomInset + spacing.lg;
+
+  const heroTextColor = mode === 'dark' ? colors.background : '#fff';
+  const heroSubTextColor = mode === 'dark' ? '#e0e7ff' : '#e4ebff';
+
   return (
     <Screen style={{ paddingBottom: spacing.xxl }}>
       <View style={styles.topBanner}>
@@ -150,14 +165,6 @@ export function FormListScreen() {
       </View>
 
       <View style={[styles.hero, { backgroundColor: colors.primary }]}>
-        <View style={styles.heroContent}>
-          <Text style={styles.heroTitle}>Plan, validate, and sync FMR inspections.</Text>
-          <Text style={styles.heroSubtitle}>Stay informed about drafts, pending syncs, and synced records in one glance.</Text>
-          <TouchableOpacity style={styles.heroButton} onPress={handleNewForm}>
-            <Ionicons name="add-circle" size={16} color="#fff" />
-            <Text style={styles.heroButtonText}>New Validation</Text>
-          </TouchableOpacity>
-        </View>
         <ScrollView
           ref={statsRef}
           horizontal
@@ -166,7 +173,7 @@ export function FormListScreen() {
           decelerationRate="fast"
           snapToAlignment="start"
           snapToInterval={heroSnapInterval}
-          contentContainerStyle={[styles.statsRow, { paddingRight: 0 }]}
+          contentContainerStyle={[styles.statsRow, { paddingHorizontal: spacing.xs }]}
           onMomentumScrollEnd={handleStatMomentum}
         >
           {heroStats.map((stat) => (
@@ -207,24 +214,46 @@ export function FormListScreen() {
         </ScrollView>
       </View>
 
-      <View style={styles.filters}>
-        {filters.map((filter) => (
-          <FilterChip
-            key={filter}
-            label={filter}
-            active={filter === activeFilter}
-            onPress={() => setActiveFilter(filter)}
-          />
-        ))}
+      <View style={styles.filterBar}>
+        <View style={styles.filters}>
+          {filters.map((filter) => (
+            <FilterChip
+              key={filter}
+              label={filter}
+              active={filter === activeFilter}
+              onPress={() => setActiveFilter(filter)}
+            />
+          ))}
+        </View>
+      </View>
+      <View
+        style={[
+          styles.searchBar,
+          {
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+          },
+        ]}
+      >
+        <Ionicons name="search" size={16} color={colors.textMuted} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.textPrimary }]}
+          placeholder="Search project or location"
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+        />
       </View>
 
       <FlatList
         style={styles.list}
         data={forms}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: listBottomSpacer }]}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         showsVerticalScrollIndicator={false}
+        ListFooterComponent={<View style={{ height: spacing.md }} />}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[
@@ -272,7 +301,10 @@ export function FormListScreen() {
         )}
       />
 
-      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={handleNewForm}>
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary, bottom: fabBottomInset }]}
+        onPress={handleNewForm}
+      >
         <Text style={styles.fabIcon}>＋</Text>
         <Text style={styles.fabLabel}>New Validation</Text>
       </TouchableOpacity>
@@ -322,8 +354,9 @@ const styles = StyleSheet.create({
   },
   hero: {
     borderRadius: 18,
-    padding: spacing.lg,
-    gap: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.xs,
   },
   heroContent: {
     flex: 1,
@@ -331,14 +364,12 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     fontFamily: fonts.bold,
-    fontSize: 20,
-    color: '#fff',
+    fontSize: 18,
   },
   heroSubtitle: {
-    color: '#e4ebff',
     fontFamily: fonts.regular,
-    lineHeight: 18,
-    fontSize: 13,
+    lineHeight: 16,
+    fontSize: 12,
   },
   heroButton: {
     marginTop: spacing.xs,
@@ -351,20 +382,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
   heroButtonText: {
-    color: '#fff',
     fontFamily: fonts.semibold,
     fontSize: 13,
   },
   statsRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   statCard: {
     borderRadius: 14,
-    padding: spacing.md,
-    minHeight: 120,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    minHeight: 90,
     borderWidth: 1,
-    gap: spacing.sm,
+    gap: spacing.xs,
+    marginRight: spacing.sm,
   },
   statHeader: {
     flexDirection: 'row',
@@ -372,19 +404,19 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   statIcon: {
-    width: 28,
-    height: 28,
+    width: 24,
+    height: 24,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statValue: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: 20,
   },
   statLabel: {
     fontFamily: fonts.medium,
-    fontSize: 13,
+    fontSize: 12,
   },
   statFooter: {
     gap: 6,
@@ -402,10 +434,29 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
   },
+  filterBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   filters: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 14,
   },
   list: {
     flex: 1,

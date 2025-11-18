@@ -29,6 +29,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Forms',
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'document-text' : 'document-text-outline'} color={color} size={size} />
           ),
@@ -38,6 +39,7 @@ export default function TabsLayout() {
         name="locator"
         options={{
           title: 'Locator',
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'map' : 'map-outline'} color={color} size={size} />
           ),
@@ -47,6 +49,7 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: 'Settings',
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'settings' : 'settings-outline'} color={color} size={size} />
           ),

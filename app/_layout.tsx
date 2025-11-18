@@ -11,6 +11,7 @@ import {
 } from '@expo-google-fonts/nunito';
 import { fonts } from '@/theme';
 import { ThemeProvider, useThemeMode } from '@/providers/ThemeProvider';
+import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -31,28 +32,55 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <RootStack />
+        <AuthProvider>
+          <RootStack />
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
 function RootStack() {
+  const { isSignedIn } = useAuth();
   const { colors } = useThemeMode();
 
   return (
     <Stack
       screenOptions={{
-        headerTintColor: '#fff',
-        headerStyle: { backgroundColor: colors.primary },
-        headerTitleAlign: 'center',
-        headerTitleStyle: { fontFamily: fonts.semibold },
-        headerBackTitleStyle: { fontFamily: fonts.regular },
+        headerShown: false,
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="form-editor" options={{ title: 'Form Editor' }} />
-      <Stack.Screen name="form-detail" options={{ title: 'Form Details' }} />
+      {!isSignedIn ? (
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+      ) : (
+        <>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="form-editor"
+            options={{
+              title: 'Form Editor',
+              headerShown: true,
+              headerTintColor: '#fff',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTitleAlign: 'center',
+              headerTitleStyle: { fontFamily: fonts.semibold },
+              headerBackTitleStyle: { fontFamily: fonts.regular },
+            }}
+          />
+          <Stack.Screen
+            name="form-detail"
+            options={{
+              title: 'Form Details',
+              headerShown: true,
+              headerTintColor: '#fff',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTitleAlign: 'center',
+              headerTitleStyle: { fontFamily: fonts.semibold },
+              headerBackTitleStyle: { fontFamily: fonts.regular },
+            }}
+          />
+        </>
+      )}
     </Stack>
   );
 }

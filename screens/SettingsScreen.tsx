@@ -5,15 +5,26 @@ import { Section } from '@/components/Section';
 import { fonts, spacing } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeMode } from '@/providers/ThemeProvider';
+import { useAuth } from '@/providers/AuthProvider';
+import { useRouter } from 'expo-router';
 
 export function SettingsScreen() {
   const [autoSync, setAutoSync] = useState(true);
   const [offlineMode, setOfflineMode] = useState(false);
   const { mode, setMode, colors } = useThemeMode();
   const darkMode = mode === 'dark';
+  const { signOut } = useAuth();
+  const router = useRouter();
 
   return (
     <Screen scroll>
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Settings</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+          Manage sync preferences, theme, and support options.
+        </Text>
+      </View>
+
       <Section title="Display">
         <View style={styles.row}>
           <View style={styles.rowText}>
@@ -87,11 +98,33 @@ export function SettingsScreen() {
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>
       </Section>
+
+      <TouchableOpacity
+        style={[styles.logoutButton, { borderColor: colors.border }]}
+        onPress={() => {
+          signOut();
+          router.replace('/login');
+        }}
+      >
+        <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+        <Text style={[styles.logoutText, { color: colors.danger }]}>Log Out</Text>
+      </TouchableOpacity>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  header: {
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  headerTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 24,
+  },
+  headerSubtitle: {
+    fontFamily: fonts.regular,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -120,5 +153,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  logoutButton: {
+    marginTop: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutText: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
   },
 });
