@@ -7,4 +7,26 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*'],
   },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ExportNamedDeclaration > TSTypeAliasDeclaration',
+          message: 'Reusable types must be defined under the /types directory.',
+        },
+        {
+          selector: 'ExportNamedDeclaration > TSInterfaceDeclaration',
+          message: 'Reusable types must be defined under the /types directory.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['types/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
 ]);

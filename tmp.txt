@@ -1,0 +1,306 @@
+import { useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Screen } from '@/components/Screen';
+import { FilterChip } from '@/components/FilterChip';
+import { StatusBadge } from '@/components/StatusBadge';
+import { colors, fonts, FormStatus, spacing, typography } from '@/theme';
+import { dummyForms } from '@/constants/forms';
+import { ValidationForm } from '@/types/forms';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+const filters: ('All' | FormStatus)[] = ['All', 'Draft', 'Pending Sync', 'Synced', 'Error'];
+
+export function FormListScreen() {
+  const router = useRouter();
+  const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All');
+
+  const forms = useMemo(() => {
+    if (activeFilter === 'All') {
+      return dummyForms;
+    }
+    return dummyForms.filter((form) => form.status === activeFilter);
+  }, [activeFilter]);
+
+  const handleFormPress = (form: ValidationForm) => {
+    router.push({
+      pathname: '/form-detail',
+      params: { form: JSON.stringify(form) },
+    });
+  };
+
+  const handleNewForm = () => {
+    router.push('/form-editor');
+  };
+
+  const heroStats = useMemo(() => {
+    const drafts = dummyForms.filter((form) => form.status === 'Draft').length;
+    const pending = dummyForms.filter((form) => form.status === 'Pending Sync').length;
+    const synced = dummyForms.filter((form) => form.status === 'Synced').length;
+    return [
+      { label: 'Total Forms', value: dummyForms.length.toString() },
+      { label: 'Pending Sync', value: pending.toString() },
+      { label: 'Drafts', value: drafts.toString() },
+      { label: 'Synced', value: synced.toString() },
+    ];
+  }, []);
+
+  return (
+    <Screen style={{ paddingBottom: spacing.xxl }}>
+      <View style={styles.hero}>
+        <View style={styles.heroContent}>
+          <Text style={styles.heroTitle}>FMR Validation</Text>
+          <Text style={styles.heroSubtitle}>Track submissions, sync status, and quickly launch new validations.</Text>
+          <TouchableOpacity style={styles.heroButton} onPress={handleNewForm}>
+            <Ionicons name="add-circle" size={18} color="#fff" />
+            <Text style={styles.heroButtonText}>New Validation</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.statsRow}>
+          {heroStats.map((stat, index) => (
+            <View key={stat.label} style={[styles.statCard, index > 0 && styles.statDivider]}>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={styles.statValue}>{stat.value}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.filters}>
+        {filters.map((filter) => (
+          <FilterChip
+            key={filter}
+            label={filter}
+            active={filter === activeFilter}
+            onPress={() => setActiveFilter(filter)}
+          />
+        ))}
+      </View>
+
+      <FlatList
+        style={styles.list}
+        data={forms}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={styles.card} onPress={() => handleFormPress(item)}>
+            <View style={styles.cardHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>{item.nameOfProject}</Text>
+                <View style={styles.locationRow}>
+                  <Ionicons name="pin" size={14} color={colors.textMuted} />
+                  <Text style={styles.locationText}>
+                    {item.locationBarangay}, {item.locationMunicipality}
+                  </Text>
+                </View>
+              </View>
+              <StatusBadge status={item.status} />
+            </View>
+            <View style={styles.cardMetaRow}>
+              <View style={styles.metaPill}>
+                <Text style={styles.metaPillLabel}>Barangay</Text>
+                <Text style={styles.metaPillValue}>{item.locationBarangay}</Text>
+              </View>
+              <View style={styles.metaPill}>
+                <Text style={styles.metaPillLabel}>Municipality</Text>
+                <Text style={styles.metaPillValue}>{item.locationMunicipality}</Text>
+              </View>
+            </View>
+            <View style={styles.cardFooter}>
+              <Text style={styles.metaText}>Updated {new Date(item.updatedAt).toLocaleDateString()}</Text>
+              <View style={styles.viewDetails}>
+                <Text style={styles.viewDetailsText}>Open details</Text>
+                <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+
+      <TouchableOpacity style={styles.fab} onPress={handleNewForm}>
+        <Text style={styles.fabIcon}>＋</Text>
+        <Text style={styles.fabLabel}>New Validation</Text>
+      </TouchableOpacity>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  hero: {
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    padding: spacing.xl,
+    gap: spacing.lg,
+  },
+  heroContent: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  heroTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 22,
+    color: '#fff',
+  },
+  heroSubtitle: {
+    color: '#e4ebff',
+    fontFamily: fonts.regular,
+    lineHeight: 20,
+  },
+  heroButton: {
+    marginTop: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: '#1b3e78',
+    borderRadius: 999,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  heroButtonText: {
+    color: '#fff',
+    fontFamily: fonts.semibold,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    backgroundColor: '#fff2',
+    borderRadius: 12,
+    padding: spacing.md,
+    flex: 1,
+    minWidth: 0,
+  },
+  statDivider: {
+    borderLeftWidth: 1,
+    borderLeftColor: '#ffffff33',
+  },
+  },
+  statValue: {
+    fontFamily: fonts.bold,
+    fontSize: 20,
+    color: '#fff',
+  },
+  statLabel: {
+    fontFamily: fonts.regular,
+    color: '#e4ebff',
+    marginTop: 4,
+  },
+  filters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 120,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#edf0f6',
+    shadowColor: '#2c3a57',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
+    gap: spacing.md,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontFamily: fonts.semibold,
+    flex: 1,
+    color: colors.textPrimary,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  locationText: {
+    marginTop: spacing.sm,
+    color: colors.textPrimary,
+    fontFamily: fonts.regular,
+  },
+  metaText: {
+    marginTop: spacing.xs,
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  metaPill: {
+    flex: 1,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 12,
+    padding: spacing.md,
+  },
+  metaPillLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  metaPillValue: {
+    fontFamily: fonts.semibold,
+    color: colors.textPrimary,
+    marginTop: 4,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  viewDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewDetailsText: {
+    fontFamily: fonts.semibold,
+    color: colors.primary,
+  },
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.lg,
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  fabIcon: {
+    color: '#fff',
+    fontSize: 18,
+    lineHeight: 18,
+    fontFamily: fonts.bold,
+  },
+  fabLabel: {
+    color: '#fff',
+    fontFamily: fonts.semibold,
+  },
+});
