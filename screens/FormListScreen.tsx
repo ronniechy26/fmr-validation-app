@@ -1,6 +1,7 @@
 import { FilterChip } from '@/components/FilterChip';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
+import { annexForms } from '@/constants/annexes';
 import { dummyForms } from '@/constants/forms';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, FormStatus, spacing } from '@/theme';
@@ -9,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   FlatList,
   NativeScrollEvent,
@@ -58,15 +60,15 @@ export function FormListScreen() {
     );
   }, [activeFilter, searchQuery]);
 
-  const handleFormPress = (form: ValidationForm) => {
+  const handleFormPress = (form: ValidationForm, annexTitle = 'Annex C – Validation Form') => {
     router.push({
       pathname: '/form-detail',
-      params: { form: JSON.stringify(form) },
+      params: { form: JSON.stringify(form), annex: annexTitle },
     });
   };
 
   const handleNewForm = () => {
-    router.push('/form-editor');
+    router.push('/annex-select');
   };
 
   const heroStats = useMemo<HeroStat[]>(() => {
@@ -292,9 +294,37 @@ export function FormListScreen() {
               <Text style={[styles.metaText, { color: colors.textMuted }]}>
                 Updated {new Date(item.updatedAt).toLocaleDateString()}
               </Text>
-              <View style={styles.viewDetails}>
-                <Text style={[styles.viewDetailsText, { color: colors.primary }]}>Open details</Text>
-                <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+            </View>
+            <View style={styles.formsRow}>
+              <Text style={[styles.formsLabel, { color: colors.textMuted }]}>Forms</Text>
+              <View style={styles.formsList}>
+                {annexForms.map((annex) => {
+                  const disabled = annex.status !== 'available';
+                  return (
+                    <TouchableOpacity
+                      key={annex.id}
+                      disabled={disabled}
+                      style={[
+                        styles.formButton,
+                        {
+                          backgroundColor: disabled ? colors.surfaceMuted : colors.primary,
+                          opacity: disabled ? 0.6 : 1,
+                        },
+                      ]}
+                      onPress={() => {
+                        if (disabled) {
+                          Alert.alert('Coming soon', `${annex.title} will be available soon.`);
+                          return;
+                        }
+                        handleFormPress(item, annex.title);
+                      }}
+                    >
+                      <Text style={[styles.formButtonText, { color: disabled ? colors.textPrimary : '#fff' }]}>
+                        {annex.title}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           </TouchableOpacity>
@@ -521,13 +551,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  viewDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  formsRow: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
   },
-  viewDetailsText: {
+  formsLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+  },
+  formsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  formButton: {
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  formButtonText: {
     fontFamily: fonts.semibold,
+    fontSize: 12,
   },
   fab: {
     position: 'absolute',

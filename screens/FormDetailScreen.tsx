@@ -13,7 +13,9 @@ import { useThemeColors } from '@/providers/ThemeProvider';
 export function FormDetailScreen() {
   const router = useRouter();
   const colors = useThemeColors();
-  const params = useLocalSearchParams<{ form?: string }>();
+  const params = useLocalSearchParams<{ form?: string; annex?: string }>();
+  const annexTitle =
+    typeof params.annex === 'string' && params.annex.trim().length > 0 ? params.annex : 'Annex C – Validation Form';
   const form = useMemo<ValidationForm>(() => {
     if (params.form) {
       try {
@@ -33,12 +35,13 @@ export function FormDetailScreen() {
   );
 
   return (
-    <Screen scroll>
+    <Screen scroll applyTopInset={false} style={{ paddingTop: spacing.md }}>
       <View style={styles.statusRow}>
         <StatusBadge status={form.status} />
         <Text style={[styles.metaText, { color: colors.textMuted }]}>
           Last updated {new Date(form.updatedAt).toLocaleString()}
         </Text>
+        <Text style={[styles.annexTag, { color: colors.textPrimary }]}>{annexTitle}</Text>
       </View>
 
       <Section title="Header / Basic Info">
@@ -116,6 +119,10 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontFamily: fonts.regular,
+  },
+  annexTag: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
   },
   detailRow: {
     gap: spacing.xs,

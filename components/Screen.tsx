@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
-import { ScrollView, StatusBar, StyleProp, StyleSheet, ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Platform, ScrollView, StatusBar, StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from '@/theme';
 import { useThemeMode } from '@/providers/ThemeProvider';
 
@@ -9,15 +9,21 @@ interface ScreenProps {
   scroll?: boolean;
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  applyTopInset?: boolean;
 }
 
-export function Screen({ children, scroll = false, style, contentContainerStyle }: ScreenProps) {
+export function Screen({ children, scroll = false, style, contentContainerStyle, applyTopInset = true }: ScreenProps) {
   const { colors, mode } = useThemeMode();
+  const insets = useSafeAreaInsets();
   const statusStyle = mode === 'dark' ? 'light-content' : 'dark-content';
+  const topPadding = applyTopInset ? insets.top || (Platform.OS === 'android' ? spacing.md : 0) : 0;
 
   if (scroll) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.secondary }, style]}>
+      <SafeAreaView
+        edges={['left', 'right', 'bottom']}
+        style={[styles.safeArea, { backgroundColor: colors.secondary, paddingTop: topPadding }, style]}
+      >
         <StatusBar barStyle={statusStyle} />
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -30,7 +36,15 @@ export function Screen({ children, scroll = false, style, contentContainerStyle 
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, styles.content, { backgroundColor: colors.secondary }, style]}>
+    <SafeAreaView
+      edges={['left', 'right', 'bottom']}
+      style={[
+        styles.safeArea,
+        styles.content,
+        { backgroundColor: colors.secondary, paddingTop: topPadding },
+        style,
+      ]}
+    >
       <StatusBar barStyle={statusStyle} />
       {children}
     </SafeAreaView>

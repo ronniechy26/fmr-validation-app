@@ -1,10 +1,20 @@
-import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '@/theme';
 import { useThemeMode } from '@/providers/ThemeProvider';
+import { useAuth } from '@/providers/AuthProvider';
 
 export default function TabsLayout() {
   const { colors } = useThemeMode();
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      router.replace('/login');
+    }
+  }, [isSignedIn, router]);
 
   return (
     <Tabs

@@ -11,7 +11,7 @@ import {
 } from '@expo-google-fonts/nunito';
 import { fonts } from '@/theme';
 import { ThemeProvider, useThemeMode } from '@/providers/ThemeProvider';
-import { AuthProvider, useAuth } from '@/providers/AuthProvider';
+import { AuthProvider } from '@/providers/AuthProvider';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -41,7 +41,6 @@ export default function RootLayout() {
 }
 
 function RootStack() {
-  const { isSignedIn } = useAuth();
   const { colors } = useThemeMode();
 
   return (
@@ -50,37 +49,49 @@ function RootStack() {
         headerShown: false,
       }}
     >
-      {!isSignedIn ? (
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-      ) : (
-        <>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="form-editor"
-            options={{
-              title: 'Form Editor',
-              headerShown: true,
-              headerTintColor: '#fff',
-              headerStyle: { backgroundColor: colors.primary },
-              headerTitleAlign: 'center',
-              headerTitleStyle: { fontFamily: fonts.semibold },
-              headerBackTitleStyle: { fontFamily: fonts.regular },
-            }}
-          />
-          <Stack.Screen
-            name="form-detail"
-            options={{
-              title: 'Form Details',
-              headerShown: true,
-              headerTintColor: '#fff',
-              headerStyle: { backgroundColor: colors.primary },
-              headerTitleAlign: 'center',
-              headerTitleStyle: { fontFamily: fonts.semibold },
-              headerBackTitleStyle: { fontFamily: fonts.regular },
-            }}
-          />
-        </>
-      )}
+      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="annex-select"
+        options={{
+          title: 'Choose a Form',
+          headerShown: true,
+          headerTintColor: '#fff',
+          headerStyle: { backgroundColor: colors.primary },
+          headerTitleAlign: 'center',
+          headerTitleStyle: { fontFamily: fonts.semibold },
+          headerBackTitleStyle: { fontFamily: fonts.regular },
+          headerBackTitle: 'Back',
+        }}
+      />
+      <Stack.Screen
+        name="form-editor"
+        options={{
+          title: 'Form Editor',
+          headerShown: true,
+          headerTintColor: '#fff',
+          headerStyle: { backgroundColor: colors.primary },
+          headerTitleAlign: 'center',
+          headerTitleStyle: { fontFamily: fonts.semibold },
+          headerBackTitleStyle: { fontFamily: fonts.regular },
+          headerBackTitleVisible: false,
+          headerBackTitle: 'Back',
+        }}
+      />
+      <Stack.Screen
+        name="form-detail"
+        options={{
+          title: 'Form Details',
+          headerShown: true,
+          headerTintColor: '#fff',
+          headerStyle: { backgroundColor: colors.primary },
+          headerTitleAlign: 'center',
+          headerTitleStyle: { fontFamily: fonts.semibold },
+          headerBackTitleStyle: { fontFamily: fonts.regular },
+          headerBackTitleVisible: false,
+          headerBackTitle: 'Back',
+        }}
+      />
     </Stack>
   );
 }

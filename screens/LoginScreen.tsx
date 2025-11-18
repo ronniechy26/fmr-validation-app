@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useThemeMode } from '@/providers/ThemeProvider';
@@ -9,10 +9,16 @@ import { Ionicons } from '@expo/vector-icons';
 
 export function LoginScreen() {
   const { colors } = useThemeMode();
-  const { signIn } = useAuth();
+  const { signIn, isSignedIn } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if (isSignedIn) {
+      router.replace('/');
+    }
+  }, [isSignedIn, router]);
 
   const handleSubmit = () => {
     signIn();
