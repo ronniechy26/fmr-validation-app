@@ -1,7 +1,8 @@
 import { ReactNode } from 'react';
 import { ScrollView, StatusBar, StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing } from '@/theme';
+import { spacing } from '@/theme';
+import { useThemeMode } from '@/providers/ThemeProvider';
 
 interface ScreenProps {
   children: ReactNode;
@@ -11,10 +12,13 @@ interface ScreenProps {
 }
 
 export function Screen({ children, scroll = false, style, contentContainerStyle }: ScreenProps) {
+  const { colors, mode } = useThemeMode();
+  const statusStyle = mode === 'dark' ? 'light-content' : 'dark-content';
+
   if (scroll) {
     return (
-      <SafeAreaView style={[styles.safeArea, style]}>
-        <StatusBar barStyle="dark-content" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.secondary }, style]}>
+        <StatusBar barStyle={statusStyle} />
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.content, contentContainerStyle]}
@@ -26,8 +30,8 @@ export function Screen({ children, scroll = false, style, contentContainerStyle 
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, styles.content, style]}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={[styles.safeArea, styles.content, { backgroundColor: colors.secondary }, style]}>
+      <StatusBar barStyle={statusStyle} />
       {children}
     </SafeAreaView>
   );
@@ -36,7 +40,6 @@ export function Screen({ children, scroll = false, style, contentContainerStyle 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.secondary,
   },
   content: {
     paddingHorizontal: spacing.lg,

@@ -3,14 +3,16 @@ import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { SectionDivider } from '@/components/SectionDivider';
 import { StatusBadge } from '@/components/StatusBadge';
-import { colors, fonts, spacing, typography } from '@/theme';
+import { fonts, spacing, typography } from '@/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ValidationForm } from '@/types/forms';
 import { dummyForms } from '@/constants/forms';
+import { useThemeColors } from '@/providers/ThemeProvider';
 
 export function FormDetailScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const params = useLocalSearchParams<{ form?: string }>();
   const form = useMemo<ValidationForm>(() => {
     if (params.form) {
@@ -25,8 +27,8 @@ export function FormDetailScreen() {
 
   const detailRow = (label: string, value?: string) => (
     <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value || '—'}</Text>
+      <Text style={[styles.detailLabel, { color: colors.textMuted }]}>{label}</Text>
+      <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{value || '—'}</Text>
     </View>
   );
 
@@ -34,7 +36,9 @@ export function FormDetailScreen() {
     <Screen scroll>
       <View style={styles.statusRow}>
         <StatusBadge status={form.status} />
-        <Text style={styles.metaText}>Last updated {new Date(form.updatedAt).toLocaleString()}</Text>
+        <Text style={[styles.metaText, { color: colors.textMuted }]}>
+          Last updated {new Date(form.updatedAt).toLocaleString()}
+        </Text>
       </View>
 
       <Section title="Header / Basic Info">
@@ -92,7 +96,7 @@ export function FormDetailScreen() {
       </Section>
 
       <TouchableOpacity
-        style={styles.editButton}
+        style={[styles.editButton, { backgroundColor: colors.primary }]}
         onPress={() =>
           router.push({
             pathname: '/form-editor',
@@ -111,7 +115,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   metaText: {
-    color: colors.textMuted,
     fontFamily: fonts.regular,
   },
   detailRow: {
@@ -119,15 +122,12 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     ...typography.label,
-    color: colors.textMuted,
   },
   detailValue: {
     fontSize: 15,
     fontFamily: fonts.regular,
-    color: colors.textPrimary,
   },
   editButton: {
-    backgroundColor: colors.primary,
     borderRadius: 999,
     paddingVertical: spacing.md,
     alignItems: 'center',

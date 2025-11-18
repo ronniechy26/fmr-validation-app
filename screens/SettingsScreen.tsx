@@ -2,27 +2,50 @@ import { useState } from 'react';
 import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
-import { colors, fonts, spacing } from '@/theme';
+import { fonts, spacing } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeMode } from '@/providers/ThemeProvider';
 
 export function SettingsScreen() {
   const [autoSync, setAutoSync] = useState(true);
   const [offlineMode, setOfflineMode] = useState(false);
+  const { mode, setMode, colors } = useThemeMode();
+  const darkMode = mode === 'dark';
 
   return (
     <Screen scroll>
+      <Section title="Display">
+        <View style={styles.row}>
+          <View style={styles.rowText}>
+            <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>Dark mode</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+              Toggle between light and dark themes
+            </Text>
+          </View>
+          <Switch
+            value={darkMode}
+            onValueChange={(value) => setMode(value ? 'dark' : 'light')}
+            trackColor={{ true: '#b3c6ec', false: '#d8dce8' }}
+          />
+        </View>
+      </Section>
+
       <Section title="Sync Preferences">
         <View style={styles.row}>
           <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Auto-sync drafts</Text>
-            <Text style={styles.rowSubtitle}>Upload pending validations when online</Text>
+            <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>Auto-sync drafts</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+              Upload pending validations when online
+            </Text>
           </View>
           <Switch value={autoSync} onValueChange={setAutoSync} trackColor={{ true: '#b3c6ec', false: '#d8dce8' }} />
         </View>
         <View style={styles.row}>
           <View style={styles.rowText}>
-            <Text style={styles.rowTitle}>Offline mode</Text>
-            <Text style={styles.rowSubtitle}>Cache barangay data for field visits</Text>
+            <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>Offline mode</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+              Cache barangay data for field visits
+            </Text>
           </View>
           <Switch value={offlineMode} onValueChange={setOfflineMode} trackColor={{ true: '#b3c6ec', false: '#d8dce8' }} />
         </View>
@@ -30,32 +53,36 @@ export function SettingsScreen() {
 
       <Section title="Account & Support">
         <TouchableOpacity style={styles.linkRow}>
-          <View style={styles.linkIcon}>
+          <View style={[styles.linkIcon, { backgroundColor: colors.surfaceMuted }]}>
             <Ionicons name="person-circle" size={18} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Profile</Text>
-            <Text style={styles.rowSubtitle}>Engr. Mark Paul C. Baldeo</Text>
+            <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>Profile</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>Engr. Mark Paul C. Baldeo</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.linkRow}>
-          <View style={styles.linkIcon}>
+          <View style={[styles.linkIcon, { backgroundColor: colors.surfaceMuted }]}>
             <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Data privacy</Text>
-            <Text style={styles.rowSubtitle}>Understand how data is stored on device</Text>
+            <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>Data privacy</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+              Understand how data is stored on device
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.linkRow}>
-          <View style={styles.linkIcon}>
+          <View style={[styles.linkIcon, { backgroundColor: colors.surfaceMuted }]}>
             <Ionicons name="help-circle" size={18} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Request assistance</Text>
-            <Text style={styles.rowSubtitle}>Chat with FMR validation support team</Text>
+            <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>Request assistance</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+              Chat with FMR validation support team
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>
@@ -76,11 +103,9 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     fontFamily: fonts.semibold,
-    color: colors.textPrimary,
   },
   rowSubtitle: {
     fontFamily: fonts.regular,
-    color: colors.textMuted,
     marginTop: 2,
   },
   linkRow: {
@@ -93,7 +118,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: colors.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },

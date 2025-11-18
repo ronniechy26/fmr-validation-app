@@ -1,6 +1,8 @@
 export type FormStatus = 'Draft' | 'Pending Sync' | 'Synced' | 'Error';
 
-export const colors = {
+export type ThemeMode = 'light' | 'dark';
+
+const lightColors = {
   primary: '#1f4b8f',
   secondary: '#f5f7fb',
   success: '#37b26c',
@@ -12,7 +14,28 @@ export const colors = {
   background: '#ffffff',
   surface: '#ffffff',
   surfaceMuted: '#eef2fb',
-} as const;
+};
+
+const darkColors = {
+  primary: '#82a6ff',
+  secondary: '#0f172a',
+  success: '#4ade80',
+  warning: '#facc15',
+  danger: '#fb7185',
+  textPrimary: '#f1f5f9',
+  textMuted: '#94a3b8',
+  border: '#1f2937',
+  background: '#0b1220',
+  surface: '#111a2d',
+  surfaceMuted: '#1e2a43',
+};
+
+export const colorPalettes = {
+  light: lightColors,
+  dark: darkColors,
+};
+
+export type ThemeColors = typeof lightColors;
 
 export const spacing = {
   xs: 4,
@@ -40,37 +63,30 @@ export const typography = {
   heading: {
     fontFamily: fonts.bold,
     fontSize: 20,
-    color: colors.textPrimary,
   },
   subheading: {
     fontFamily: fonts.medium,
     fontSize: 14,
-    color: colors.textMuted,
   },
   sectionTitle: {
     fontFamily: fonts.semibold,
     fontSize: 16,
-    color: colors.textPrimary,
   },
   label: {
     fontFamily: fonts.medium,
     fontSize: 13,
-    color: colors.textMuted,
   },
   helper: {
     fontFamily: fonts.regular,
     fontSize: 12,
-    color: colors.textMuted,
   },
   body: {
     fontFamily: fonts.regular,
     fontSize: 15,
-    color: colors.textPrimary,
   },
 };
 
 export const theme = {
-  colors,
   spacing,
   radii,
   fonts,

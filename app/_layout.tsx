@@ -9,7 +9,8 @@ import {
   Nunito_600SemiBold,
   Nunito_700Bold,
 } from '@expo-google-fonts/nunito';
-import { colors, fonts } from '@/theme';
+import { fonts } from '@/theme';
+import { ThemeProvider, useThemeMode } from '@/providers/ThemeProvider';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -22,27 +23,37 @@ export default function RootLayout() {
   if (!fontsLoaded) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color="#1f4b8f" />
       </View>
     );
   }
 
   return (
     <SafeAreaProvider>
-      <Stack
-        screenOptions={{
-          headerTintColor: '#fff',
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleAlign: 'center',
-          headerTitleStyle: { fontFamily: fonts.semibold },
-          headerBackTitleStyle: { fontFamily: fonts.regular },
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="form-editor" options={{ title: 'Form Editor' }} />
-        <Stack.Screen name="form-detail" options={{ title: 'Form Details' }} />
-      </Stack>
+      <ThemeProvider>
+        <RootStack />
+      </ThemeProvider>
     </SafeAreaProvider>
+  );
+}
+
+function RootStack() {
+  const { colors } = useThemeMode();
+
+  return (
+    <Stack
+      screenOptions={{
+        headerTintColor: '#fff',
+        headerStyle: { backgroundColor: colors.primary },
+        headerTitleAlign: 'center',
+        headerTitleStyle: { fontFamily: fonts.semibold },
+        headerBackTitleStyle: { fontFamily: fonts.regular },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="form-editor" options={{ title: 'Form Editor' }} />
+      <Stack.Screen name="form-detail" options={{ title: 'Form Details' }} />
+    </Stack>
   );
 }
 

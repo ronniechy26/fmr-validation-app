@@ -1,21 +1,28 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, FormStatus, spacing } from '@/theme';
+import { fonts, FormStatus, spacing } from '@/theme';
+import { useThemeColors } from '@/providers/ThemeProvider';
 
 interface StatusBadgeProps {
   status: FormStatus;
 }
 
-const statusColors: Record<FormStatus, string> = {
-  Draft: colors.textMuted,
-  'Pending Sync': colors.warning,
-  Synced: colors.success,
-  Error: colors.danger,
-};
-
 export function StatusBadge({ status }: StatusBadgeProps) {
+  const colors = useThemeColors();
+  const palette: Record<FormStatus, string> = {
+    Draft: colors.textMuted,
+    'Pending Sync': colors.warning,
+    Synced: colors.success,
+    Error: colors.danger,
+  };
+
   return (
-    <View style={[styles.container, { backgroundColor: `${statusColors[status]}20`, borderColor: statusColors[status] }]}>
-      <Text style={[styles.text, { color: statusColors[status] }]}>{status}</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: `${palette[status]}20`, borderColor: palette[status] },
+      ]}
+    >
+      <Text style={[styles.text, { color: palette[status] }]}>{status}</Text>
     </View>
   );
 }

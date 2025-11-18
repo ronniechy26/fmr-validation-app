@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { colors, radii, spacing, typography } from '@/theme';
+import { radii, spacing, typography } from '@/theme';
+import { useThemeMode } from '@/providers/ThemeProvider';
 
 interface SectionProps {
   title?: string;
@@ -9,9 +10,21 @@ interface SectionProps {
 }
 
 export function Section({ title, children, style }: SectionProps) {
+  const { colors, mode } = useThemeMode();
+
   return (
-    <View style={[styles.container, style]}>
-      {title ? <Text style={styles.title}>{title}</Text> : null}
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          shadowColor: mode === 'dark' ? '#000' : '#3b4252',
+        } as ViewStyle,
+        style,
+      ]}
+    >
+      {title ? <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text> : null}
       <View style={styles.body}>{children}</View>
     </View>
   );
@@ -19,12 +32,9 @@ export function Section({ title, children, style }: SectionProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.lg,
-    borderColor: colors.border,
     borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#3b4252',
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 8 },

@@ -1,16 +1,18 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, typography } from '@/theme';
+import { spacing, typography } from '@/theme';
+import { useThemeColors } from '@/providers/ThemeProvider';
 
 interface SectionDividerProps {
   label: string;
 }
 
 export function SectionDivider({ label }: SectionDividerProps) {
+  const colors = useThemeColors();
   return (
     <View style={styles.container}>
-      <View style={styles.line} />
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.line} />
+      <View style={[styles.line, { backgroundColor: colors.border }]} />
+      <Text style={[styles.label, { color: colors.textPrimary }]}>{label}</Text>
+      <View style={[styles.line, { backgroundColor: colors.border }]} />
     </View>
   );
 }
@@ -24,10 +26,8 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
   },
   label: {
     ...typography.label,
-    color: colors.textPrimary,
   },
 });

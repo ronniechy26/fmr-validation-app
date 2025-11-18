@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, FlatList, NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Dimensions,
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Screen } from '@/components/Screen';
 import { FilterChip } from '@/components/FilterChip';
 import { StatusBadge } from '@/components/StatusBadge';
-import { colors, fonts, FormStatus, spacing, typography } from '@/theme';
+import { fonts, FormStatus, spacing, typography } from '@/theme';
 import { dummyForms } from '@/constants/forms';
 import { ValidationForm } from '@/types/forms';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeMode } from '@/providers/ThemeProvider';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -29,6 +40,7 @@ export function FormListScreen() {
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All');
   const [statIndex, setStatIndex] = useState(0);
   const statsRef = useRef<ScrollView>(null);
+  const { colors, mode } = useThemeMode();
 
   const forms = useMemo(() => {
     if (activeFilter === 'All') {
@@ -96,7 +108,9 @@ export function FormListScreen() {
     ];
   }, []);
 
-  const heroCardWidth = Math.min(Dimensions.get('window').width - spacing.xl * 2, 320);
+  const screenWidth = Dimensions.get('window').width;
+  const heroCardWidth = Math.max(screenWidth - spacing.lg * 2, 240);
+  const heroSnapInterval = heroCardWidth + spacing.sm;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -106,13 +120,13 @@ export function FormListScreen() {
   }, [heroStats.length]);
 
   useEffect(() => {
-    const offset = statIndex * (heroCardWidth + spacing.md);
+    const offset = statIndex * heroSnapInterval;
     statsRef.current?.scrollTo({ x: offset, animated: true });
-  }, [heroCardWidth, statIndex]);
+  }, [heroSnapInterval, statIndex]);
 
   const handleStatMomentum = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset } = event.nativeEvent;
-    const nextIndex = Math.round(contentOffset.x / (heroCardWidth + spacing.md));
+    const nextIndex = Math.round(contentOffset.x / heroSnapInterval);
     if (nextIndex !== statIndex) {
       setStatIndex(nextIndex);
     }
@@ -120,12 +134,27 @@ export function FormListScreen() {
 
   return (
     <Screen style={{ paddingBottom: spacing.xxl }}>
-      <View style={styles.hero}>
+      <View style={styles.topBanner}>
+        <View style={styles.heroBrand}>
+          <View style={[styles.heroLogo, { backgroundColor: colors.secondary }]}>
+            <Ionicons name="leaf" size={16} color={colors.primary} />
+          </View>
+          <View>
+            <Text style={[styles.appTitle, { color: colors.textPrimary }]}>FMR Validation</Text>
+            <Text style={[styles.appSubtitle, { color: colors.textMuted }]}>Field Monitoring & Reporting</Text>
+          </View>
+        </View>
+        <View style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.secondary }]}>
+          <Text style={styles.avatarText}>MP</Text>
+        </View>
+      </View>
+
+      <View style={[styles.hero, { backgroundColor: colors.primary }]}>
         <View style={styles.heroContent}>
-          <Text style={styles.heroTitle}>FMR Validation</Text>
-          <Text style={styles.heroSubtitle}>Track submissions, sync status, and quickly launch new validations.</Text>
+          <Text style={styles.heroTitle}>Plan, validate, and sync FMR inspections.</Text>
+          <Text style={styles.heroSubtitle}>Stay informed about drafts, pending syncs, and synced records in one glance.</Text>
           <TouchableOpacity style={styles.heroButton} onPress={handleNewForm}>
-            <Ionicons name="add-circle" size={18} color="#fff" />
+            <Ionicons name="add-circle" size={16} color="#fff" />
             <Text style={styles.heroButtonText}>New Validation</Text>
           </TouchableOpacity>
         </View>
@@ -136,8 +165,8 @@ export function FormListScreen() {
           showsHorizontalScrollIndicator={false}
           decelerationRate="fast"
           snapToAlignment="start"
-          snapToInterval={heroCardWidth + spacing.md}
-          contentContainerStyle={styles.statsRow}
+          snapToInterval={heroSnapInterval}
+          contentContainerStyle={[styles.statsRow, { paddingRight: 0 }]}
           onMomentumScrollEnd={handleStatMomentum}
         >
           {heroStats.map((stat) => (
@@ -197,13 +226,23 @@ export function FormListScreen() {
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.card} onPress={() => handleFormPress(item)}>
+          <TouchableOpacity
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
+              },
+            ]}
+            onPress={() => handleFormPress(item)}
+          >
             <View style={styles.cardHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.nameOfProject}</Text>
+                <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{item.nameOfProject}</Text>
                 <View style={styles.locationRow}>
                   <Ionicons name="pin" size={14} color={colors.textMuted} />
-                  <Text style={styles.locationText}>
+                  <Text style={[styles.locationText, { color: colors.textMuted }]}>
                     {item.locationBarangay}, {item.locationMunicipality}
                   </Text>
                 </View>
@@ -211,19 +250,21 @@ export function FormListScreen() {
               <StatusBadge status={item.status} />
             </View>
             <View style={styles.cardMetaRow}>
-              <View style={styles.metaPill}>
-                <Text style={styles.metaPillLabel}>Barangay</Text>
-                <Text style={styles.metaPillValue}>{item.locationBarangay}</Text>
+              <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
+                <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
+                <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationBarangay}</Text>
               </View>
-              <View style={styles.metaPill}>
-                <Text style={styles.metaPillLabel}>Municipality</Text>
-                <Text style={styles.metaPillValue}>{item.locationMunicipality}</Text>
+              <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
+                <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
+                <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationMunicipality}</Text>
               </View>
             </View>
             <View style={styles.cardFooter}>
-              <Text style={styles.metaText}>Updated {new Date(item.updatedAt).toLocaleDateString()}</Text>
+              <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                Updated {new Date(item.updatedAt).toLocaleDateString()}
+              </Text>
               <View style={styles.viewDetails}>
-                <Text style={styles.viewDetailsText}>Open details</Text>
+                <Text style={[styles.viewDetailsText, { color: colors.primary }]}>Open details</Text>
                 <Ionicons name="arrow-forward" size={14} color={colors.primary} />
               </View>
             </View>
@@ -231,7 +272,7 @@ export function FormListScreen() {
         )}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={handleNewForm}>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={handleNewForm}>
         <Text style={styles.fabIcon}>＋</Text>
         <Text style={styles.fabLabel}>New Validation</Text>
       </TouchableOpacity>
@@ -240,81 +281,117 @@ export function FormListScreen() {
 }
 
 const styles = StyleSheet.create({
+  topBanner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  heroBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  heroLogo: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#e0e7ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  appTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 17,
+  },
+  appSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  avatarText: {
+    fontFamily: fonts.semibold,
+    color: '#fff',
+  },
   hero: {
-    backgroundColor: colors.primary,
     borderRadius: 18,
-    padding: spacing.xl,
-    gap: spacing.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   heroContent: {
     flex: 1,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   heroTitle: {
     fontFamily: fonts.bold,
-    fontSize: 22,
+    fontSize: 20,
     color: '#fff',
   },
   heroSubtitle: {
     color: '#e4ebff',
     fontFamily: fonts.regular,
-    lineHeight: 20,
+    lineHeight: 18,
+    fontSize: 13,
   },
   heroButton: {
     marginTop: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: '#1b3e78',
-    borderRadius: 999,
-    paddingHorizontal: spacing.lg,
+    borderRadius: 14,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   heroButtonText: {
     color: '#fff',
     fontFamily: fonts.semibold,
+    fontSize: 13,
   },
   statsRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    paddingRight: spacing.md,
+    gap: spacing.sm,
   },
   statCard: {
-    borderRadius: 18,
-    padding: spacing.lg,
-    minHeight: 150,
+    borderRadius: 14,
+    padding: spacing.md,
+    minHeight: 120,
     borderWidth: 1,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   statHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    backgroundColor: '#ffffff33',
+    width: 28,
+    height: 28,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statValue: {
     fontFamily: fonts.bold,
-    fontSize: 28,
-    color: colors.textPrimary,
+    fontSize: 22,
   },
   statLabel: {
-    fontFamily: fonts.regular,
-    color: colors.textPrimary,
+    fontFamily: fonts.medium,
+    fontSize: 13,
   },
   statFooter: {
-    gap: spacing.xs,
+    gap: 6,
   },
   statSubLabel: {
     fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.textMuted,
+    fontSize: 11,
   },
   progressTrack: {
     height: 4,
@@ -337,12 +414,9 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#edf0f6',
-    shadowColor: '#2c3a57',
     shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 8 },
@@ -359,7 +433,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fonts.semibold,
     flex: 1,
-    color: colors.textPrimary,
   },
   locationRow: {
     flexDirection: 'row',
@@ -369,12 +442,10 @@ const styles = StyleSheet.create({
   },
   locationText: {
     marginTop: spacing.sm,
-    color: colors.textPrimary,
     fontFamily: fonts.regular,
   },
   metaText: {
     marginTop: spacing.xs,
-    color: colors.textMuted,
     fontFamily: fonts.regular,
   },
   cardMetaRow: {
@@ -383,18 +454,15 @@ const styles = StyleSheet.create({
   },
   metaPill: {
     flex: 1,
-    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     padding: spacing.md,
   },
   metaPillLabel: {
     fontFamily: fonts.medium,
     fontSize: 12,
-    color: colors.textMuted,
   },
   metaPillValue: {
     fontFamily: fonts.semibold,
-    color: colors.textPrimary,
     marginTop: 4,
   },
   cardFooter: {
@@ -409,13 +477,11 @@ const styles = StyleSheet.create({
   },
   viewDetailsText: {
     fontFamily: fonts.semibold,
-    color: colors.primary,
   },
   fab: {
     position: 'absolute',
     right: spacing.lg,
     bottom: spacing.lg,
-    backgroundColor: colors.primary,
     borderRadius: 999,
     flexDirection: 'row',
     alignItems: 'center',

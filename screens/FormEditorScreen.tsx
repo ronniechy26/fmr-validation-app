@@ -6,8 +6,9 @@ import { LabeledInput } from '@/components/LabeledInput';
 import { LabeledTextArea } from '@/components/LabeledTextArea';
 import { SectionDivider } from '@/components/SectionDivider';
 import { ValidationForm } from '@/types/forms';
-import { colors, fonts, spacing, typography } from '@/theme';
+import { fonts, spacing, typography } from '@/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useThemeMode } from '@/providers/ThemeProvider';
 
 const roadRemarksSample =
   'The road length is situated in flat to undulating terrain.\nThe road length is not passable to all types of vehicle.\nThe proposed road length connects to the existing concrete road.';
@@ -50,6 +51,7 @@ const blankForm: ValidationForm = {
 
 export function FormEditorScreen() {
   const router = useRouter();
+  const { colors } = useThemeMode();
   const params = useLocalSearchParams<{ form?: string }>();
   const existingForm = useMemo(() => {
     if (!params.form) return undefined;
@@ -110,9 +112,9 @@ export function FormEditorScreen() {
           value={form.nameOfProject}
           onChangeText={(text) => handleChange('nameOfProject', text)}
         />
-        <View style={styles.readonlyRow}>
-          <Text style={typography.label}>Type of Project</Text>
-          <Text style={styles.readonlyValue}>{form.typeOfProject}</Text>
+        <View style={[styles.readonlyRow, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+          <Text style={[typography.label, { color: colors.textMuted }]}>Type of Project</Text>
+          <Text style={[styles.readonlyValue, { color: colors.textPrimary }]}>{form.typeOfProject}</Text>
         </View>
         <LabeledInput
           label="Proponent"
@@ -275,12 +277,15 @@ export function FormEditorScreen() {
 
       <View style={styles.actions}>
         <TouchableOpacity
-          style={[styles.button, styles.secondaryButton]}
+          style={[styles.button, styles.secondaryButton, { borderColor: colors.primary }]}
           onPress={() => handleAlert('Saved Draft')}
         >
           <Text style={[styles.buttonText, { color: colors.primary }]}>Save Draft (UI only)</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={() => handleAlert('Submitted')}>
+        <TouchableOpacity
+          style={[styles.button, styles.primaryButton, { backgroundColor: colors.primary }]}
+          onPress={() => handleAlert('Submitted')}
+        >
           <Text style={[styles.buttonText, { color: '#fff' }]}>Submit for Sync (UI only)</Text>
         </TouchableOpacity>
       </View>
@@ -290,17 +295,14 @@ export function FormEditorScreen() {
 
 const styles = StyleSheet.create({
   readonlyRow: {
-    backgroundColor: colors.secondary,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.md,
     gap: spacing.xs,
   },
   readonlyValue: {
     fontSize: 16,
     fontFamily: fonts.semibold,
-    color: colors.textPrimary,
   },
   actions: {
     flexDirection: 'row',
@@ -315,10 +317,8 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: colors.primary,
   },
   primaryButton: {
-    backgroundColor: colors.primary,
   },
   buttonText: {
     fontFamily: fonts.semibold,

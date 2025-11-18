@@ -4,14 +4,16 @@ import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
 import { FilterChip } from '@/components/FilterChip';
 import { StatusBadge } from '@/components/StatusBadge';
-import { colors, fonts, spacing } from '@/theme';
+import { fonts, spacing } from '@/theme';
 import { dummyForms } from '@/constants/forms';
 import { Ionicons } from '@expo/vector-icons';
+import { useThemeMode } from '@/providers/ThemeProvider';
 
 const filterOptions = ['All', 'North', 'Central', 'South'] as const;
 
 export function LocatorScreen() {
   const [selectedZone, setSelectedZone] = useState<(typeof filterOptions)[number]>('All');
+  const { colors, mode } = useThemeMode();
 
   const highlightedForms = useMemo(() => {
     if (selectedZone === 'All') return dummyForms;
@@ -20,18 +22,29 @@ export function LocatorScreen() {
 
   return (
     <Screen scroll>
-      <View style={styles.mapCard}>
+      <View
+        style={[
+          styles.mapCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
+          },
+        ]}
+      >
         <View style={styles.mapHeader}>
-          <Text style={styles.mapLabel}>FMR Locator</Text>
-          <Text style={styles.mapSubtitle}>Check barangays needing validation and sync progress.</Text>
+          <Text style={[styles.mapLabel, { color: colors.textPrimary }]}>FMR Locator</Text>
+          <Text style={[styles.mapSubtitle, { color: colors.textMuted }]}>
+            Check barangays needing validation and sync progress.
+          </Text>
         </View>
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map" size={42} color="#d6def1" />
-          <Text style={styles.mapPlaceholderText}>Interactive map coming soon</Text>
+        <View style={[styles.mapPlaceholder, { backgroundColor: colors.surfaceMuted }]}>
+          <Ionicons name="map" size={42} color={colors.textMuted} />
+          <Text style={[styles.mapPlaceholderText, { color: colors.textMuted }]}>Interactive map coming soon</Text>
         </View>
-        <TouchableOpacity style={styles.mapButton}>
+        <TouchableOpacity style={[styles.mapButton, { backgroundColor: colors.secondary }]}>
           <Ionicons name="compass" size={16} color={colors.primary} />
-          <Text style={styles.mapButtonText}>Center on current location</Text>
+          <Text style={[styles.mapButtonText, { color: colors.primary }]}>Center on current location</Text>
         </TouchableOpacity>
       </View>
 
@@ -47,20 +60,24 @@ export function LocatorScreen() {
           ))}
         </View>
         <View style={styles.filterRow}>
-          <View style={styles.filterIndicator} />
-          <Text style={styles.filterText}>Showing barangays within 15km radius</Text>
+          <View style={[styles.filterIndicator, { backgroundColor: colors.primary }]} />
+          <Text style={[styles.filterText, { color: colors.textMuted }]}>
+            Showing barangays within 15km radius
+          </Text>
         </View>
       </Section>
 
       <Section title="Nearby Projects">
         {highlightedForms.map((form) => (
-          <View key={form.id} style={styles.nearbyCard}>
+          <View key={form.id} style={[styles.nearbyCard, { borderColor: colors.border }]}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.nearbyTitle}>{form.nameOfProject}</Text>
-              <Text style={styles.nearbySubtitle}>
+              <Text style={[styles.nearbyTitle, { color: colors.textPrimary }]}>{form.nameOfProject}</Text>
+              <Text style={[styles.nearbySubtitle, { color: colors.textPrimary }]}>
                 {form.locationBarangay}, {form.locationMunicipality}
               </Text>
-              <Text style={styles.nearbyMeta}>Last updated {new Date(form.updatedAt).toLocaleDateString()}</Text>
+              <Text style={[styles.nearbyMeta, { color: colors.textMuted }]}>
+                Last updated {new Date(form.updatedAt).toLocaleDateString()}
+              </Text>
             </View>
             <StatusBadge status={form.status} />
           </View>
@@ -72,16 +89,13 @@ export function LocatorScreen() {
 
 const styles = StyleSheet.create({
   mapCard: {
-    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: spacing.xl,
     gap: spacing.md,
-    shadowColor: '#2c3a57',
     shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 10 },
     borderWidth: 1,
-    borderColor: '#e6eaf3',
   },
   mapHeader: {
     gap: spacing.xs,
@@ -89,15 +103,12 @@ const styles = StyleSheet.create({
   mapLabel: {
     fontFamily: fonts.semibold,
     fontSize: 20,
-    color: colors.textPrimary,
   },
   mapSubtitle: {
     fontFamily: fonts.regular,
-    color: colors.textMuted,
     lineHeight: 20,
   },
   mapPlaceholder: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     paddingVertical: spacing.xxl,
     alignItems: 'center',
@@ -105,13 +116,11 @@ const styles = StyleSheet.create({
   },
   mapPlaceholderText: {
     fontFamily: fonts.medium,
-    color: colors.textMuted,
   },
   mapButton: {
     flexDirection: 'row',
     gap: spacing.xs,
     alignItems: 'center',
-    backgroundColor: '#e0e8fb',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: 999,
@@ -119,7 +128,6 @@ const styles = StyleSheet.create({
   },
   mapButtonText: {
     fontFamily: fonts.semibold,
-    color: colors.primary,
   },
   filterWrap: {
     flexDirection: 'row',
@@ -135,15 +143,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 999,
-    backgroundColor: colors.primary,
   },
   filterText: {
     fontFamily: fonts.regular,
-    color: colors.textMuted,
   },
   nearbyCard: {
     borderWidth: 1,
-    borderColor: '#e3e7ef',
     borderRadius: 16,
     padding: spacing.lg,
     flexDirection: 'row',
@@ -153,16 +158,13 @@ const styles = StyleSheet.create({
   nearbyTitle: {
     fontFamily: fonts.semibold,
     fontSize: 16,
-    color: colors.textPrimary,
   },
   nearbySubtitle: {
     fontFamily: fonts.regular,
-    color: colors.textPrimary,
     marginTop: 4,
   },
   nearbyMeta: {
     fontFamily: fonts.regular,
-    color: colors.textMuted,
     marginTop: 2,
   },
 });
