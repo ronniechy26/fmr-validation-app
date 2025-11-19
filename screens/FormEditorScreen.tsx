@@ -6,9 +6,10 @@ import { LabeledInput } from '@/components/LabeledInput';
 import { LabeledTextArea } from '@/components/LabeledTextArea';
 import { SectionDivider } from '@/components/SectionDivider';
 import { ValidationForm } from '@/types/forms';
-import { fonts, spacing, typography } from '@/theme';
+import { fonts, FormStatus, spacing, typography } from '@/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useThemeMode } from '@/providers/ThemeProvider';
+import { useOfflineData } from '@/providers/OfflineDataProvider';
 
 const roadRemarksSample =
   'The road length is situated in flat to undulating terrain.\nThe road length is not passable to all types of vehicle.\nThe proposed road length connects to the existing concrete road.';
@@ -52,6 +53,7 @@ const blankForm: ValidationForm = {
 export function FormEditorScreen() {
   const router = useRouter();
   const { colors } = useThemeMode();
+  const { saveDraft } = useOfflineData();
   const params = useLocalSearchParams<{ form?: string }>();
   const annexName =
     typeof params.annex === 'string' && params.annex.trim().length > 0 ? params.annex : 'Annex C – Validation Form';
@@ -87,14 +89,23 @@ export function FormEditorScreen() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const handleAlert = (label: string) => {
-    Alert.alert(label, 'Feature not connected yet.', [
-      {
-        text: 'OK',
-        onPress: () => router.back(),
-      },
-    ]);
-  };
+  const handlePersist = useCallback(
+    async (status: FormStatus, label: string) => {
+      const payload: ValidationForm = {
+        ...form,
+        status,
+        updatedAt: new Date().toISOString(),
+      };
+      await saveDraft(payload, { annexTitle: annexName, status });
+      Alert.alert(label, 'Saved to offline cache.', [
+        {
+          text: 'OK',
+          onPress: () => router.back(),
+        },
+      ]);
+    },
+    [form, annexName, router, saveDraft],
+  );
 
   const steps = useMemo(
     () => [
@@ -350,13 +361,13 @@ export function FormEditorScreen() {
           <>
             <TouchableOpacity
               style={[styles.button, styles.secondaryButton, { borderColor: colors.primary }]}
-              onPress={() => handleAlert('Saved Draft')}
+              onPress={() => handlePersist('Draft', 'Saved Draft')}
             >
               <Text style={[styles.buttonText, { color: colors.primary }]}>Save Draft (UI only)</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.primaryButton, { backgroundColor: colors.primary }]}
-              onPress={() => handleAlert('Submitted')}
+              onPress={() => handlePersist('Pending Sync', 'Queued for Sync')}
             >
               <Text style={[styles.buttonText, { color: '#fff' }]}>Submit for Sync (UI only)</Text>
             </TouchableOpacity>

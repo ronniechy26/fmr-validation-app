@@ -2,6 +2,15 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## FMR validation workflow
+
+- Tap the center **Add** button to choose an annex. Drafts are created without linking to an existing FMR so field teams can collect data offline.
+- The **Forms** tab shows both project-backed validations and a "Standalone drafts" section for items that still need QR or ABEMIS attachment.
+- From the form detail view, operators can attach a draft to an FMR by scanning the QR code or typing the ABEMIS ID. Attachment status is displayed above the form sections.
+- The analytics and locator tabs now include standalone drafts when calculating totals so you can monitor backlog before uploads occur.
+- When connected to the new NestJS BFF, use `POST /forms` for standalone creation and `PATCH /forms/:id/attach` when scanning QR codes in the field.
+- Offline state is cached via `expo-sqlite` (`storage/offline-store.ts`) so previously fetched FMR data and new drafts persist between sessions even without connectivity.
+
 ## Get started
 
 1. Install dependencies
@@ -10,7 +19,17 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Configure the backend URL (optional)
+
+   The mobile app reads `EXPO_PUBLIC_API_URL` for the NestJS BFF base URL. Create an `.env` file (or export the variable in your shell) before starting Expo:
+
+   ```bash
+   EXPO_PUBLIC_API_URL=http://localhost:3000
+   ```
+
+   If you skip this step, the app defaults to `http://localhost:3000`.
+
+3. Start the app
 
    ```bash
    npx expo start

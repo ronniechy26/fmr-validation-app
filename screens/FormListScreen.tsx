@@ -2,10 +2,10 @@ import { FilterBottomSheet } from '@/components/FilterBottomSheet';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { annexForms } from '@/constants/annexes';
-import { dummyProjects, ProjectRecord } from '@/constants/forms';
 import { useThemeMode } from '@/providers/ThemeProvider';
+import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { fonts, FormStatus, spacing } from '@/theme';
-import { ValidationForm } from '@/types/forms';
+import { FormRecord, FormRoutePayload, ProjectRecord } from '@/types/forms';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
@@ -15,52 +15,116 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const filters: ('All' | FormStatus)[] = ['All', 'Draft', 'Pending Sync', 'Synced', 'Error'];
 
+type LegacyProjectRecord = ProjectRecord & {
+  name?: string;
+  locationBarangay?: string;
+  locationMunicipality?: string;
+  locationProvince?: string;
+};
+
+const normalizeProjectForDisplay = (project: ProjectRecord): ProjectRecord => {
+  const legacy = project as LegacyProjectRecord;
+  return {
+    ...project,
+    title: (project.title as unknown as string | undefined) ?? legacy.name ?? 'Untitled FMR',
+    barangay: project.barangay ?? legacy.locationBarangay,
+    municipality: project.municipality ?? legacy.locationMunicipality,
+    province: project.province ?? legacy.locationProvince,
+  };
+};
+
 export function FormListScreen() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const { colors, mode } = useThemeMode();
+  const { loading, projects: cachedProjects, standaloneDrafts } = useOfflineData();
   const insets = useSafeAreaInsets();
-  const filterSnapPoints = useMemo(() => ["50%", "70%"], []);
+  const filterSnapPoints = useMemo(() => ['50%', '70%'], []);
 
   const openFilters = () => {
     bottomSheetRef.current?.present();
   };
 
-  const projects = useMemo(() => {
+  const projects = useMemo<ProjectRecord[]>(() => {
     const query = searchQuery.trim().toLowerCase();
-    return dummyProjects
+    return cachedProjects
       .map((project) => {
-        const matchingForms = project.forms.filter((form) => {
+        const normalizedProject = normalizeProjectForDisplay(project);
+        const matchingForms = normalizedProject.forms.filter((form) => {
           const matchesStatus = activeFilter === 'All' || form.status === activeFilter;
-          const matchesQuery =
-            !query ||
-            [project.name, project.locationBarangay, project.locationMunicipality, form.annexTitle]
-              .join(' ')
-              .toLowerCase()
-              .includes(query) ||
-            form.data.nameOfProject.toLowerCase().includes(query);
+          const haystack = [
+            normalizedProject.title,
+            normalizedProject.barangay ?? '',
+            normalizedProject.municipality ?? '',
+            normalizedProject.province ?? '',
+            form.annexTitle,
+            form.data.nameOfProject,
+          ]
+            .join(' ')
+            .toLowerCase();
+          const matchesQuery = !query || haystack.includes(query);
           return matchesStatus && matchesQuery;
         });
         if (!matchingForms.length) return null;
-        return { ...project, forms: matchingForms };
+        return { ...normalizedProject, forms: matchingForms };
       })
       .filter(Boolean) as ProjectRecord[];
+  }, [activeFilter, cachedProjects, searchQuery]);
+
+  const filteredStandaloneDrafts = useMemo<FormRecord[]>(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return standaloneDrafts.filter((draft) => {
+      const matchesStatus = activeFilter === 'All' || draft.status === activeFilter;
+      const haystack = [
+        draft.data.nameOfProject,
+        draft.data.locationBarangay,
+        draft.data.locationMunicipality,
+        draft.annexTitle,
+      ]
+        .join(' ')
+        .toLowerCase();
+      const matchesQuery = !query || haystack.includes(query);
+      return matchesStatus && matchesQuery;
+    });
   }, [activeFilter, searchQuery]);
 
-  const handleFormPress = (form: ValidationForm, annexTitle = 'Annex C – Validation Form') => {
+  const handleNavigate = (entry: FormRecord, project?: ProjectRecord) => {
+    const normalizedProject = project ? normalizeProjectForDisplay(project) : undefined;
+    const payload: FormRoutePayload = {
+      form: entry.data,
+      meta: {
+        id: entry.id,
+        annexTitle: entry.annexTitle,
+        status: entry.status,
+        abemisId: entry.abemisId ?? normalizedProject?.abemisId,
+        qrReference: entry.qrReference ?? normalizedProject?.qrReference,
+        linkedProjectId: normalizedProject?.id ?? entry.linkedProjectId,
+        linkedProjectTitle: normalizedProject?.title,
+        projectCode: normalizedProject?.projectCode,
+        barangay: normalizedProject?.barangay ?? entry.data.locationBarangay,
+        municipality: normalizedProject?.municipality ?? entry.data.locationMunicipality,
+        province: normalizedProject?.province ?? entry.data.locationProvince,
+        zone: normalizedProject?.zone,
+      },
+    };
     router.push({
       pathname: '/form-detail',
-      params: { form: JSON.stringify(form), annex: annexTitle },
+      params: { record: JSON.stringify(payload) },
     });
   };
-  
+
   const listBottomSpacer = (insets.bottom || spacing.lg) + spacing.xxl;
 
   return (
     <>
       <Screen>
+        {loading && (
+          <View style={[styles.loadingCard, { borderColor: colors.border, backgroundColor: colors.surface }]}> 
+            <Text style={[styles.loadingText, { color: colors.textMuted }]}>Preparing offline dataset…</Text>
+          </View>
+        )}
         <View style={styles.topBanner}>
           <View style={styles.heroBrand}>
             <View style={[styles.heroLogo, { backgroundColor: colors.secondary }]}>
@@ -111,12 +175,45 @@ export function FormListScreen() {
           style={styles.list}
           data={projects}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.listContent, { paddingBottom: listBottomSpacer }]}
+          contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
           showsVerticalScrollIndicator={false}
-          ListFooterComponent={<View style={{ height: spacing.md }} />}
+          ListFooterComponent={
+            <View style={{ paddingTop: spacing.xl, paddingBottom: listBottomSpacer }}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Standalone drafts</Text>
+              <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>Drafts waiting for QR or ABEMIS attachment.</Text>
+              <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+                {filteredStandaloneDrafts.length === 0 ? (
+                  <View style={[styles.emptyStandalone, { borderColor: colors.border }]}> 
+                    <Ionicons name="document-outline" size={18} color={colors.textMuted} />
+                    <Text style={[styles.emptyStandaloneText, { color: colors.textMuted }]}>No standalone drafts match the filter.</Text>
+                  </View>
+                ) : (
+                  filteredStandaloneDrafts.map((draft) => (
+                    <TouchableOpacity
+                      key={draft.id}
+                      style={[styles.standaloneCard, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                      onPress={() => handleNavigate(draft)}
+                    >
+                      <View style={{ flex: 1, gap: spacing.xs }}>
+                        <Text style={[styles.standaloneTitle, { color: colors.textPrimary }]}>{draft.data.nameOfProject}</Text>
+                        <Text style={[styles.standaloneMeta, { color: colors.textMuted }]}>
+                          {draft.data.locationBarangay}, {draft.data.locationMunicipality}
+                        </Text>
+                        <Text style={[styles.standaloneNote, { color: colors.textMuted }]}>
+                          Updated {new Date(draft.updatedAt).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <StatusBadge status={draft.status} />
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            </View>
+          }
           renderItem={({ item }) => {
-            const primaryForm = item.forms[0];
+            const normalizedItem = normalizeProjectForDisplay(item);
+            const primaryForm = normalizedItem.forms[0];
             return (
               <TouchableOpacity
                 style={[
@@ -127,15 +224,17 @@ export function FormListScreen() {
                     shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
                   },
                 ]}
-                onPress={() => handleFormPress(primaryForm.data, primaryForm.annexTitle)}
+                onPress={() => handleNavigate(primaryForm, normalizedItem)}
               >
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{item.name}</Text>
+                    <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+                      {normalizedItem.title || 'Untitled FMR'}
+                    </Text>
                     <View style={styles.locationRow}>
                       <Ionicons name="pin" size={14} color={colors.textMuted} />
                       <Text style={[styles.locationText, { color: colors.textMuted }]}>
-                        {item.locationBarangay}, {item.locationMunicipality}
+                        {normalizedItem.barangay ?? '—'}, {normalizedItem.municipality ?? '—'}
                       </Text>
                     </View>
                   </View>
@@ -145,11 +244,15 @@ export function FormListScreen() {
                 <View style={styles.cardMetaRow}>
                   <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
                     <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
-                    <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationBarangay}</Text>
+                    <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>
+                      {normalizedItem.barangay ?? '—'}
+                    </Text>
                   </View>
                   <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
                     <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
-                    <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationMunicipality}</Text>
+                    <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>
+                      {normalizedItem.municipality ?? '—'}
+                    </Text>
                   </View>
                 </View>
 
@@ -177,12 +280,12 @@ export function FormListScreen() {
                           <View style={styles.formInstances}>
                             {instances.map((instance, index) => (
                               <TouchableOpacity
-                                key={instance.id}
-                                style={[styles.formButton, { backgroundColor: colors.primary }]}
-                                onPress={() => handleFormPress(instance.data, annex.title)}
-                              >
-                                <Text style={[styles.formButtonText, { color: '#fff' }]}>Form #{index + 1}</Text>
-                              </TouchableOpacity>
+                            key={instance.id}
+                            style={[styles.formButton, { backgroundColor: colors.primary }]}
+                                onPress={() => handleNavigate(instance, item)}
+                          >
+                            <Text style={[styles.formButtonText, { color: '#fff' }]}>Form #{index + 1}</Text>
+                          </TouchableOpacity>
                             ))}
                           </View>
                         </View>
@@ -287,8 +390,7 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
-  listContent: {
-  },
+  listContent: {},
   card: {
     borderRadius: 20,
     padding: spacing.lg,
@@ -392,6 +494,57 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   sheetSubtitle: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+  },
+  sectionTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 18,
+  },
+  sectionSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    marginTop: spacing.xs,
+  },
+  standaloneCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  standaloneTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+  },
+  standaloneMeta: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+  },
+  standaloneNote: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+  },
+  emptyStandalone: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  emptyStandaloneText: {
+    fontFamily: fonts.medium,
+    textAlign: 'center',
+  },
+  loadingCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+  },
+  loadingText: {
     fontFamily: fonts.medium,
     fontSize: 13,
   },

@@ -5,30 +5,52 @@ import { Section } from '@/components/Section';
 import { FilterChip } from '@/components/FilterChip';
 import { StatusBadge } from '@/components/StatusBadge';
 import { fonts, spacing } from '@/theme';
-import { dummyProjects } from '@/constants/forms';
+import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeMode } from '@/providers/ThemeProvider';
 
-const filterOptions = ['All', 'North', 'Central', 'South'] as const;
-
 export function LocatorScreen() {
-  const [selectedZone, setSelectedZone] = useState<(typeof filterOptions)[number]>('All');
   const { colors, mode } = useThemeMode();
+  const { projects, standaloneDrafts } = useOfflineData();
+  const zones = useMemo(() => {
+    const unique = Array.from(
+      new Set(
+        projects
+          .map((project) => project.zone?.trim())
+          .filter((zone): zone is string => Boolean(zone)),
+      ),
+    );
+    return ['All', ...unique];
+  }, [projects]);
+  const [selectedZone, setSelectedZone] = useState<string>('All');
 
   const highlightedForms = useMemo(() => {
-    const forms = dummyProjects.flatMap((project) =>
+    const linked = projects.flatMap((project) =>
       project.forms.map((form) => ({
         id: form.id,
-        projectName: project.name,
-        barangay: project.locationBarangay,
-        municipality: project.locationMunicipality,
+        projectName: project.title,
+        barangay: project.barangay ?? form.data.locationBarangay,
+        municipality: project.municipality ?? form.data.locationMunicipality,
         status: form.status,
         updatedAt: form.updatedAt,
+        zone: project.zone ?? 'Unassigned',
       })),
     );
-    if (selectedZone === 'All') return forms;
-    return forms.slice(0, 2);
-  }, [selectedZone]);
+    const unlinked = standaloneDrafts.map((form) => ({
+      id: form.id,
+      projectName: form.data.nameOfProject,
+      barangay: form.data.locationBarangay,
+      municipality: form.data.locationMunicipality,
+      status: form.status,
+      updatedAt: form.updatedAt,
+      zone: 'Standalone' as const,
+    }));
+    const combined = [...linked, ...unlinked];
+    if (selectedZone === 'All') {
+      return combined;
+    }
+    return combined.filter((item) => item.zone.toLowerCase() === selectedZone.toLowerCase());
+  }, [projects, standaloneDrafts, selectedZone]);
 
   return (
     <Screen scroll>
@@ -60,7 +82,7 @@ export function LocatorScreen() {
 
       <Section title="Quick Filters">
         <View style={styles.filterWrap}>
-          {filterOptions.map((option) => (
+          {zones.map((option) => (
             <FilterChip
               key={option}
               label={option}

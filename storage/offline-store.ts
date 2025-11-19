@@ -1,0 +1,168 @@
+import { SQLiteStorage } from 'expo-sqlite/kv-store';
+import { AttachmentPayload, FormRecord, ProjectRecord, ValidationForm } from '@/types/forms';
+import { FormStatus } from '@/theme';
+import { dummyProjects, standaloneDrafts } from '@/constants/forms';
+
+export type OfflineSnapshot = {
+  projects: ProjectRecord[];
+  standaloneDrafts: FormRecord[];
+};
+
+const SNAPSHOT_KEY = 'snapshot';
+const storage = new SQLiteStorage('fmr-offline');
+
+const cloneForm = (form: FormRecord): FormRecord => ({
+  ...form,
+  data: { ...form.data },
+});
+
+type LegacyProjectRecord = ProjectRecord & {
+  name?: string;
+  locationBarangay?: string;
+  locationMunicipality?: string;
+  locationProvince?: string;
+};
+
+const cloneProject = (project: ProjectRecord): ProjectRecord => {
+  const legacy = project as LegacyProjectRecord;
+  const normalizedTitle = project.title ?? legacy.name ?? 'Untitled FMR';
+  const normalizedBarangay = project.barangay ?? legacy.locationBarangay;
+  const normalizedMunicipality = project.municipality ?? legacy.locationMunicipality;
+  const normalizedProvince = project.province ?? legacy.locationProvince;
+  return {
+    ...project,
+    title: normalizedTitle,
+    barangay: normalizedBarangay,
+    municipality: normalizedMunicipality,
+    province: normalizedProvince,
+    geotags: project.geotags?.map((tag) => ({ ...tag })) ?? [],
+    proposalDocuments: project.proposalDocuments?.map((doc) => ({ ...doc })) ?? [],
+    forms: project.forms?.map(cloneForm) ?? [],
+  };
+};
+
+const normalizeSnapshot = (snapshot: OfflineSnapshot): OfflineSnapshot => ({
+  projects: snapshot.projects.map(cloneProject),
+  standaloneDrafts: snapshot.standaloneDrafts.map(cloneForm),
+});
+
+async function readSnapshot(): Promise<OfflineSnapshot> {
+  let raw = await storage.getItemAsync(SNAPSHOT_KEY);
+  if (!raw) {
+    const seeded = normalizeSnapshot({
+      projects: dummyProjects,
+      standaloneDrafts,
+    });
+    raw = JSON.stringify(seeded);
+    await storage.setItemAsync(SNAPSHOT_KEY, raw);
+    return seeded;
+  }
+  return JSON.parse(raw) as OfflineSnapshot;
+}
+
+async function writeSnapshot(snapshot: OfflineSnapshot) {
+  await storage.setItemAsync(SNAPSHOT_KEY, JSON.stringify(snapshot));
+}
+
+export async function loadSnapshot(): Promise<OfflineSnapshot> {
+  const snapshot = await readSnapshot();
+  return normalizeSnapshot(snapshot);
+}
+
+export async function replaceSnapshot(snapshot: OfflineSnapshot): Promise<OfflineSnapshot> {
+  await writeSnapshot(snapshot);
+  return normalizeSnapshot(snapshot);
+}
+
+export async function attachDraftLocally(formId: string, payload: AttachmentPayload) {
+  const snapshot = await readSnapshot();
+  const draftIndex = snapshot.standaloneDrafts.findIndex((draft) => draft.id === formId);
+  if (draftIndex === -1) {
+    return undefined;
+  }
+  const draft = snapshot.standaloneDrafts[draftIndex];
+  const project = findProjectByAttachment(snapshot.projects, payload);
+  if (!project) {
+    return undefined;
+  }
+
+  const attachedRecord: FormRecord = {
+    ...draft,
+    linkedProjectId: project.id,
+    abemisId: payload.abemisId ?? project.abemisId,
+    qrReference: payload.qrReference ?? draft.qrReference ?? project.qrReference,
+    updatedAt: new Date().toISOString(),
+  };
+
+  snapshot.standaloneDrafts.splice(draftIndex, 1);
+  const projectIndex = snapshot.projects.findIndex((candidate) => candidate.id === project.id);
+  if (projectIndex !== -1) {
+    const filtered = snapshot.projects[projectIndex].forms.filter((form) => form.id !== formId);
+    snapshot.projects[projectIndex] = { ...snapshot.projects[projectIndex], forms: [attachedRecord, ...filtered] };
+  }
+
+  await writeSnapshot(snapshot);
+  return { snapshot: normalizeSnapshot(snapshot), attached: cloneForm(attachedRecord) };
+}
+
+export async function upsertFormRecord(
+  form: ValidationForm,
+  options: { annexTitle?: string; status?: FormStatus; linkedProjectId?: string } = {},
+) {
+  const snapshot = await readSnapshot();
+  const formId = form.id || `draft-${Date.now()}`;
+  const status = options.status ?? form.status ?? 'Draft';
+  const timestamp = new Date().toISOString();
+  const record: FormRecord = {
+    id: formId,
+    annexTitle: options.annexTitle ?? 'Annex C – Validation Form',
+    status,
+    updatedAt: timestamp,
+    linkedProjectId: options.linkedProjectId,
+    abemisId: form.id && form.id.startsWith('ABEMIS') ? form.id : undefined,
+    qrReference: undefined,
+    data: {
+      ...form,
+      id: formId,
+      status,
+      updatedAt: timestamp,
+    },
+  };
+
+  let handled = false;
+  snapshot.projects = snapshot.projects.map((project) => {
+    if (project.id === record.linkedProjectId) {
+      const filtered = project.forms.filter((entry) => entry.id !== record.id);
+      handled = true;
+      return { ...project, forms: [record, ...filtered] };
+    }
+    return project;
+  });
+
+  if (!handled) {
+    const draftIndex = snapshot.standaloneDrafts.findIndex((entry) => entry.id === record.id);
+    if (draftIndex !== -1) {
+      snapshot.standaloneDrafts[draftIndex] = record;
+    } else {
+      snapshot.standaloneDrafts.unshift(record);
+    }
+  }
+
+  await writeSnapshot(snapshot);
+  return { snapshot: normalizeSnapshot(snapshot), record: cloneForm(record) };
+}
+
+export function findProjectByAttachment(projects: ProjectRecord[], payload: AttachmentPayload) {
+  const candidates = [payload.abemisId, payload.projectCode, payload.qrReference]
+    .map((value) => value?.trim().toLowerCase())
+    .filter((value): value is string => Boolean(value));
+  if (!candidates.length) {
+    return undefined;
+  }
+  return projects.find((project) => {
+    const projectRefs = [project.abemisId, project.projectCode, project.qrReference, project.id]
+      .map((value) => value?.toLowerCase())
+      .filter((value): value is string => Boolean(value));
+    return candidates.some((needle) => projectRefs.includes(needle));
+  });
+}

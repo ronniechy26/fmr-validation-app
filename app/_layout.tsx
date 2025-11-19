@@ -1,5 +1,6 @@
 import { AuthProvider } from '@/providers/AuthProvider';
 import { ThemeProvider, useThemeMode } from '@/providers/ThemeProvider';
+import { OfflineDataProvider } from '@/providers/OfflineDataProvider';
 import { fonts } from '@/theme';
 import {
   Nunito_400Regular,
@@ -38,9 +39,11 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
-            <BottomSheetModalProvider>
-              <RootStack />
-            </BottomSheetModalProvider>
+            <OfflineDataProvider>
+              <BottomSheetModalProvider>
+                <RootStack />
+              </BottomSheetModalProvider>
+            </OfflineDataProvider>
           </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>

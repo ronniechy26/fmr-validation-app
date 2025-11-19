@@ -14,7 +14,8 @@ export function AnnexSelectScreen() {
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Choose a Form</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          Select which annex to use when creating a new FMR validation.
+          Select which annex to use when creating a new FMR validation. Drafts start unattached so you can link
+          them later via QR scan or ABEMIS ID.
         </Text>
       </View>
 

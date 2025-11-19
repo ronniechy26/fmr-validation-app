@@ -1,23 +1,28 @@
 import { Screen } from '@/components/Screen';
 import { annexForms } from '@/constants/annexes';
-import { dummyProjects } from '@/constants/forms';
 import { useThemeMode } from '@/providers/ThemeProvider';
+import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { fonts, spacing } from '@/theme';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FormRecord } from '@/types/forms';
 
 export function AnalyticsScreen() {
   const { colors, mode } = useThemeMode();
-  const allForms = useMemo(() => dummyProjects.flatMap((project) => project.forms), []);
+  const { projects, standaloneDrafts } = useOfflineData();
+  const allForms = useMemo<FormRecord[]>(
+    () => [...projects.flatMap((project) => project.forms ?? []), ...standaloneDrafts],
+    [projects, standaloneDrafts],
+  );
 
   const projectsWithCounts = useMemo(
     () =>
-      dummyProjects.map((project) => ({
+      projects.map((project) => ({
         ...project,
         totalForms: project.forms.length,
         pending: project.forms.filter((form) => form.status === 'Pending Sync').length,
       })),
-    [],
+    [projects],
   );
 
   const stats = heroStats(allForms);
@@ -81,9 +86,9 @@ export function AnalyticsScreen() {
               key={project.id}
               style={[styles.projectCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
             >
-              <Text style={[styles.projectName, { color: colors.textPrimary }]}>{project.name}</Text>
+              <Text style={[styles.projectName, { color: colors.textPrimary }]}>{project.title}</Text>
               <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
-                {project.locationBarangay}, {project.locationMunicipality}
+                {project.barangay ?? '—'}, {project.municipality ?? '—'}
               </Text>
               <View style={styles.projectStats}>
                 <Text style={[styles.projectValue, { color: colors.textPrimary }]}>{project.totalForms}</Text>
@@ -101,7 +106,7 @@ export function AnalyticsScreen() {
   );
 }
 
-const heroStats = (forms: typeof dummyProjects[number]['forms']) => {
+const heroStats = (forms: FormRecord[]) => {
   const drafts = forms.filter((form) => form.status === 'Draft').length;
   const pending = forms.filter((form) => form.status === 'Pending Sync').length;
   const synced = forms.filter((form) => form.status === 'Synced').length;
