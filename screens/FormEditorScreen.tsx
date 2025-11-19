@@ -308,7 +308,7 @@ export function FormEditorScreen() {
   const isLastStep = currentStep === totalSteps - 1;
 
   return (
-    <Screen scroll applyTopInset={false} style={{ paddingTop: spacing.md }}>
+    <Screen scroll applyTopInset={false}>
       <View style={styles.stepHeader}>
         <View style={styles.stepMeta}>
           <Text style={[styles.stepMetaText, { color: colors.textMuted }]}>

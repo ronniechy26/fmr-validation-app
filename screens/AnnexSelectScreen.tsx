@@ -10,7 +10,7 @@ export function AnnexSelectScreen() {
   const router = useRouter();
 
   return (
-    <Screen applyTopInset={false} style={{ paddingTop: spacing.md }}>
+    <Screen applyTopInset={false}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Choose a Form</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>

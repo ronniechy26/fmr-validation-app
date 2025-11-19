@@ -35,7 +35,7 @@ export function FormDetailScreen() {
   );
 
   return (
-    <Screen scroll applyTopInset={false} style={{ paddingTop: spacing.md }}>
+    <Screen scroll applyTopInset={false}>
       <View style={styles.statusRow}>
         <StatusBadge status={form.status} />
         <Text style={[styles.metaText, { color: colors.textMuted }]}>

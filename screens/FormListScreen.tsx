@@ -10,7 +10,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Dimensions,
   FlatList,
   NativeScrollEvent,
@@ -20,7 +19,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -176,11 +175,6 @@ export function FormListScreen() {
           <Text style={styles.avatarText}>MP</Text>
         </View>
       </View>
-
-      <TouchableOpacity style={[styles.heroButtonFull, { backgroundColor: colors.primary }]} onPress={handleNewForm}>
-        <Ionicons name="add-circle" size={16} color="#fff" />
-        <Text style={styles.heroButtonText}>New Validation</Text>
-      </TouchableOpacity>
 
       <View style={styles.filterBar}>
         <View style={styles.filters}>

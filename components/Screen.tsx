@@ -16,7 +16,8 @@ export function Screen({ children, scroll = false, style, contentContainerStyle,
   const { colors, mode } = useThemeMode();
   const insets = useSafeAreaInsets();
   const statusStyle = mode === 'dark' ? 'light-content' : 'dark-content';
-  const topPadding = applyTopInset ? insets.top || (Platform.OS === 'android' ? spacing.md : 0) : 0;
+  const defaultTop = insets.top || (Platform.OS === 'android' ? spacing.md : spacing.sm);
+  const topPadding = applyTopInset ? defaultTop : spacing.md;
 
   if (scroll) {
     return (
