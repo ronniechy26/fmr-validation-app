@@ -17,6 +17,7 @@ export function Screen({ children, scroll = false, style, contentContainerStyle,
   const insets = useSafeAreaInsets();
   const statusStyle = mode === 'dark' ? 'light-content' : 'dark-content';
   const defaultTop = insets.top || (Platform.OS === 'android' ? spacing.md : spacing.sm);
+  const bottomPadding = (insets.bottom || spacing.md) + 90;
   const topPadding = applyTopInset ? defaultTop : spacing.md;
 
   if (scroll) {
@@ -28,7 +29,7 @@ export function Screen({ children, scroll = false, style, contentContainerStyle,
         <StatusBar barStyle={statusStyle} />
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.content, contentContainerStyle]}
+          contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }, contentContainerStyle]}
         >
           {children}
         </ScrollView>
@@ -42,7 +43,7 @@ export function Screen({ children, scroll = false, style, contentContainerStyle,
       style={[
         styles.safeArea,
         styles.content,
-        { backgroundColor: colors.secondary, paddingTop: topPadding },
+        { backgroundColor: colors.secondary, paddingTop: topPadding, paddingBottom: bottomPadding },
         style,
       ]}
     >

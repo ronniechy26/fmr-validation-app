@@ -144,7 +144,6 @@ const heroStats = (forms: typeof dummyProjects[number]['forms']) => {
 const styles = StyleSheet.create({
   wrapper: {
     gap: spacing.xl,
-    paddingBottom: spacing.xxl,
   },
   hero: {
     backgroundColor: '#0f172a',

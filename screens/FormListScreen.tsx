@@ -55,13 +55,12 @@ export function FormListScreen() {
       params: { form: JSON.stringify(form), annex: annexTitle },
     });
   };
-
-  const fabBottomInset = spacing.lg + insets.bottom;
-  const listBottomSpacer = spacing.lg * 2;
+  
+  const listBottomSpacer = (insets.bottom || spacing.lg) + spacing.xxl;
 
   return (
     <>
-      <Screen style={{ paddingBottom: spacing.xxl }}>
+      <Screen>
         <View style={styles.topBanner}>
           <View style={styles.heroBrand}>
             <View style={[styles.heroLogo, { backgroundColor: colors.secondary }]}>
@@ -289,7 +288,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingBottom: 120,
   },
   card: {
     borderRadius: 20,
