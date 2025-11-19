@@ -1,14 +1,26 @@
 import { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts } from '@/theme';
+import { fonts, spacing } from '@/theme';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
+import { TouchableOpacity, View, StyleSheet } from 'react-native';
 
 export default function TabsLayout() {
   const { colors } = useThemeMode();
   const { isSignedIn } = useAuth();
   const router = useRouter();
+  const AddButton = () => (
+    <TouchableOpacity
+      style={styles.addButtonWrapper}
+      onPress={() => router.push('/annex-select')}
+      activeOpacity={0.9}
+    >
+      <View style={[styles.addButton, { backgroundColor: colors.primary }]}>
+        <Ionicons name="add" size={24} color="#fff" />
+      </View>
+    </TouchableOpacity>
+  );
 
   useEffect(() => {
     if (!isSignedIn) {
@@ -25,9 +37,14 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 60,
+          paddingBottom: 10,
+          paddingTop: 10,
+          height: 70,
+          position: 'absolute',
+          left: spacing.lg,
+          right: spacing.lg,
+          bottom: 12,
+          borderRadius: 28,
         },
         tabBarLabelStyle: {
           fontFamily: fonts.medium,
@@ -56,6 +73,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="add"
+        options={{
+          title: '',
+          tabBarLabel: '',
+          tabBarButton: () => <AddButton />,
+        }}
+      />
+      <Tabs.Screen
         name="analytics"
         options={{
           title: 'Analytics',
@@ -78,3 +103,23 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  addButtonWrapper: {
+    top: -30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+});

@@ -56,12 +56,8 @@ export function FormListScreen() {
     });
   };
 
-  const handleNewForm = () => {
-    router.push('/annex-select');
-  };
-
   const fabBottomInset = spacing.lg + insets.bottom;
-  const listBottomSpacer = fabBottomInset + spacing.lg;
+  const listBottomSpacer = spacing.lg * 2;
 
   return (
     <>
@@ -200,13 +196,6 @@ export function FormListScreen() {
           }}
         />
 
-        <TouchableOpacity
-          style={[styles.fab, { backgroundColor: colors.primary, bottom: fabBottomInset }]}
-          onPress={handleNewForm}
-        >
-          <Text style={styles.fabIcon}>＋</Text>
-          <Text style={styles.fabLabel}>New Validation</Text>
-        </TouchableOpacity>
       </Screen>
       <FilterBottomSheet
         ref={bottomSheetRef}
@@ -257,20 +246,6 @@ const styles = StyleSheet.create({
   avatarText: {
     fontFamily: fonts.semibold,
     color: '#fff',
-  },
-  heroButtonFull: {
-    marginTop: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    borderRadius: 14,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    justifyContent: 'center',
-  },
-  heroButtonText: {
-    fontFamily: fonts.semibold,
-    fontSize: 13,
   },
   filterBar: {
     flexDirection: 'row',
@@ -421,31 +396,5 @@ const styles = StyleSheet.create({
   sheetSubtitle: {
     fontFamily: fonts.medium,
     fontSize: 13,
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: spacing.lg,
-    borderRadius: 999,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  fabIcon: {
-    color: '#fff',
-    fontSize: 18,
-    lineHeight: 18,
-    fontFamily: fonts.bold,
-  },
-  fabLabel: {
-    color: '#fff',
-    fontFamily: fonts.semibold,
   },
 });
