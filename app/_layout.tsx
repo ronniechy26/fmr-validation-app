@@ -1,17 +1,21 @@
-import 'react-native-gesture-handler';
-import { Stack } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from '@/providers/AuthProvider';
+import { ThemeProvider, useThemeMode } from '@/providers/ThemeProvider';
+import { fonts } from '@/theme';
 import {
-  useFonts,
   Nunito_400Regular,
   Nunito_500Medium,
   Nunito_600SemiBold,
   Nunito_700Bold,
+  useFonts,
 } from '@expo-google-fonts/nunito';
-import { fonts } from '@/theme';
-import { ThemeProvider, useThemeMode } from '@/providers/ThemeProvider';
-import { AuthProvider } from '@/providers/AuthProvider';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { Stack } from 'expo-router';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+// eslint-disable-next-line import/no-duplicates
+import 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+// eslint-disable-next-line import/no-duplicates
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -30,13 +34,17 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <RootStack />
-        </AuthProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <BottomSheetModalProvider>
+              <RootStack />
+            </BottomSheetModalProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -74,7 +82,6 @@ function RootStack() {
           headerTitleAlign: 'center',
           headerTitleStyle: { fontFamily: fonts.semibold },
           headerBackTitleStyle: { fontFamily: fonts.regular },
-          headerBackTitleVisible: false,
           headerBackTitle: 'Back',
         }}
       />
@@ -88,7 +95,6 @@ function RootStack() {
           headerTitleAlign: 'center',
           headerTitleStyle: { fontFamily: fonts.semibold },
           headerBackTitleStyle: { fontFamily: fonts.regular },
-          headerBackTitleVisible: false,
           headerBackTitle: 'Back',
         }}
       />

@@ -1,4 +1,4 @@
-import { FilterChip } from '@/components/FilterChip';
+import { FilterBottomSheet } from '@/components/FilterBottomSheet';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { annexForms } from '@/constants/annexes';
@@ -7,47 +7,26 @@ import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, FormStatus, spacing } from '@/theme';
 import { ValidationForm } from '@/types/forms';
 import { Ionicons } from '@expo/vector-icons';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Dimensions,
-  FlatList,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
-} from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-type IoniconName = keyof typeof Ionicons.glyphMap;
-
-type HeroStat = {
-  label: string;
-  value: string;
-  subLabel: string;
-  icon: IoniconName;
-  progress: number;
-  background: string;
-  accent: string;
-  progressColor: string;
-};
 
 const filters: ('All' | FormStatus)[] = ['All', 'Draft', 'Pending Sync', 'Synced', 'Error'];
 
 export function FormListScreen() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All');
-  const [statIndex, setStatIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const statsRef = useRef<ScrollView>(null);
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
   const { colors, mode } = useThemeMode();
   const insets = useSafeAreaInsets();
+  const snapPoints = useMemo(() => ["50%", "70%"], []);
 
-  const allForms = useMemo(() => dummyProjects.flatMap((project) => project.forms), []);
+  const openFilters = () => {
+    bottomSheetRef.current?.present();
+  };
 
   const projects = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -81,229 +60,161 @@ export function FormListScreen() {
     router.push('/annex-select');
   };
 
-  const heroStats = useMemo<HeroStat[]>(() => {
-    const drafts = allForms.filter((form) => form.status === 'Draft').length;
-    const pending = allForms.filter((form) => form.status === 'Pending Sync').length;
-    const synced = allForms.filter((form) => form.status === 'Synced').length;
-    return [
-      {
-        label: 'Total Forms',
-        value: allForms.length.toString(),
-        subLabel: '+2 created this week',
-        icon: 'layers',
-        progress: 0.85,
-        background: '#ede9fe',
-        accent: '#4338ca',
-        progressColor: '#c4b5fd',
-      },
-      {
-        label: 'Pending Sync',
-        value: pending.toString(),
-        subLabel: 'Requires upload',
-        icon: 'cloud-upload',
-        progress: pending === 0 ? 0.2 : 0.6,
-        background: '#e0f2fe',
-        accent: '#0369a1',
-        progressColor: '#7dd3fc',
-      },
-      {
-        label: 'Drafts',
-        value: drafts.toString(),
-        subLabel: 'Needs completion',
-        icon: 'create',
-        progress: drafts === 0 ? 0.3 : 0.5,
-        background: '#fef3c7',
-        accent: '#b45309',
-        progressColor: '#fcd34d',
-      },
-      {
-        label: 'Synced',
-        value: synced.toString(),
-        subLabel: 'Up to date',
-        icon: 'checkmark-done',
-        progress: synced === 0 ? 0.3 : 0.9,
-        background: '#ecfdf5',
-        accent: '#047857',
-        progressColor: '#6ee7b7',
-      },
-    ];
-  }, [allForms]);
-
-  const screenWidth = Dimensions.get('window').width;
-  const heroCardWidth = Math.min(280, screenWidth - spacing.lg * 2);
-  const heroSnapInterval = heroCardWidth + spacing.sm;
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setStatIndex((prev) => (prev + 1) % heroStats.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [heroStats.length]);
-
-  useEffect(() => {
-    const offset = statIndex * heroSnapInterval;
-    statsRef.current?.scrollTo({ x: offset, animated: true });
-  }, [heroSnapInterval, statIndex]);
-
-  const handleStatMomentum = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset } = event.nativeEvent;
-    const nextIndex = Math.round(contentOffset.x / heroSnapInterval);
-    if (nextIndex !== statIndex) {
-      setStatIndex(nextIndex);
-    }
-  };
-
   const fabBottomInset = spacing.lg + insets.bottom;
   const listBottomSpacer = fabBottomInset + spacing.lg;
 
-  const heroTextColor = mode === 'dark' ? colors.background : '#fff';
-  const heroSubTextColor = mode === 'dark' ? '#e0e7ff' : '#e4ebff';
-
   return (
-    <Screen style={{ paddingBottom: spacing.xxl }}>
-      <View style={styles.topBanner}>
-        <View style={styles.heroBrand}>
-          <View style={[styles.heroLogo, { backgroundColor: colors.secondary }]}>
-            <Ionicons name="leaf" size={16} color={colors.primary} />
+    <>
+      <Screen style={{ paddingBottom: spacing.xxl }}>
+        <View style={styles.topBanner}>
+          <View style={styles.heroBrand}>
+            <View style={[styles.heroLogo, { backgroundColor: colors.secondary }]}>
+              <Ionicons name="leaf" size={16} color={colors.primary} />
+            </View>
+            <View>
+              <Text style={[styles.appTitle, { color: colors.textPrimary }]}>FMR Validation</Text>
+              <Text style={[styles.appSubtitle, { color: colors.textMuted }]}>Field Monitoring & Reporting</Text>
+            </View>
           </View>
-          <View>
-            <Text style={[styles.appTitle, { color: colors.textPrimary }]}>FMR Validation</Text>
-            <Text style={[styles.appSubtitle, { color: colors.textMuted }]}>Field Monitoring & Reporting</Text>
+          <View style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.secondary }]}>
+            <Text style={styles.avatarText}>MP</Text>
           </View>
         </View>
-        <View style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.secondary }]}>
-          <Text style={styles.avatarText}>MP</Text>
-        </View>
-      </View>
 
-      <View style={styles.filterBar}>
-        <View style={styles.filters}>
-          {filters.map((filter) => (
-            <FilterChip
-              key={filter}
-              label={filter}
-              active={filter === activeFilter}
-              onPress={() => setActiveFilter(filter)}
+        <View style={styles.searchRow}>
+          <View
+            style={[
+              styles.searchBar,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]}
+          >
+            <Ionicons name="search" size={16} color={colors.textMuted} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+              placeholder="Search project or location"
+              placeholderTextColor={colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
             />
-          ))}
+          </View>
+          <TouchableOpacity
+            style={[styles.filterToggle, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            onPress={openFilters}
+          >
+            <Ionicons name="options" size={18} color={colors.primary} />
+          </TouchableOpacity>
         </View>
-      </View>
-      <View
-        style={[
-          styles.searchBar,
-          {
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-          },
-        ]}
-      >
-        <Ionicons name="search" size={16} color={colors.textMuted} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.textPrimary }]}
-          placeholder="Search project or location"
-          placeholderTextColor={colors.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-        />
-      </View>
 
-      <FlatList
-        style={styles.list}
-        data={projects}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.listContent, { paddingBottom: listBottomSpacer }]}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        showsVerticalScrollIndicator={false}
-        ListFooterComponent={<View style={{ height: spacing.md }} />}
-        renderItem={({ item }) => {
-          const primaryForm = item.forms[0];
-          return (
-            <TouchableOpacity
-              style={[
-                styles.card,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                  shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
-                },
-              ]}
-              onPress={() => handleFormPress(primaryForm.data, primaryForm.annexTitle)}
-            >
-              <View style={styles.cardHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{item.name}</Text>
-                  <View style={styles.locationRow}>
-                    <Ionicons name="pin" size={14} color={colors.textMuted} />
-                    <Text style={[styles.locationText, { color: colors.textMuted }]}>
-                      {item.locationBarangay}, {item.locationMunicipality}
-                    </Text>
+        <FlatList
+          style={styles.list}
+          data={projects}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={[styles.listContent, { paddingBottom: listBottomSpacer }]}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          showsVerticalScrollIndicator={false}
+          ListFooterComponent={<View style={{ height: spacing.md }} />}
+          renderItem={({ item }) => {
+            const primaryForm = item.forms[0];
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
+                  },
+                ]}
+                onPress={() => handleFormPress(primaryForm.data, primaryForm.annexTitle)}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{item.name}</Text>
+                    <View style={styles.locationRow}>
+                      <Ionicons name="pin" size={14} color={colors.textMuted} />
+                      <Text style={[styles.locationText, { color: colors.textMuted }]}>
+                        {item.locationBarangay}, {item.locationMunicipality}
+                      </Text>
+                    </View>
+                  </View>
+                  <StatusBadge status={primaryForm.status} />
+                </View>
+
+                <View style={styles.cardMetaRow}>
+                  <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
+                    <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
+                    <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationBarangay}</Text>
+                  </View>
+                  <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
+                    <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
+                    <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationMunicipality}</Text>
                   </View>
                 </View>
-                <StatusBadge status={primaryForm.status} />
-              </View>
 
-              <View style={styles.cardMetaRow}>
-                <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
-                  <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
-                  <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationBarangay}</Text>
+                <View style={styles.cardFooter}>
+                  <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                    Last form updated {new Date(primaryForm.updatedAt).toLocaleDateString()}
+                  </Text>
                 </View>
-                <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
-                  <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
-                  <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationMunicipality}</Text>
-                </View>
-              </View>
 
-              <View style={styles.cardFooter}>
-                <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                  Last form updated {new Date(primaryForm.updatedAt).toLocaleDateString()}
-                </Text>
-              </View>
-
-              <View style={styles.formsRow}>
-                <Text style={[styles.formsLabel, { color: colors.textMuted }]}>Forms</Text>
-                <View style={styles.formsList}>
-                  {annexForms.map((annex) => {
-                    const instances = item.forms.filter((form) => form.annexTitle === annex.title);
-                    if (!instances.length) {
+                <View style={styles.formsRow}>
+                  <Text style={[styles.formsLabel, { color: colors.textMuted }]}>Forms</Text>
+                  <View style={styles.formsList}>
+                    {annexForms.map((annex) => {
+                      const instances = item.forms.filter((form) => form.annexTitle === annex.title);
+                      if (!instances.length) {
+                        return (
+                          <View key={annex.id} style={[styles.formButton, { backgroundColor: colors.surfaceMuted }]}>
+                            <Text style={[styles.formButtonText, { color: colors.textMuted }]}>{annex.title}</Text>
+                          </View>
+                        );
+                      }
                       return (
-                        <View key={annex.id} style={[styles.formButton, { backgroundColor: colors.surfaceMuted }]}>
-                          <Text style={[styles.formButtonText, { color: colors.textMuted }]}>{annex.title}</Text>
+                        <View key={annex.id} style={styles.formGroup}>
+                          <Text style={[styles.formGroupLabel, { color: colors.textMuted }]}>{annex.title}</Text>
+                          <View style={styles.formInstances}>
+                            {instances.map((instance, index) => (
+                              <TouchableOpacity
+                                key={instance.id}
+                                style={[styles.formButton, { backgroundColor: colors.primary }]}
+                                onPress={() => handleFormPress(instance.data, annex.title)}
+                              >
+                                <Text style={[styles.formButtonText, { color: '#fff' }]}>Form #{index + 1}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
                         </View>
                       );
-                    }
-                    return (
-                      <View key={annex.id} style={styles.formGroup}>
-                        <Text style={[styles.formGroupLabel, { color: colors.textMuted }]}>{annex.title}</Text>
-                        <View style={styles.formInstances}>
-                          {instances.map((instance, index) => (
-                            <TouchableOpacity
-                              key={instance.id}
-                              style={[styles.formButton, { backgroundColor: colors.primary }]}
-                              onPress={() => handleFormPress(instance.data, annex.title)}
-                            >
-                              <Text style={[styles.formButtonText, { color: '#fff' }]}>Form #{index + 1}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </View>
-                    );
-                  })}
+                    })}
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          );
+              </TouchableOpacity>
+            );
+          }}
+        />
+
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: colors.primary, bottom: fabBottomInset }]}
+          onPress={handleNewForm}
+        >
+          <Text style={styles.fabIcon}>＋</Text>
+          <Text style={styles.fabLabel}>New Validation</Text>
+        </TouchableOpacity>
+      </Screen>
+      <FilterBottomSheet
+        ref={bottomSheetRef}
+        snapPoints={snapPoints}
+        activeFilter={activeFilter}
+        onSelect={(filter) => {
+          setActiveFilter(filter);
+          bottomSheetRef.current?.dismiss();
         }}
       />
-
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary, bottom: fabBottomInset }]}
-        onPress={handleNewForm}
-      >
-        <Text style={styles.fabIcon}>＋</Text>
-        <Text style={styles.fabLabel}>New Validation</Text>
-      </TouchableOpacity>
-    </Screen>
+    </>
   );
 }
 
@@ -347,25 +258,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     color: '#fff',
   },
-  hero: {
-    borderRadius: 18,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.xs,
-  },
-  heroContent: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  heroTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 18,
-  },
-  heroSubtitle: {
-    fontFamily: fonts.regular,
-    lineHeight: 16,
-    fontSize: 12,
-  },
   heroButtonFull: {
     marginTop: spacing.sm,
     flexDirection: 'row',
@@ -380,55 +272,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 13,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  statCard: {
-    borderRadius: 14,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    minHeight: 90,
-    borderWidth: 1,
-    gap: spacing.xs,
-    marginRight: spacing.sm,
-  },
-  statHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  statIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statValue: {
-    fontFamily: fonts.bold,
-    fontSize: 20,
-  },
-  statLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-  },
-  statFooter: {
-    gap: 6,
-  },
-  statSubLabel: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-  },
-  progressTrack: {
-    height: 4,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 999,
-  },
   filterBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -440,6 +283,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -448,10 +292,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   searchInput: {
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 14,
+  },
+  filterToggle: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   list: {
     flex: 1,
@@ -547,6 +404,23 @@ const styles = StyleSheet.create({
   formButtonText: {
     fontFamily: fonts.semibold,
     fontSize: 12,
+  },
+  sheetContent: {
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sheetTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 20,
+  },
+  sheetSubtitle: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
   },
   fab: {
     position: 'absolute',
