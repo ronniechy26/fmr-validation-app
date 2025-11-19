@@ -3,29 +3,34 @@ import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, FormStatus, spacing } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { ForwardedRef, forwardRef, useMemo } from 'react';
+import { ForwardedRef, forwardRef, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type StatusFilter = 'All' | FormStatus;
 
 interface FilterBottomSheetProps {
   activeFilter: StatusFilter;
-  onSelect: (filter: StatusFilter) => void;
+  onApply: (filter: StatusFilter) => void;
   snapPoints: string[];
 }
 
 const statusFilters: StatusFilter[] = ['All', 'Draft', 'Pending Sync', 'Synced', 'Error'];
 
 export const FilterBottomSheet = forwardRef(function FilterSheet(
-  { activeFilter, onSelect, snapPoints }: FilterBottomSheetProps,
+  { activeFilter, onApply, snapPoints }: FilterBottomSheetProps,
   ref: ForwardedRef<BottomSheetModal>,
 ) {
   const { colors, mode } = useThemeMode();
   const accent = colors.primary;
   const heroTint = mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(31,75,143,0.08)';
+  const [selectedFilter, setSelectedFilter] = useState<StatusFilter>(activeFilter);
+
+  useEffect(() => {
+    setSelectedFilter(activeFilter);
+  }, [activeFilter]);
 
   const statusHint = useMemo(() => {
-    switch (activeFilter) {
+    switch (selectedFilter) {
       case 'Draft':
         return 'Showing drafts still in progress';
       case 'Pending Sync':
@@ -37,15 +42,20 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
       default:
         return 'Viewing all validation forms';
     }
-  }, [activeFilter]);
+  }, [selectedFilter]);
 
   const close = () => {
     if (!ref || typeof ref === 'function') return;
     ref.current?.dismiss();
   };
 
+  const handleApply = () => {
+    onApply(selectedFilter);
+    close();
+  };
+
   const handleSelect = (filter: StatusFilter) => {
-    onSelect(filter);
+    setSelectedFilter(filter);
   };
 
   return (
@@ -86,20 +96,14 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>STATUS</Text>
           <View style={styles.chipContainer}>
             {statusFilters.map((filter) => (
-              <FilterChip
-                key={filter}
-                label={filter}
-                active={filter === activeFilter}
-                onPress={() => handleSelect(filter)}
-              />
+              <FilterChip key={filter} label={filter} active={filter === selectedFilter} onPress={() => handleSelect(filter)} />
             ))}
           </View>
         </View>
 
-        {/* Apply Button */}
         <TouchableOpacity
           style={[styles.applyButton, { backgroundColor: colors.primary }]}
-          onPress={close}
+          onPress={handleApply}
           activeOpacity={0.8}
         >
           <Text style={styles.applyText}>Apply Filters</Text>

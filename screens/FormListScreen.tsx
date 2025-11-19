@@ -22,7 +22,7 @@ export function FormListScreen() {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const { colors, mode } = useThemeMode();
   const insets = useSafeAreaInsets();
-  const snapPoints = useMemo(() => ["50%", "70%"], []);
+  const filterSnapPoints = useMemo(() => ["50%", "70%"], []);
 
   const openFilters = () => {
     bottomSheetRef.current?.present();
@@ -76,10 +76,13 @@ export function FormListScreen() {
               <Text style={[styles.appSubtitle, { color: colors.textMuted }]}>Field Monitoring & Reporting</Text>
             </View>
           </View>
-          <View style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.secondary }]}>
-            <Text style={styles.avatarText}>MP</Text>
-          </View>
-        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/settings')}
+          style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.secondary }]}
+        >
+          <Text style={styles.avatarText}>MP</Text>
+        </TouchableOpacity>
+      </View>
 
         <View style={styles.searchRow}>
           <View
@@ -207,12 +210,9 @@ export function FormListScreen() {
       </Screen>
       <FilterBottomSheet
         ref={bottomSheetRef}
-        snapPoints={snapPoints}
+        snapPoints={filterSnapPoints}
         activeFilter={activeFilter}
-        onSelect={(filter) => {
-          setActiveFilter(filter);
-          bottomSheetRef.current?.dismiss();
-        }}
+        onApply={(filter) => setActiveFilter(filter)}
       />
     </>
   );
