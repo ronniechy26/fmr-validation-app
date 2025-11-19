@@ -2,8 +2,8 @@ import { FilterChip } from '@/components/FilterChip';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, FormStatus, spacing } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { ForwardedRef, forwardRef, useEffect, useMemo, useState } from 'react';
+import { BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { ForwardedRef, forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type StatusFilter = 'All' | FormStatus;
@@ -58,11 +58,21 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
     setSelectedFilter(filter);
   };
 
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+      />
+    ),
+    []
+  );
+
   return (
     <BottomSheetModal
       index={1}
       ref={ref}
       snapPoints={snapPoints}
+      backdropComponent={renderBackdrop}
       enablePanDownToClose
       backgroundStyle={{ backgroundColor: colors.surface }}
       handleIndicatorStyle={{ backgroundColor: colors.border }}
