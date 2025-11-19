@@ -5,7 +5,7 @@ import { Section } from '@/components/Section';
 import { FilterChip } from '@/components/FilterChip';
 import { StatusBadge } from '@/components/StatusBadge';
 import { fonts, spacing } from '@/theme';
-import { dummyForms } from '@/constants/forms';
+import { dummyProjects } from '@/constants/forms';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeMode } from '@/providers/ThemeProvider';
 
@@ -16,8 +16,18 @@ export function LocatorScreen() {
   const { colors, mode } = useThemeMode();
 
   const highlightedForms = useMemo(() => {
-    if (selectedZone === 'All') return dummyForms;
-    return dummyForms.slice(0, 2);
+    const forms = dummyProjects.flatMap((project) =>
+      project.forms.map((form) => ({
+        id: form.id,
+        projectName: project.name,
+        barangay: project.locationBarangay,
+        municipality: project.locationMunicipality,
+        status: form.status,
+        updatedAt: form.updatedAt,
+      })),
+    );
+    if (selectedZone === 'All') return forms;
+    return forms.slice(0, 2);
   }, [selectedZone]);
 
   return (
@@ -71,9 +81,9 @@ export function LocatorScreen() {
         {highlightedForms.map((form) => (
           <View key={form.id} style={[styles.nearbyCard, { borderColor: colors.border }]}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.nearbyTitle, { color: colors.textPrimary }]}>{form.nameOfProject}</Text>
+              <Text style={[styles.nearbyTitle, { color: colors.textPrimary }]}>{form.projectName}</Text>
               <Text style={[styles.nearbySubtitle, { color: colors.textPrimary }]}>
-                {form.locationBarangay}, {form.locationMunicipality}
+                {form.barangay}, {form.municipality}
               </Text>
               <Text style={[styles.nearbyMeta, { color: colors.textMuted }]}>
                 Last updated {new Date(form.updatedAt).toLocaleDateString()}

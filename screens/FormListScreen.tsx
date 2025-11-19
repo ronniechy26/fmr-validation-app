@@ -2,7 +2,7 @@ import { FilterChip } from '@/components/FilterChip';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { annexForms } from '@/constants/annexes';
-import { dummyForms } from '@/constants/forms';
+import { dummyProjects, ProjectRecord } from '@/constants/forms';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, FormStatus, spacing } from '@/theme';
 import { ValidationForm } from '@/types/forms';
@@ -48,16 +48,27 @@ export function FormListScreen() {
   const { colors, mode } = useThemeMode();
   const insets = useSafeAreaInsets();
 
-  const forms = useMemo(() => {
-    const base = activeFilter === 'All' ? dummyForms : dummyForms.filter((form) => form.status === activeFilter);
+  const allForms = useMemo(() => dummyProjects.flatMap((project) => project.forms), []);
+
+  const projects = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return base;
-    return base.filter((form) =>
-      [form.nameOfProject, form.locationBarangay, form.locationMunicipality]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
+    return dummyProjects
+      .map((project) => {
+        const matchingForms = project.forms.filter((form) => {
+          const matchesStatus = activeFilter === 'All' || form.status === activeFilter;
+          const matchesQuery =
+            !query ||
+            [project.name, project.locationBarangay, project.locationMunicipality, form.annexTitle]
+              .join(' ')
+              .toLowerCase()
+              .includes(query) ||
+            form.data.nameOfProject.toLowerCase().includes(query);
+          return matchesStatus && matchesQuery;
+        });
+        if (!matchingForms.length) return null;
+        return { ...project, forms: matchingForms };
+      })
+      .filter(Boolean) as ProjectRecord[];
   }, [activeFilter, searchQuery]);
 
   const handleFormPress = (form: ValidationForm, annexTitle = 'Annex C – Validation Form') => {
@@ -72,13 +83,13 @@ export function FormListScreen() {
   };
 
   const heroStats = useMemo<HeroStat[]>(() => {
-    const drafts = dummyForms.filter((form) => form.status === 'Draft').length;
-    const pending = dummyForms.filter((form) => form.status === 'Pending Sync').length;
-    const synced = dummyForms.filter((form) => form.status === 'Synced').length;
+    const drafts = allForms.filter((form) => form.status === 'Draft').length;
+    const pending = allForms.filter((form) => form.status === 'Pending Sync').length;
+    const synced = allForms.filter((form) => form.status === 'Synced').length;
     return [
       {
         label: 'Total Forms',
-        value: dummyForms.length.toString(),
+        value: allForms.length.toString(),
         subLabel: '+2 created this week',
         icon: 'layers',
         progress: 0.85,
@@ -117,7 +128,7 @@ export function FormListScreen() {
         progressColor: '#6ee7b7',
       },
     ];
-  }, []);
+  }, [allForms]);
 
   const screenWidth = Dimensions.get('window').width;
   const heroCardWidth = Math.min(280, screenWidth - spacing.lg * 2);
@@ -166,55 +177,10 @@ export function FormListScreen() {
         </View>
       </View>
 
-      <View style={[styles.hero, { backgroundColor: colors.primary }]}>
-        <ScrollView
-          ref={statsRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          snapToAlignment="start"
-          snapToInterval={heroSnapInterval}
-          contentContainerStyle={[styles.statsRow, { paddingHorizontal: spacing.xs }]}
-          onMomentumScrollEnd={handleStatMomentum}
-        >
-          {heroStats.map((stat) => (
-            <View
-              key={stat.label}
-              style={[
-                styles.statCard,
-                {
-                  width: heroCardWidth,
-                  backgroundColor: stat.background,
-                  borderColor: `${stat.accent}30`,
-                },
-              ]}
-            >
-              <View style={styles.statHeader}>
-                <View style={[styles.statIcon, { backgroundColor: `${stat.accent}22` }]}>
-                  <Ionicons name={stat.icon} size={18} color={stat.accent} />
-                </View>
-                <Text style={[styles.statLabel, { color: stat.accent }]}>{stat.label}</Text>
-              </View>
-              <Text style={[styles.statValue, { color: stat.accent }]}>{stat.value}</Text>
-              <View style={styles.statFooter}>
-                <View style={[styles.progressTrack, { backgroundColor: `${stat.accent}22` }]}>
-                  <View
-                    style={[
-                      styles.progressBar,
-                      {
-                        width: `${Math.min(Math.max(stat.progress, 0), 1) * 100}%`,
-                        backgroundColor: stat.progressColor,
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={[styles.statSubLabel, { color: stat.accent }]}>{stat.subLabel}</Text>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
+      <TouchableOpacity style={[styles.heroButtonFull, { backgroundColor: colors.primary }]} onPress={handleNewForm}>
+        <Ionicons name="add-circle" size={16} color="#fff" />
+        <Text style={styles.heroButtonText}>New Validation</Text>
+      </TouchableOpacity>
 
       <View style={styles.filterBar}>
         <View style={styles.filters}>
@@ -250,85 +216,90 @@ export function FormListScreen() {
 
       <FlatList
         style={styles.list}
-        data={forms}
+        data={projects}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[styles.listContent, { paddingBottom: listBottomSpacer }]}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         showsVerticalScrollIndicator={false}
         ListFooterComponent={<View style={{ height: spacing.md }} />}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
-              },
-            ]}
-            onPress={() => handleFormPress(item)}
-          >
-            <View style={styles.cardHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{item.nameOfProject}</Text>
-                <View style={styles.locationRow}>
-                  <Ionicons name="pin" size={14} color={colors.textMuted} />
-                  <Text style={[styles.locationText, { color: colors.textMuted }]}>
-                    {item.locationBarangay}, {item.locationMunicipality}
-                  </Text>
+        renderItem={({ item }) => {
+          const primaryForm = item.forms[0];
+          return (
+            <TouchableOpacity
+              style={[
+                styles.card,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
+                },
+              ]}
+              onPress={() => handleFormPress(primaryForm.data, primaryForm.annexTitle)}
+            >
+              <View style={styles.cardHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{item.name}</Text>
+                  <View style={styles.locationRow}>
+                    <Ionicons name="pin" size={14} color={colors.textMuted} />
+                    <Text style={[styles.locationText, { color: colors.textMuted }]}>
+                      {item.locationBarangay}, {item.locationMunicipality}
+                    </Text>
+                  </View>
+                </View>
+                <StatusBadge status={primaryForm.status} />
+              </View>
+
+              <View style={styles.cardMetaRow}>
+                <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
+                  <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
+                  <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationBarangay}</Text>
+                </View>
+                <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
+                  <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
+                  <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationMunicipality}</Text>
                 </View>
               </View>
-              <StatusBadge status={item.status} />
-            </View>
-            <View style={styles.cardMetaRow}>
-              <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
-                <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
-                <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationBarangay}</Text>
+
+              <View style={styles.cardFooter}>
+                <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                  Last form updated {new Date(primaryForm.updatedAt).toLocaleDateString()}
+                </Text>
               </View>
-              <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
-                <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
-                <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>{item.locationMunicipality}</Text>
+
+              <View style={styles.formsRow}>
+                <Text style={[styles.formsLabel, { color: colors.textMuted }]}>Forms</Text>
+                <View style={styles.formsList}>
+                  {annexForms.map((annex) => {
+                    const instances = item.forms.filter((form) => form.annexTitle === annex.title);
+                    if (!instances.length) {
+                      return (
+                        <View key={annex.id} style={[styles.formButton, { backgroundColor: colors.surfaceMuted }]}>
+                          <Text style={[styles.formButtonText, { color: colors.textMuted }]}>{annex.title}</Text>
+                        </View>
+                      );
+                    }
+                    return (
+                      <View key={annex.id} style={styles.formGroup}>
+                        <Text style={[styles.formGroupLabel, { color: colors.textMuted }]}>{annex.title}</Text>
+                        <View style={styles.formInstances}>
+                          {instances.map((instance, index) => (
+                            <TouchableOpacity
+                              key={instance.id}
+                              style={[styles.formButton, { backgroundColor: colors.primary }]}
+                              onPress={() => handleFormPress(instance.data, annex.title)}
+                            >
+                              <Text style={[styles.formButtonText, { color: '#fff' }]}>Form #{index + 1}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
-            </View>
-            <View style={styles.cardFooter}>
-              <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                Updated {new Date(item.updatedAt).toLocaleDateString()}
-              </Text>
-            </View>
-            <View style={styles.formsRow}>
-              <Text style={[styles.formsLabel, { color: colors.textMuted }]}>Forms</Text>
-              <View style={styles.formsList}>
-                {annexForms.map((annex) => {
-                  const disabled = annex.status !== 'available';
-                  return (
-                    <TouchableOpacity
-                      key={annex.id}
-                      disabled={disabled}
-                      style={[
-                        styles.formButton,
-                        {
-                          backgroundColor: disabled ? colors.surfaceMuted : colors.primary,
-                          opacity: disabled ? 0.6 : 1,
-                        },
-                      ]}
-                      onPress={() => {
-                        if (disabled) {
-                          Alert.alert('Coming soon', `${annex.title} will be available soon.`);
-                          return;
-                        }
-                        handleFormPress(item, annex.title);
-                      }}
-                    >
-                      <Text style={[styles.formButtonText, { color: disabled ? colors.textPrimary : '#fff' }]}>
-                        {annex.title}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </TouchableOpacity>
-        )}
+            </TouchableOpacity>
+          );
+        }}
       />
 
       <TouchableOpacity
@@ -401,15 +372,15 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontSize: 12,
   },
-  heroButton: {
-    marginTop: spacing.xs,
+  heroButtonFull: {
+    marginTop: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     borderRadius: 14,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
   },
   heroButtonText: {
     fontFamily: fonts.semibold,
@@ -560,6 +531,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   formsList: {
+    gap: spacing.xs,
+  },
+  formGroup: {
+    gap: spacing.xs,
+  },
+  formGroupLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+  },
+  formInstances: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
