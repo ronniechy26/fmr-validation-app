@@ -216,19 +216,22 @@ export class FmrRepository {
 
   async saveProjectsFromUpstream(projects: ProjectRecord[]): Promise<void> {
     for (const project of projects) {
-      const existing =
-        (await this.projectsRepo.findOne({
-          where: { id: project.id },
-          relations: ['forms'],
-        })) ??
+      const existingById = await this.projectsRepo.findOne({
+        where: { id: project.id },
+        relations: ['forms'],
+      });
+      const existingByCode =
+        existingById ??
         (await this.projectsRepo.findOne({
           where: { projectCode: project.projectCode },
           relations: ['forms'],
         }));
+      const existing = existingById ?? existingByCode;
+      const targetId = existing?.id ?? project.id;
       const entity = this.projectsRepo.create({
         ...(existing ?? {}),
-        id: project.id,
-        projectCode: project.projectCode,
+        id: targetId,
+        projectCode: project.projectCode ?? targetId,
         title: project.title,
         operatingUnit: project.operatingUnit ?? null,
         bannerProgram: project.bannerProgram ?? null,
@@ -252,6 +255,8 @@ export class FmrRepository {
         indicatorLevel3: project.indicatorLevel3 ?? null,
         recipientType: project.recipientType ?? null,
         budgetProcess: project.budgetProcess ?? null,
+        latitude: project.latitude ?? null,
+        longitude: project.longitude ?? null,
         geotags: project.geotags ?? [],
         proposalDocuments: project.proposalDocuments ?? [],
         abemisId: project.abemisId ?? null,
@@ -354,6 +359,8 @@ export class FmrRepository {
       abemisId: project.abemisId ?? undefined,
       qrReference: project.qrReference ?? undefined,
       zone: project.zone ?? undefined,
+      latitude: project.latitude ?? undefined,
+      longitude: project.longitude ?? undefined,
       forms,
     };
   }

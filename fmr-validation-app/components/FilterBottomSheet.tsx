@@ -1,10 +1,11 @@
 import { FilterChip } from '@/components/FilterChip';
+import { SheetBackdrop } from '@/components/SheetBackdrop';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
 import { FormStatus } from '@/types/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { ForwardedRef, forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { ForwardedRef, forwardRef, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type StatusFilter = 'All' | FormStatus;
@@ -59,21 +60,12 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
     setSelectedFilter(filter);
   };
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-      />
-    ),
-    []
-  );
-
   return (
     <BottomSheetModal
       index={1}
       ref={ref}
       snapPoints={snapPoints}
-      backdropComponent={renderBackdrop}
+      backdropComponent={SheetBackdrop}
       enablePanDownToClose
       backgroundStyle={{ backgroundColor: colors.surface }}
       handleIndicatorStyle={{ backgroundColor: colors.border }}

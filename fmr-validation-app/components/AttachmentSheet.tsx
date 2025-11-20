@@ -4,6 +4,7 @@ import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { fonts, spacing } from '@/theme';
 import { useThemeColors } from '@/providers/ThemeProvider';
 import { AttachmentPayload } from '@/types/forms';
+import { SheetBackdrop } from '@/components/SheetBackdrop';
 
 type AttachmentSheetProps = {
   onAttach: (payload: AttachmentPayload) => void;
@@ -35,7 +36,7 @@ export const AttachmentSheet = forwardRef<BottomSheetModal, AttachmentSheetProps
   };
 
   return (
-    <BottomSheetModal ref={ref} index={0} snapPoints={snapPoints} backdropComponent={() => null}>
+    <BottomSheetModal ref={ref} index={0} snapPoints={snapPoints} backdropComponent={SheetBackdrop}>
       <BottomSheetView style={[styles.sheetContent, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>Attach to existing FMR</Text>
         <Text style={[styles.sheetSubtitle, { color: colors.textMuted }]}>Use a QR scan or ABEMIS ID.</Text>

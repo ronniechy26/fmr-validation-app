@@ -87,6 +87,12 @@ export class ProjectEntity {
   budgetProcess?: string | null;
 
   @Column('text', { nullable: true })
+  latitude?: string | null;
+
+  @Column('text', { nullable: true })
+  longitude?: string | null;
+
+  @Column('text', { nullable: true })
   abemisId?: string | null;
 
   @Column('text', { nullable: true })

@@ -9,6 +9,7 @@ cd fmr-validation-services
 pnpm install        # install once
 cp .env.example .env
 # update ABEMIS_API_KEY if needed (defaults to staging key provided)
+# set JWT_SECRET / JWT_REFRESH_SECRET for token issuance
 pnpm run start:dev  # start watch mode on http://localhost:3000
 ```
 
@@ -17,10 +18,14 @@ The service enables CORS so you can call it from the Expo app or Thunder Client.
 ### Database Setup (PostgreSQL + TypeORM)
 
 1. Provision a Postgres database and set `DATABASE_URL` in `.env` (ignored by git). Nest's `ConfigModule` loads this variable automatically.
-2. Start the NestJS server (`pnpm run start:dev`). On boot, the `DatabaseModule` connects via TypeORM, synchronizes the schema, and seeds the mock FMR data from `src/data/projects.seed.ts` when the tables are empty. After startup, ABEMIS sync refreshes the DB via `/sync/snapshot`.
+2. Start the NestJS server (`pnpm run start:dev`). On boot, the `DatabaseModule` connects via TypeORM, runs migrations (no auto-synchronize), and attempts to seed from ABEMIS first (falls back to `src/data/projects.seed.ts` if unavailable). After startup, ABEMIS sync refreshes the DB via `/sync/snapshot`.
 3. Use `DATABASE_URL=... pnpm run start:dev` in other environments (staging/prod) to point at hosted Postgres instances.
 
 Every repository call now flows through TypeORM (`src/shared/fmr.repository.ts`), so the API serves and mutates actual database rows. The `/sync/snapshot` endpoint still returns the exact payload shape required by the mobile offline cache.
+
+To force a reseed (drop + reimport projects/forms) on next start, set `ABEMIS_SEED_RESET=true` in `.env` before launching.
+
+Background sync: the service now polls ABEMIS on a timer (default every 900,000 ms / 15 minutes) and upserts projects. Configure `ABEMIS_SYNC_INTERVAL_MS` to change the cadence or `0` to disable. Sync is skipped when `ABEMIS_SEED_MODE=seed`.
 
 ### Available Scripts
 
@@ -35,7 +40,8 @@ Every repository call now flows through TypeORM (`src/shared/fmr.repository.ts`)
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/health` | Service heartbeat information |
-| `POST` | `/auth/login` | Wraps ABEMIS-style credential login and returns a session token |
+| `POST` | `/auth/login` | Credential login; issues short-lived access token + refresh token |
+| `POST` | `/auth/refresh` | Exchanges a refresh token for a new access/refresh token pair |
 | `GET` | `/auth/profile/:id` | Fetch profile metadata for a logged-in user |
 | `GET` | `/projects` | List projects with nested forms; supports `search`, `status`, `annexTitle` queries |
 | `GET` | `/projects/:id` | Fetch a single project and all of its forms |
@@ -63,13 +69,12 @@ All `/forms` endpoints accept `projectId` and `abemisId` query params so you can
 ### Project Layout
 
 - `src/modules` – feature modules (auth, forms, projects, analytics, annexes, locator)
-- `src/shared` – shared providers including the in-memory `FmrRepository`
-- `src/data` – deterministic seed data for annexes, forms, and sample users
+- `src/shared` – shared providers including the ABEMIS client and `FmrRepository`
+- `src/data` – deterministic seed data for annexes, forms, and sample users (fallback when ABEMIS is unavailable)
 - `src/common/types` – shared TypeScript interfaces mirroring the Expo app models
 
 ### Next Steps
 
-- Replace the repository seeds with real ABEMIS integrations (use `HttpModule` for upstream calls)
-- Add persistence (Postgres or Redis) for drafts and sync queues
-- Wire JWT authentication by swapping the stubbed token issuance with `@nestjs/jwt`
-- Extend tests under `test/` once endpoints stabilize
+- Harden ABEMIS sync robustness (retry/partial updates) and map any new fields to client DTOs.
+- Add migrations for future schema changes (current baseline migration is in `src/database/migrations`).
+- Extend tests under `test/` once endpoints stabilize.

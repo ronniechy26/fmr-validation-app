@@ -18,8 +18,12 @@ describe('AppController (e2e)', () => {
 
   it('/ (GET)', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect((res) => {
+        if (res.body?.status !== 'ok') {
+          throw new Error('Health check failed');
+        }
+      });
   });
 });

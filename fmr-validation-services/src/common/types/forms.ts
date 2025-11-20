@@ -94,6 +94,8 @@ export interface ProjectRecord {
   budgetProcess?: string;
   geotags?: GeoTag[];
   proposalDocuments?: ProposalDocument[];
+  latitude?: string;
+  longitude?: string;
   forms: FormRecord[];
 }
 

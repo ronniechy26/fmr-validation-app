@@ -1,13 +1,12 @@
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/Screen';
-import { Section } from '@/components/Section';
-import { SectionDivider } from '@/components/SectionDivider';
 import { StatusBadge } from '@/components/StatusBadge';
 import { AttachmentSheet } from '@/components/AttachmentSheet';
+import { SectionDivider } from '@/components/SectionDivider';
 import { fonts, spacing, typography } from '@/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AttachmentPayload, FormRecord, FormRoutePayload, ValidationForm } from '@/types/forms';
+import { AttachmentPayload, FormRecord, FormRoutePayload, ProjectRecord, ValidationForm } from '@/types/forms';
 import { useThemeColors } from '@/providers/ThemeProvider';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
@@ -16,159 +15,191 @@ export function FormDetailScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const { projects, standaloneDrafts, attachDraft, findProjectByCode } = useOfflineData();
-  const params = useLocalSearchParams<{ form?: string; annex?: string; record?: string }>();
+  const params = useLocalSearchParams<{
+    form?: string;
+    annex?: string;
+    record?: string;
+    projectId?: string;
+    formId?: string;
+  }>();
 
-  const pickFirstForm = useCallback((): FormRoutePayload | null => {
-    const projectForm = projects[0]?.forms?.[0];
-    if (projectForm) {
-      return {
-        form: projectForm.data,
-        meta: {
-          id: projectForm.id,
-          annexTitle: projectForm.annexTitle,
-          status: projectForm.status,
-          linkedProjectId: projectForm.linkedProjectId,
-          linkedProjectTitle: projects[0]?.title,
-          projectCode: projects[0]?.projectCode,
-          barangay: projects[0]?.barangay,
-          municipality: projects[0]?.municipality,
-          province: projects[0]?.province,
-          zone: projects[0]?.zone,
-        },
+  const normalizeProjectForDisplay = useCallback((project: ProjectRecord): ProjectRecord => {
+    return {
+      ...project,
+      title: project.title || (project as any).name || 'Untitled FMR',
+      barangay: project.barangay ?? (project as any).locationBarangay,
+      municipality: project.municipality ?? (project as any).locationMunicipality,
+      province: project.province ?? (project as any).locationProvince,
+    };
+  }, []);
+
+  const findProjectByAnyId = useCallback(
+    (id?: string) => {
+      if (!id) return undefined;
+      const needle = id.trim().toLowerCase();
+      return projects.find((project) =>
+        [project.id, project.projectCode, project.abemisId]
+          .filter(Boolean)
+          .some((value) => value?.toLowerCase() === needle),
+      );
+    },
+    [projects],
+  );
+
+  const resolveSelectionFromProject = useCallback(() => {
+    const projectId = (params.projectId as string | undefined) ?? undefined;
+    const project = findProjectByAnyId(projectId);
+    if (!project) return null;
+    const normalized = normalizeProjectForDisplay(project);
+    const formId = params.formId as string | undefined;
+    const candidateForm = (formId && normalized.forms.find((f) => f.id === formId)) || normalized.forms[0];
+    if (!candidateForm) return null;
+    return { formRecord: candidateForm, project: normalized };
+  }, [findProjectByAnyId, normalizeProjectForDisplay, params.formId, params.projectId]);
+
+  const resolveSelectionFromStandalone = useCallback(() => {
+    const formId = params.formId as string | undefined;
+    if (!formId) return null;
+    const draft = standaloneDrafts.find((f) => f.id === formId);
+    return draft ? { formRecord: draft, project: undefined } : null;
+  }, [params.formId, standaloneDrafts]);
+
+  const resolveSelectionFromRecord = useCallback(() => {
+    if (!params.record) return null;
+    try {
+      const parsed = JSON.parse(params.record as string) as FormRoutePayload;
+      const project =
+        findProjectByAnyId(parsed.meta.linkedProjectId) ??
+        findProjectByAnyId(parsed.meta.projectCode) ??
+        findProjectByAnyId(parsed.meta.abemisId);
+      const normalized = project ? normalizeProjectForDisplay(project) : undefined;
+      const formRecord: FormRecord = {
+        id: parsed.meta.id,
+        annexTitle: parsed.meta.annexTitle,
+        status: parsed.meta.status,
+        updatedAt: parsed.form.updatedAt,
+        abemisId: parsed.meta.abemisId,
+        qrReference: parsed.meta.qrReference,
+        linkedProjectId: parsed.meta.linkedProjectId,
+        data: parsed.form,
       };
+      return { formRecord, project: normalized };
+    } catch {
+      return null;
     }
-    const standalone = standaloneDrafts[0];
-    if (standalone) {
-      return {
-        form: standalone.data,
-        meta: {
-          id: standalone.id,
-          annexTitle: standalone.annexTitle,
-          status: standalone.status,
-        },
-      };
+  }, [findProjectByAnyId, normalizeProjectForDisplay, params.record]);
+
+  const resolveFallbackSelection = useCallback(() => {
+    const firstProject = projects[0];
+    if (firstProject?.forms?.length) {
+      const normalized = normalizeProjectForDisplay(firstProject);
+      return { formRecord: normalized.forms[0], project: normalized };
+    }
+    if (standaloneDrafts[0]) {
+      return { formRecord: standaloneDrafts[0], project: undefined };
     }
     return null;
-  }, [projects, standaloneDrafts]);
+  }, [normalizeProjectForDisplay, projects, standaloneDrafts]);
 
-  const payload = useMemo<FormRoutePayload>(() => {
-    if (params.record) {
-      try {
-        return JSON.parse(params.record as string) as FormRoutePayload;
-      } catch {
-        return pickFirstForm() ?? {
-          form: {
-            id: 'fallback',
-            validationDate: '',
-            district: '',
-            nameOfProject: '',
-            typeOfProject: 'FMR',
-            proponent: '',
-            locationBarangay: '',
-            locationMunicipality: '',
-            locationProvince: '',
-            scopeOfWorks: '',
-            estimatedCost: '',
-            estimatedLengthLinear: '',
-            estimatedLengthWidth: '',
-            estimatedLengthThickness: '',
-            projectLinkNarrative: '',
-            publicMarketName: '',
-            distanceKm: '',
-            agriCommodities: '',
-            areaHectares: '',
-            numFarmers: '',
-            roadRemarks: '',
-            barangaysCovered: '',
-            startLatDMS: '',
-            startLonDMS: '',
-            endLatDMS: '',
-            endLonDMS: '',
-            preparedByName: '',
-            preparedByDesignation: '',
-            recommendedByName: '',
-            notedByName: '',
-            status: 'Draft',
-            updatedAt: new Date().toISOString(),
-          },
-          meta: {
-            id: 'fallback',
-            annexTitle: params.annex ?? 'Annex C – Validation Form',
-            status: 'Draft',
-          },
-        };
-      }
-    }
-    if (params.form) {
-      try {
-        const parsed = JSON.parse(params.form as string) as ValidationForm;
-        return {
-          form: parsed,
-          meta: {
-            id: parsed.id,
-            annexTitle: params.annex ?? 'Annex C – Validation Form',
-            status: parsed.status,
-          },
-        };
-      } catch {
-        const fallback = pickFirstForm();
-        if (fallback) return fallback;
-        throw new Error('No form available');
-      }
-    }
-    const fallback = pickFirstForm();
-    if (fallback) {
-      return fallback;
-    }
-    return {
-      form: {
-        id: 'fallback',
-        validationDate: '',
-        district: '',
-        nameOfProject: '',
-        typeOfProject: 'FMR',
-        proponent: '',
-        locationBarangay: '',
-        locationMunicipality: '',
-        locationProvince: '',
-        scopeOfWorks: '',
-        estimatedCost: '',
-        estimatedLengthLinear: '',
-        estimatedLengthWidth: '',
-        estimatedLengthThickness: '',
-        projectLinkNarrative: '',
-        publicMarketName: '',
-        distanceKm: '',
-        agriCommodities: '',
-        areaHectares: '',
-        numFarmers: '',
-        roadRemarks: '',
-        barangaysCovered: '',
-        startLatDMS: '',
-        startLonDMS: '',
-        endLatDMS: '',
-        endLonDMS: '',
-        preparedByName: '',
-        preparedByDesignation: '',
-        recommendedByName: '',
-        notedByName: '',
-        status: 'Draft',
-        updatedAt: new Date().toISOString(),
-      },
-      meta: {
-        id: 'fallback',
-        annexTitle: params.annex ?? 'Annex C – Validation Form',
-        status: 'Draft',
-      },
-    };
-  }, [params.record, params.form, pickFirstForm]);
+  const emptyForm: ValidationForm = useMemo(
+    () => ({
+      id: 'fallback',
+      validationDate: '',
+      district: '',
+      nameOfProject: '',
+      typeOfProject: 'FMR',
+      proponent: '',
+      locationBarangay: '',
+      locationMunicipality: '',
+      locationProvince: '',
+      scopeOfWorks: '',
+      estimatedCost: '',
+      estimatedLengthLinear: '',
+      estimatedLengthWidth: '',
+      estimatedLengthThickness: '',
+      projectLinkNarrative: '',
+      publicMarketName: '',
+      distanceKm: '',
+      agriCommodities: '',
+      areaHectares: '',
+      numFarmers: '',
+      roadRemarks: '',
+      barangaysCovered: '',
+      startLatDMS: '',
+      startLonDMS: '',
+      endLatDMS: '',
+      endLonDMS: '',
+      preparedByName: '',
+      preparedByDesignation: '',
+      recommendedByName: '',
+      notedByName: '',
+      status: 'Draft',
+      updatedAt: new Date().toISOString(),
+    }),
+    [],
+  );
 
-  const [meta, setMeta] = useState(payload.meta);
+  const initialSelection = useMemo(() => {
+    return (
+      resolveSelectionFromProject() ??
+      resolveSelectionFromStandalone() ??
+      resolveSelectionFromRecord() ??
+      resolveFallbackSelection() ?? {
+        formRecord: {
+          id: 'fallback',
+          annexTitle: params.annex ?? 'Annex C – Validation Form',
+          status: 'Draft',
+          updatedAt: emptyForm.updatedAt,
+          abemisId: undefined,
+          qrReference: undefined,
+          linkedProjectId: undefined,
+          data: emptyForm,
+        } as FormRecord,
+        project: undefined,
+      }
+    );
+  }, [
+    emptyForm,
+    params.annex,
+    resolveFallbackSelection,
+    resolveSelectionFromProject,
+    resolveSelectionFromRecord,
+    resolveSelectionFromStandalone,
+  ]);
+
+  const [selection, setSelection] = useState(initialSelection);
   useEffect(() => {
-    setMeta(payload.meta);
-  }, [payload.meta]);
-  const annexTitle = meta.annexTitle || 'Annex C – Validation Form';
-  const form = payload.form;
+    setSelection(initialSelection);
+  }, [initialSelection]);
+
+  const activeFormRecord = selection.formRecord;
+  const activeProject = selection.project;
+
+  const meta = useMemo(() => {
+    return {
+      id: activeFormRecord.id,
+      annexTitle: activeFormRecord.annexTitle || params.annex || 'Annex C – Validation Form',
+      status: activeFormRecord.status,
+      linkedProjectId: activeProject?.id ?? activeFormRecord.linkedProjectId,
+      linkedProjectTitle: activeProject?.title,
+      projectCode: activeProject?.projectCode,
+      abemisId: activeFormRecord.abemisId ?? activeProject?.abemisId,
+      qrReference: activeFormRecord.qrReference ?? activeProject?.qrReference,
+      barangay: activeProject?.barangay ?? activeFormRecord.data.locationBarangay,
+      municipality: activeProject?.municipality ?? activeFormRecord.data.locationMunicipality,
+      province: activeProject?.province ?? activeFormRecord.data.locationProvince,
+      zone: activeProject?.zone,
+    };
+  }, [activeFormRecord, activeProject, params.annex]);
+
+  const annexTitle = meta.annexTitle ?? 'Annex C – Validation Form';
+  const projectForms = useMemo(() => activeProject?.forms ?? [], [activeProject]);
+  const handleSelectForm = (formId: string) => {
+    const next = projectForms.find((f) => f.id === formId);
+    if (next) {
+      setSelection({ formRecord: next, project: activeProject });
+    }
+  };
   const attachmentSheetRef = useRef<BottomSheetModal>(null);
 
   const detailRow = (label: string, value?: string) => (
@@ -191,18 +222,11 @@ export function FormDetailScreen() {
     const updated = result.record;
     const lookupCode = updated.qrReference ?? updated.abemisId ?? updated.linkedProjectId ?? '';
     const project = updated.linkedProjectId ? findProjectByCode(lookupCode) : undefined;
-    setMeta((prev) => ({
-      ...prev,
-      linkedProjectId: updated.linkedProjectId,
-      linkedProjectTitle: project?.title ?? prev.linkedProjectTitle,
-      projectCode: project?.projectCode ?? prev.projectCode,
-      abemisId: updated.abemisId,
-      qrReference: updated.qrReference,
-      barangay: project?.barangay ?? prev.barangay,
-      municipality: project?.municipality ?? prev.municipality,
-      province: project?.province ?? prev.province,
-      zone: project?.zone ?? prev.zone,
-    }));
+    const normalizedProject = project ? normalizeProjectForDisplay(project) : activeProject;
+    setSelection({
+      formRecord: { ...updated, data: updated.data },
+      project: normalizedProject,
+    });
     attachmentSheetRef.current?.dismiss();
     Alert.alert(
       result.synced ? 'Attached' : 'Attached offline',
@@ -219,15 +243,93 @@ export function FormDetailScreen() {
     ? `Linked to ${meta.linkedProjectTitle}${meta.abemisId ? ` (${meta.abemisId})` : ''}`
     : 'This draft is not tied to an ABEMIS record yet.';
 
+  const openFormData = (entry: FormRecord) => {
+    const payload: FormRoutePayload = {
+      form: entry.data,
+      meta: {
+        id: entry.id,
+        annexTitle: entry.annexTitle,
+        status: entry.status,
+        linkedProjectId: activeProject?.id ?? entry.linkedProjectId,
+        linkedProjectTitle: activeProject?.title,
+        projectCode: activeProject?.projectCode,
+        abemisId: entry.abemisId ?? activeProject?.abemisId,
+        qrReference: entry.qrReference ?? activeProject?.qrReference,
+        barangay: activeProject?.barangay ?? entry.data.locationBarangay,
+        municipality: activeProject?.municipality ?? entry.data.locationMunicipality,
+        province: activeProject?.province ?? entry.data.locationProvince,
+        zone: activeProject?.zone,
+      },
+    };
+    router.push({
+      pathname: '/form-data',
+      params: { record: JSON.stringify(payload) },
+    });
+  };
+
   return (
     <Screen scroll applyTopInset={false}>
-      <View style={styles.statusRow}>
-        <StatusBadge status={form.status} />
-        <Text style={[styles.metaText, { color: colors.textMuted }]}>
-          Last updated {new Date(form.updatedAt).toLocaleString()}
-        </Text>
-        <Text style={[styles.annexTag, { color: colors.textPrimary }]}>{annexTitle}</Text>
+      <View style={[styles.projectHeader, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+        <View style={{ gap: spacing.xs, flex: 1 }}>
+          <Text style={[styles.projectTitle, { color: colors.textPrimary }]}>
+            {activeProject?.title ?? 'Standalone Draft'}
+          </Text>
+          {activeProject ? (
+            <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
+              {activeProject.barangay ?? '—'}, {activeProject.municipality ?? '—'}, {activeProject.province ?? '—'}
+            </Text>
+          ) : (
+            <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
+              Draft not yet linked to a project
+            </Text>
+          )}
+          <View style={styles.badgeRow}>
+            <StatusBadge status={activeFormRecord.status} />
+            <Text style={[styles.metaText, { color: colors.textMuted }]}>
+              Last updated {new Date(activeFormRecord.updatedAt).toLocaleString()}
+            </Text>
+          </View>
+          <Text style={[styles.annexTag, { color: colors.textPrimary }]}>{annexTitle}</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.viewFormButton, { borderColor: colors.primary }]}
+          onPress={() => openFormData(activeFormRecord)}
+        >
+          <Text style={[styles.viewFormText, { color: colors.primary }]}>View Form Data</Text>
+        </TouchableOpacity>
       </View>
+
+      {activeProject && (
+        <View style={[styles.projectCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Project Details</Text>
+          <View style={styles.projectGrid}>
+            <SectionDivider label="Overview" />
+            {detailRow('Project Code', activeProject.projectCode)}
+            {detailRow('Type', activeProject.projectType)}
+            {detailRow('Stage', activeProject.stage)}
+            {detailRow('Status', activeProject.status)}
+            {detailRow('Operating Unit', activeProject.operatingUnit)}
+            {detailRow('Banner Program', activeProject.bannerProgram)}
+            {detailRow('PREXC Program', activeProject.prexcProgram)}
+            {detailRow('Sub Program', activeProject.subProgram)}
+            {detailRow('Recipient Type', activeProject.recipientType)}
+            {detailRow('Budget Process', activeProject.budgetProcess)}
+
+            <SectionDivider label="Funding" />
+            {detailRow('Year Funded', activeProject.yearFunded?.toString())}
+            {detailRow('Allocated Amount', activeProject.allocatedAmount)}
+            {detailRow('Beneficiary', activeProject.beneficiary ?? undefined)}
+
+            <SectionDivider label="Location" />
+            {detailRow('Region', activeProject.region)}
+            {detailRow('Province', activeProject.province)}
+            {detailRow('Municipality', activeProject.municipality)}
+            {detailRow('Barangay', activeProject.barangay)}
+            {detailRow('Latitude', activeProject.latitude)}
+            {detailRow('Longitude', activeProject.longitude)}
+          </View>
+        </View>
+      )}
 
       <View style={[styles.attachmentCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
         <View style={{ flex: 1, gap: spacing.xs }}>
@@ -244,71 +346,49 @@ export function FormDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <Section title="Header / Basic Info">
-        {detailRow('Validation Date', form.validationDate)}
-        {detailRow('District', form.district)}
-        {detailRow('Name of Project', form.nameOfProject)}
-        {detailRow('Type of Project', form.typeOfProject)}
-        {detailRow('Proponent', form.proponent)}
-      </Section>
+      {activeProject && projectForms.length > 0 && (
+        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Attached Forms</Text>
+          <View style={{ gap: spacing.sm }}>
+            {projectForms.map((entry) => (
+              <TouchableOpacity
+                key={entry.id}
+                style={[
+                  styles.formChip,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: entry.id === activeFormRecord.id ? colors.surfaceMuted : colors.surface,
+                  },
+                ]}
+                onPress={() => openFormData(entry)}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.formChipTitle, { color: colors.textPrimary }]}>{entry.annexTitle}</Text>
+                  <Text style={[styles.formChipMeta, { color: colors.textMuted }]}>
+                    {entry.data.nameOfProject || 'Untitled form'}
+                  </Text>
+                </View>
+                <StatusBadge status={entry.status} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
 
-      <Section title="Location">
-        {detailRow('Barangay', form.locationBarangay)}
-        {detailRow('Municipality', form.locationMunicipality)}
-        {detailRow('Province', form.locationProvince)}
-      </Section>
-
-      <Section title="Scope, Cost & Length">
-        {detailRow('Scope of Works', form.scopeOfWorks)}
-        {detailRow('Estimated Cost (₱)', form.estimatedCost)}
-        {detailRow('Length (Linear meters)', form.estimatedLengthLinear)}
-        {detailRow('Width (m)', form.estimatedLengthWidth)}
-        {detailRow('Thickness (m)', form.estimatedLengthThickness)}
-      </Section>
-
-      <Section title="Project Link">
-        {detailRow('Narrative', form.projectLinkNarrative)}
-        {detailRow('Public Market Name', form.publicMarketName)}
-        {detailRow('Distance (km)', form.distanceKm)}
-      </Section>
-
-      <Section title="Agricultural Commodities & Area">
-        {detailRow('Commodities', form.agriCommodities)}
-        {detailRow('Area (Hectares)', form.areaHectares)}
-      </Section>
-
-      <Section title="Beneficiaries & Road Condition">
-        {detailRow('No. of Farmers', form.numFarmers)}
-        {detailRow('Road Remarks', form.roadRemarks)}
-      </Section>
-
-      <Section title="Barangays Covered & Coordinates">
-        {detailRow('Barangays Covered', form.barangaysCovered)}
-        <SectionDivider label="Start Coordinates" />
-        {detailRow('Latitude (DMS)', form.startLatDMS)}
-        {detailRow('Longitude (DMS)', form.startLonDMS)}
-        <SectionDivider label="End Coordinates" />
-        {detailRow('Latitude (DMS)', form.endLatDMS)}
-        {detailRow('Longitude (DMS)', form.endLonDMS)}
-      </Section>
-
-      <Section title="Signatories">
-        {detailRow('Prepared By', `${form.preparedByName} (${form.preparedByDesignation})`)}
-        {detailRow('Recommended By', form.recommendedByName)}
-        {detailRow('Noted By', form.notedByName)}
-      </Section>
-
-      <TouchableOpacity
-        style={[styles.editButton, { backgroundColor: colors.primary }]}
-        onPress={() =>
-          router.push({
-            pathname: '/form-editor',
-            params: { form: JSON.stringify(form) },
-          })
-        }
-      >
-        <Text style={styles.editText}>Edit</Text>
-      </TouchableOpacity>
+      {!activeProject && (
+        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Draft</Text>
+          <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
+            This standalone draft is not yet linked to an ABEMIS project.
+          </Text>
+          <TouchableOpacity
+            style={[styles.viewFormButton, { borderColor: colors.primary, marginTop: spacing.sm }]}
+            onPress={() => openFormData(activeFormRecord)}
+          >
+            <Text style={[styles.viewFormText, { color: colors.primary }]}>View Form Data</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <AttachmentSheet ref={attachmentSheetRef} onAttach={handleAttachment} initialAbemisId={meta.abemisId} />
     </Screen>
@@ -319,12 +399,54 @@ const styles = StyleSheet.create({
   statusRow: {
     gap: spacing.xs,
   },
+  projectHeader: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   metaText: {
     fontFamily: fonts.regular,
   },
   annexTag: {
     fontFamily: fonts.medium,
     fontSize: 12,
+  },
+  projectCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  projectTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 18,
+  },
+  projectMeta: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+  },
+  projectGrid: {
+    gap: spacing.sm,
+  },
+  viewFormButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  viewFormText: {
+    fontFamily: fonts.semibold,
   },
   detailRow: {
     gap: spacing.xs,
@@ -365,6 +487,33 @@ const styles = StyleSheet.create({
   },
   attachmentButtonText: {
     fontFamily: fonts.semibold,
+  },
+  sectionCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  cardLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    letterSpacing: 0.2,
+  },
+  formChip: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  formChipTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+  },
+  formChipMeta: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
   },
   editButton: {
     borderRadius: 999,

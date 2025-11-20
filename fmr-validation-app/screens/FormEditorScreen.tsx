@@ -55,7 +55,7 @@ export function FormEditorScreen() {
   const router = useRouter();
   const { colors } = useThemeMode();
   const { saveDraft } = useOfflineData();
-  const params = useLocalSearchParams<{ form?: string }>();
+  const params = useLocalSearchParams<{ form?: string; annex?: string }>();
   const annexName =
     typeof params.annex === 'string' && params.annex.trim().length > 0 ? params.annex : 'Annex C – Validation Form';
   const existingForm = useMemo(() => {

@@ -52,6 +52,14 @@ export function login(payload: LoginPayload) {
   });
 }
 
+export function refreshSession(refreshToken: string) {
+  return request<LoginResponse>('/auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({ refreshToken }),
+    skipAuth: true,
+  });
+}
+
 export function fetchSnapshotFromServer(signal?: AbortSignal) {
   return request<OfflineSnapshot>('/sync/snapshot', { method: 'GET' as HttpMethod, signal });
 }

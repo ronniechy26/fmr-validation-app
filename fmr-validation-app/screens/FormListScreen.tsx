@@ -112,7 +112,11 @@ export function FormListScreen() {
     };
     router.push({
       pathname: '/form-detail',
-      params: { record: JSON.stringify(payload) },
+      params: {
+        record: JSON.stringify(payload),
+        projectId: normalizedProject?.id,
+        formId: entry.id,
+      },
     });
   };
 

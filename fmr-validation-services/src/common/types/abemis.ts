@@ -23,6 +23,8 @@ export type AbemisInfraListItem = {
   author?: string;
   quantity?: string;
   quantity_unit?: string;
+  latitude?: string;
+  longitude?: string;
 };
 
 export type AbemisGeoTag = {
@@ -51,6 +53,8 @@ export type AbemisInfraDetail = AbemisInfraListItem & {
   budget_process?: string;
   geotag?: AbemisGeoTag[];
   proposalDocuments?: AbemisProposalDoc[];
+  latitude?: string;
+  longitude?: string;
 };
 
 export type AbemisInfraListResponse = {

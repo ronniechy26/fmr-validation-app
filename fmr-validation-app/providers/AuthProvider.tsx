@@ -1,5 +1,5 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { login, setAuthToken } from '@/lib/api';
+import { login, refreshSession, setAuthToken } from '@/lib/api';
 import { clearSession, loadSession, saveSession } from '@/storage/session';
 import { LoginResponse } from '@/types/auth';
 import { StoredSession } from '@/types/session';
@@ -19,39 +19,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<StoredSession<LoginResponse['user']> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const bootstrap = async () => {
-      setLoading(true);
-      const cached = await loadSession<LoginResponse['user']>();
-      if (cached && cached.expiresAt > Date.now()) {
-        setSession(cached);
-        setAuthToken(cached.token);
-      } else {
-        await clearSession();
-      }
-      setLoading(false);
-    };
-    bootstrap();
-  }, []);
-
-  const signIn = useCallback(async (email: string, password: string) => {
-    const response = await login({ email, password });
+  const persistSession = useCallback(async (response: LoginResponse) => {
     const expiresAt = Date.now() + response.expiresIn * 1000;
+    const refreshExpiresAt = Date.now() + response.refreshExpiresIn * 1000;
     const nextSession: StoredSession<LoginResponse['user']> = {
       token: response.accessToken,
+      refreshToken: response.refreshToken,
       user: response.user,
       expiresAt,
+      refreshExpiresAt,
     };
     setSession(nextSession);
     setAuthToken(response.accessToken);
     await saveSession(nextSession);
   }, []);
 
+  useEffect(() => {
+    const bootstrap = async () => {
+      setLoading(true);
+      const cached = await loadSession<LoginResponse['user']>();
+      if (!cached || !cached.refreshToken || !cached.refreshExpiresAt) {
+        await clearSession();
+        setLoading(false);
+        return;
+      }
+
+      if (cached.refreshExpiresAt <= Date.now()) {
+        await clearSession();
+        setLoading(false);
+        return;
+      }
+
+      if (cached.expiresAt > Date.now()) {
+        setSession(cached);
+        setAuthToken(cached.token);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const refreshed = await refreshSession(cached.refreshToken);
+        await persistSession(refreshed);
+      } catch (error) {
+        await clearSession();
+      }
+      setLoading(false);
+    };
+    bootstrap();
+  }, [persistSession]);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const response = await login({ email, password });
+    await persistSession(response);
+  }, [persistSession]);
+
   const signOut = useCallback(async () => {
     setSession(null);
     setAuthToken(null);
     await clearSession();
   }, []);
+
+  const attemptRefresh = useCallback(async () => {
+    if (!session) return;
+    try {
+      const refreshed = await refreshSession(session.refreshToken);
+      await persistSession(refreshed);
+    } catch (error) {
+      await signOut();
+    }
+  }, [persistSession, session, signOut]);
+
+  useEffect(() => {
+    if (!session) return undefined;
+    const earlyRefreshMs = 30_000;
+    const timeoutMs = Math.max(session.expiresAt - Date.now() - earlyRefreshMs, 0);
+    const timer = setTimeout(() => {
+      attemptRefresh();
+    }, timeoutMs);
+    return () => clearTimeout(timer);
+  }, [attemptRefresh, session]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

@@ -36,6 +36,8 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    - `mark.baldeo@da.gov.ph` / `validation123`
    - `alyssa.cruz@da.gov.ph` / `securepass456`
 
+   Access tokens auto-refresh ahead of expiry via `/auth/refresh`, and the client caches refresh tokens securely in `expo-sqlite`.
+
 3. Start the app
 
    ```bash

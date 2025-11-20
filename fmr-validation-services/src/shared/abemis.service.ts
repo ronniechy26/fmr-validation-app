@@ -152,6 +152,8 @@ export class AbemisService {
       budgetProcess: (input as AbemisInfraDetail).budget_process,
       geotags,
       proposalDocuments,
+      latitude: (input as AbemisInfraDetail).latitude,
+      longitude: (input as AbemisInfraDetail).longitude,
       abemisId: id,
       qrReference: undefined,
       zone: undefined,
