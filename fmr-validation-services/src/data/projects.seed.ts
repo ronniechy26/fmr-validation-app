@@ -32,32 +32,65 @@ export const seedProjects: ProjectRecord[] = [
     recipientType: 'Local Government Unit',
     budgetProcess: 'Tier I',
     geotags: [
-      { id: '216290', projectId: '61253', photoName: 'DA_IMG_01152025_040833 PM.jpg', url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_040833 PM.jpg' },
-      { id: '216291', projectId: '61253', photoName: 'DA_IMG_01152025_034314 PM.jpg', url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_034314 PM.jpg' },
-      { id: '216292', projectId: '61253', photoName: 'DA_IMG_01152025_034716 PM.jpg', url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_034716 PM.jpg' },
-      { id: '216293', projectId: '61253', photoName: 'DA_IMG_01152025_035024 PM.jpg', url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_035024 PM.jpg' },
-      { id: '216294', projectId: '61253', photoName: 'DA_IMG_01152025_040100 PM.jpg', url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_040100 PM.jpg' },
-      { id: '216295', projectId: '61253', photoName: 'DA_IMG_01152025_040439 PM.jpg', url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_040439 PM.jpg' },
+      {
+        id: '216290',
+        projectId: '61253',
+        photoName: 'DA_IMG_01152025_040833 PM.jpg',
+        url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_040833 PM.jpg',
+      },
+      {
+        id: '216291',
+        projectId: '61253',
+        photoName: 'DA_IMG_01152025_034314 PM.jpg',
+        url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_034314 PM.jpg',
+      },
+      {
+        id: '216292',
+        projectId: '61253',
+        photoName: 'DA_IMG_01152025_034716 PM.jpg',
+        url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_034716 PM.jpg',
+      },
+      {
+        id: '216293',
+        projectId: '61253',
+        photoName: 'DA_IMG_01152025_035024 PM.jpg',
+        url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_035024 PM.jpg',
+      },
+      {
+        id: '216294',
+        projectId: '61253',
+        photoName: 'DA_IMG_01152025_040100 PM.jpg',
+        url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_040100 PM.jpg',
+      },
+      {
+        id: '216295',
+        projectId: '61253',
+        photoName: 'DA_IMG_01152025_040439 PM.jpg',
+        url: 'https://abemis.bafe.gov.ph/infraPhotos/DA_IMG_01152025_040439 PM.jpg',
+      },
     ],
     proposalDocuments: [
       {
         id: '55303',
         projectId: '61253',
-        fileName: '20251013112023-20250506101936-Certification of ROW_Brgy. May-It, Lucban.pdf',
+        fileName:
+          '20251013112023-20250506101936-Certification of ROW_Brgy. May-It, Lucban.pdf',
         category: 'LETTER/RESOLUTION',
         url: 'https://abemis.bafe.gov.ph/infraProposalDocuments/20251013112023-20250506101936-Certification of ROW_Brgy. May-It, Lucban.pdf',
       },
       {
         id: '55304',
         projectId: '61253',
-        fileName: '20250506101611-Concreting of Brgy. May-It FMR, Brgy. May-it, Lucban, Quezon.GAA2025.pdf',
+        fileName:
+          '20250506101611-Concreting of Brgy. May-It FMR, Brgy. May-it, Lucban, Quezon.GAA2025.pdf',
         category: 'VALIDATION REPORT',
         url: 'https://abemis.bafe.gov.ph/infraProposalDocuments/20250506101611-Concreting of Brgy. May-It FMR, Brgy. May-it, Lucban, Quezon.GAA2025.pdf',
       },
       {
         id: '55305',
         projectId: '61253',
-        fileName: '20250506101936-Certification of ROW_Brgy. May-It, Lucban.pdf',
+        fileName:
+          '20250506101936-Certification of ROW_Brgy. May-It, Lucban.pdf',
         category: 'ROW DOCS',
         url: 'https://abemis.bafe.gov.ph/infraProposalDocuments/20250506101936-Certification of ROW_Brgy. May-It, Lucban.pdf',
       },
@@ -83,18 +116,20 @@ export const seedProjects: ProjectRecord[] = [
           estimatedLengthLinear: '560',
           estimatedLengthWidth: '5',
           estimatedLengthThickness: '0.2',
-          projectLinkNarrative: 'Improves access to May-It barangay markets and reduces travel time by 25%.',
+          projectLinkNarrative:
+            'Improves access to May-It barangay markets and reduces travel time by 25%.',
           publicMarketName: 'Lucban Public Market',
           distanceKm: '3',
           agriCommodities: 'Vegetables, Root crops',
           areaHectares: '250',
           numFarmers: '310',
-          roadRemarks: 'Road base partly damaged; requires full concrete upgrade.',
+          roadRemarks:
+            'Road base partly damaged; requires full concrete upgrade.',
           barangaysCovered: 'May-It, Ilayang Iyam',
-          startLatDMS: "N 14° 06' 15.12\"",
-          startLonDMS: "E 121° 33' 42.12\"",
-          endLatDMS: "N 14° 06' 45.23\"",
-          endLonDMS: "E 121° 34' 12.34\"",
+          startLatDMS: 'N 14° 06\' 15.12"',
+          startLonDMS: 'E 121° 33\' 42.12"',
+          endLatDMS: 'N 14° 06\' 45.23"',
+          endLonDMS: 'E 121° 34\' 12.34"',
           preparedByName: 'Engr. Maria Santos',
           preparedByDesignation: 'Field Engineer',
           recommendedByName: 'Dir. Juan Dela Cruz',
@@ -157,18 +192,20 @@ export const seedProjects: ProjectRecord[] = [
           estimatedLengthLinear: '1200',
           estimatedLengthWidth: '5',
           estimatedLengthThickness: '0.2',
-          projectLinkNarrative: 'Connects upland producers to Toril trading post; supports cacao logistics.',
+          projectLinkNarrative:
+            'Connects upland producers to Toril trading post; supports cacao logistics.',
           publicMarketName: 'Toril Trading Post',
           distanceKm: '6',
           agriCommodities: 'Cacao, Banana',
           areaHectares: '380',
           numFarmers: '420',
-          roadRemarks: 'Existing gravel road washed out during typhoon; requires drainage upgrade.',
+          roadRemarks:
+            'Existing gravel road washed out during typhoon; requires drainage upgrade.',
           barangaysCovered: 'Maligaya, Bago Oshiro',
-          startLatDMS: "N 7° 04' 11.34\"",
-          startLonDMS: "E 125° 30' 02.11\"",
-          endLatDMS: "N 7° 04' 45.55\"",
-          endLonDMS: "E 125° 31' 10.22\"",
+          startLatDMS: 'N 7° 04\' 11.34"',
+          startLonDMS: 'E 125° 30\' 02.11"',
+          endLatDMS: 'N 7° 04\' 45.55"',
+          endLonDMS: 'E 125° 31\' 10.22"',
           preparedByName: 'Engr. Tomas Reyes',
           preparedByDesignation: 'Project Engineer',
           recommendedByName: 'Dir. Liza Velasco',
@@ -217,9 +254,12 @@ export const standaloneDrafts: FormRecord[] = [
       numFarmers: '360',
       distanceKm: '14',
       publicMarketName: 'Dupax Sur Bagsakan',
-      roadRemarks: 'Assessment done during field validation. Pending ABEMIS linkage.',
+      roadRemarks:
+        'Assessment done during field validation. Pending ABEMIS linkage.',
     }),
   },
 ];
 
-export const allFormRecords = seedProjects.flatMap((project) => project.forms ?? []).concat(standaloneDrafts);
+export const allFormRecords = seedProjects
+  .flatMap((project) => project.forms ?? [])
+  .concat(standaloneDrafts);

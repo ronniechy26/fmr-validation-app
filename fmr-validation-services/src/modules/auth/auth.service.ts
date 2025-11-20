@@ -25,7 +25,10 @@ export interface LoginResponse {
 @Injectable()
 export class AuthService {
   login(payload: LoginDto): LoginResponse {
-    const user = users.find((item) => item.email === payload.email && item.password === payload.password);
+    const user = users.find(
+      (item) =>
+        item.email === payload.email && item.password === payload.password,
+    );
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }

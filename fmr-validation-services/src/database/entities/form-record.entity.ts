@@ -1,4 +1,13 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryColumn, RelationId, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+  RelationId,
+  UpdateDateColumn,
+} from 'typeorm';
 import type { ValidationForm } from '../../common/types/forms';
 import { ProjectEntity } from './project.entity';
 
@@ -19,7 +28,10 @@ export class FormRecordEntity {
   @Column('text', { nullable: true })
   qrReference?: string | null;
 
-  @ManyToOne(() => ProjectEntity, (project) => project.forms, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => ProjectEntity, (project) => project.forms, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'project_id' })
   project?: ProjectEntity | null;
 

@@ -9,7 +9,8 @@ export const annexForms: AnnexDefinition[] = [
   {
     id: 'annexC',
     title: 'Annex C – Validation Form',
-    description: 'Full validation checklist covering project details, scope, and signatories.',
+    description:
+      'Full validation checklist covering project details, scope, and signatories.',
     status: 'available',
   },
   {

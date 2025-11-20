@@ -46,12 +46,18 @@ export type AttachFormInput = FormAttachmentInput;
 @Injectable()
 export class FmrRepository {
   constructor(
-    @InjectRepository(ProjectEntity) private readonly projectsRepo: Repository<ProjectEntity>,
-    @InjectRepository(FormRecordEntity) private readonly formsRepo: Repository<FormRecordEntity>,
+    @InjectRepository(ProjectEntity)
+    private readonly projectsRepo: Repository<ProjectEntity>,
+    @InjectRepository(FormRecordEntity)
+    private readonly formsRepo: Repository<FormRecordEntity>,
   ) {}
 
-  async getProjects(filter: ProjectFilterOptions = {}): Promise<ProjectRecord[]> {
-    const hasFilters = Boolean(filter.search || filter.status || filter.annexTitle);
+  async getProjects(
+    filter: ProjectFilterOptions = {},
+  ): Promise<ProjectRecord[]> {
+    const hasFilters = Boolean(
+      filter.search || filter.status || filter.annexTitle,
+    );
     const projects = await this.projectsRepo.find({ relations: ['forms'] });
     return projects
       .map((project) => {
@@ -59,11 +65,16 @@ export class FmrRepository {
         const filteredForms = this.applyFormFilters(record, filter);
         return this.toProjectRecord(project, filteredForms);
       })
-      .filter((project) => (hasFilters ? (project.forms?.length ?? 0) > 0 : true));
+      .filter((project) =>
+        hasFilters ? (project.forms?.length ?? 0) > 0 : true,
+      );
   }
 
   async getProjectById(id: string): Promise<ProjectRecord | undefined> {
-    const project = await this.projectsRepo.findOne({ where: { id }, relations: ['forms'] });
+    const project = await this.projectsRepo.findOne({
+      where: { id },
+      relations: ['forms'],
+    });
     return project ? this.toProjectRecord(project) : undefined;
   }
 
@@ -72,18 +83,25 @@ export class FmrRepository {
     return forms.map((form) => this.toFlattenedForm(form));
   }
 
-  async searchForms(filter: FormFilterOptions = {}): Promise<FlattenedFormRecord[]> {
+  async searchForms(
+    filter: FormFilterOptions = {},
+  ): Promise<FlattenedFormRecord[]> {
     const forms = await this.getAllForms();
     return forms.filter((form) => this.matchesFormFilter(form, filter));
   }
 
   async findFormById(formId: string): Promise<FlattenedFormRecord | undefined> {
-    const form = await this.formsRepo.findOne({ where: { id: formId }, relations: ['project'] });
+    const form = await this.formsRepo.findOne({
+      where: { id: formId },
+      relations: ['project'],
+    });
     return form ? this.toFlattenedForm(form) : undefined;
   }
 
   async createForm(payload: CreateFormInput): Promise<FlattenedFormRecord> {
-    const project = payload.projectId ? await this.projectsRepo.findOne({ where: { id: payload.projectId } }) : undefined;
+    const project = payload.projectId
+      ? await this.projectsRepo.findOne({ where: { id: payload.projectId } })
+      : undefined;
     const formId = payload.data?.id ?? `form-${Date.now()}`;
     const record = this.formsRepo.create({
       id: formId,
@@ -100,31 +118,53 @@ export class FmrRepository {
       } as ValidationForm,
     });
     const saved = await this.formsRepo.save(record);
-    const withProject = await this.formsRepo.findOne({ where: { id: saved.id }, relations: ['project'] });
+    const withProject = await this.formsRepo.findOne({
+      where: { id: saved.id },
+      relations: ['project'],
+    });
     return this.toFlattenedForm(withProject ?? saved);
   }
 
-  async updateForm(formId: string, payload: UpdateFormInput): Promise<FlattenedFormRecord | undefined> {
-    const existing = await this.formsRepo.findOne({ where: { id: formId }, relations: ['project'] });
+  async updateForm(
+    formId: string,
+    payload: UpdateFormInput,
+  ): Promise<FlattenedFormRecord | undefined> {
+    const existing = await this.formsRepo.findOne({
+      where: { id: formId },
+      relations: ['project'],
+    });
     if (!existing) return undefined;
     if (payload.linkedProjectId !== undefined) {
       existing.project = payload.linkedProjectId
-        ? await this.projectsRepo.findOne({ where: { id: payload.linkedProjectId } })
+        ? await this.projectsRepo.findOne({
+            where: { id: payload.linkedProjectId },
+          })
         : null;
     }
     if (payload.annexTitle) existing.annexTitle = payload.annexTitle;
     if (payload.status) existing.status = payload.status;
     if (payload.abemisId !== undefined) existing.abemisId = payload.abemisId;
-    if (payload.qrReference !== undefined) existing.qrReference = payload.qrReference;
+    if (payload.qrReference !== undefined)
+      existing.qrReference = payload.qrReference;
     if (payload.data) {
-      existing.data = { ...existing.data, ...payload.data, updatedAt: new Date().toISOString() } as ValidationForm;
+      existing.data = {
+        ...existing.data,
+        ...payload.data,
+        updatedAt: new Date().toISOString(),
+      } as ValidationForm;
     }
     const saved = await this.formsRepo.save(existing);
     return this.toFlattenedForm(saved);
   }
 
-  async attachForm(formId: string, attachment: AttachFormInput): Promise<FlattenedFormRecord | undefined> {
-    const form = await this.formsRepo.findOne({ where: { id: formId }, relations: ['project'] });
+  async attachForm(
+    formId: string,
+    attachment: AttachFormInput,
+  ): Promise<FlattenedFormRecord | undefined> {
+    const form = await this.formsRepo.findOne({
+      where: { id: formId },
+      relations: ['project'],
+    });
     if (!form) return undefined;
     const project = await this.resolveProject(attachment);
     if (!project) return undefined;
@@ -140,13 +180,23 @@ export class FmrRepository {
     return drafts.map((draft) => this.toFormRecord(draft));
   }
 
-  async getSnapshot(): Promise<{ projects: ProjectRecord[]; standaloneDrafts: FormRecord[] }> {
-    const [projects, drafts] = await Promise.all([this.getProjects(), this.getStandaloneDrafts()]);
+  async getSnapshot(): Promise<{
+    projects: ProjectRecord[];
+    standaloneDrafts: FormRecord[];
+  }> {
+    const [projects, drafts] = await Promise.all([
+      this.getProjects(),
+      this.getStandaloneDrafts(),
+    ]);
     return { projects, standaloneDrafts: drafts };
   }
 
   async upsertFormFromClient(record: FormRecord): Promise<FlattenedFormRecord> {
-    const project = record.linkedProjectId ? await this.projectsRepo.findOne({ where: { id: record.linkedProjectId } }) : null;
+    const project = record.linkedProjectId
+      ? await this.projectsRepo.findOne({
+          where: { id: record.linkedProjectId },
+        })
+      : null;
     const entity = this.formsRepo.create({
       id: record.id,
       annexTitle: record.annexTitle,
@@ -157,14 +207,73 @@ export class FmrRepository {
       data: record.data,
     });
     const saved = await this.formsRepo.save(entity);
-    const withProject = await this.formsRepo.findOne({ where: { id: saved.id }, relations: ['project'] });
+    const withProject = await this.formsRepo.findOne({
+      where: { id: saved.id },
+      relations: ['project'],
+    });
     return this.toFlattenedForm(withProject ?? saved);
   }
 
-  private matchesFormFilter(form: FlattenedFormRecord, filter: FormFilterOptions) {
+  async saveProjectsFromUpstream(projects: ProjectRecord[]): Promise<void> {
+    for (const project of projects) {
+      const existing =
+        (await this.projectsRepo.findOne({
+          where: { id: project.id },
+          relations: ['forms'],
+        })) ??
+        (await this.projectsRepo.findOne({
+          where: { projectCode: project.projectCode },
+          relations: ['forms'],
+        }));
+      const entity = this.projectsRepo.create({
+        ...(existing ?? {}),
+        id: project.id,
+        projectCode: project.projectCode,
+        title: project.title,
+        operatingUnit: project.operatingUnit ?? null,
+        bannerProgram: project.bannerProgram ?? null,
+        yearFunded: project.yearFunded ?? null,
+        projectType: project.projectType ?? null,
+        region: project.region ?? null,
+        province: project.province ?? null,
+        district: project.district ?? null,
+        municipality: project.municipality ?? null,
+        barangay: project.barangay ?? null,
+        stage: project.stage ?? null,
+        status: project.status ?? null,
+        author: project.author ?? null,
+        quantity: project.quantity ?? null,
+        quantityUnit: project.quantityUnit ?? null,
+        allocatedAmount: project.allocatedAmount ?? null,
+        beneficiary: project.beneficiary ?? null,
+        prexcProgram: project.prexcProgram ?? null,
+        subProgram: project.subProgram ?? null,
+        indicatorLevel1: project.indicatorLevel1 ?? null,
+        indicatorLevel3: project.indicatorLevel3 ?? null,
+        recipientType: project.recipientType ?? null,
+        budgetProcess: project.budgetProcess ?? null,
+        geotags: project.geotags ?? [],
+        proposalDocuments: project.proposalDocuments ?? [],
+        abemisId: project.abemisId ?? null,
+        qrReference: project.qrReference ?? null,
+        zone: project.zone ?? null,
+      });
+      entity.forms = existing?.forms ?? [];
+      await this.projectsRepo.save(entity);
+    }
+  }
+
+  private matchesFormFilter(
+    form: FlattenedFormRecord,
+    filter: FormFilterOptions,
+  ) {
     const statusOk = filter.status ? form.status === filter.status : true;
-    const annexOk = filter.annexTitle ? form.annexTitle === filter.annexTitle : true;
-    const projectOk = filter.projectId ? form.linkedProjectId === filter.projectId : true;
+    const annexOk = filter.annexTitle
+      ? form.annexTitle === filter.annexTitle
+      : true;
+    const projectOk = filter.projectId
+      ? form.linkedProjectId === filter.projectId
+      : true;
     const abemisOk = filter.abemisId ? form.abemisId === filter.abemisId : true;
     const query = filter.search?.trim().toLowerCase();
     const queryOk = query
@@ -182,25 +291,38 @@ export class FmrRepository {
 
   private async resolveProject(reference: FormAttachmentInput) {
     if (reference.projectId) {
-      const byId = await this.projectsRepo.findOne({ where: { id: reference.projectId } });
+      const byId = await this.projectsRepo.findOne({
+        where: { id: reference.projectId },
+      });
       if (byId) return byId;
     }
     if (reference.projectCode) {
-      const byCode = await this.projectsRepo.findOne({ where: { projectCode: reference.projectCode } });
+      const byCode = await this.projectsRepo.findOne({
+        where: { projectCode: reference.projectCode },
+      });
       if (byCode) return byCode;
     }
     if (reference.abemisId) {
-      const byAbemis = await this.projectsRepo.findOne({ where: { abemisId: reference.abemisId } });
+      const byAbemis = await this.projectsRepo.findOne({
+        where: { abemisId: reference.abemisId },
+      });
       if (byAbemis) return byAbemis;
     }
     if (reference.qrReference) {
-      return this.projectsRepo.findOne({ where: { qrReference: reference.qrReference } });
+      return this.projectsRepo.findOne({
+        where: { qrReference: reference.qrReference },
+      });
     }
     return undefined;
   }
 
-  private toProjectRecord(project: ProjectEntity, formsOverride?: FormRecord[]): ProjectRecord {
-    const forms = formsOverride ?? (project.forms ?? []).map((form) => this.toFormRecord(form));
+  private toProjectRecord(
+    project: ProjectEntity,
+    formsOverride?: FormRecord[],
+  ): ProjectRecord {
+    const forms =
+      formsOverride ??
+      (project.forms ?? []).map((form) => this.toFormRecord(form));
     return {
       id: project.id,
       projectCode: project.projectCode,
@@ -245,15 +367,22 @@ export class FmrRepository {
       abemisId: form.abemisId ?? undefined,
       qrReference: form.qrReference ?? undefined,
       linkedProjectId: form.projectId ?? form.project?.id ?? undefined,
-      data: form.data as ValidationForm,
+      data: form.data,
     };
   }
 
-  private applyFormFilters(project: ProjectRecord, filter: ProjectFilterOptions) {
+  private applyFormFilters(
+    project: ProjectRecord,
+    filter: ProjectFilterOptions,
+  ) {
     const query = filter.search?.trim().toLowerCase();
     return (project.forms ?? []).filter((form) => {
-      const matchesStatus = filter.status ? form.status === filter.status : true;
-      const matchesAnnex = filter.annexTitle ? form.annexTitle === filter.annexTitle : true;
+      const matchesStatus = filter.status
+        ? form.status === filter.status
+        : true;
+      const matchesAnnex = filter.annexTitle
+        ? form.annexTitle === filter.annexTitle
+        : true;
       const matchesQuery = query
         ? [
             project.title,
@@ -277,7 +406,8 @@ export class FmrRepository {
       projectName: form.project?.title ?? form.data.nameOfProject,
       district: form.project?.district ?? form.data.district,
       locationBarangay: form.project?.barangay ?? form.data.locationBarangay,
-      locationMunicipality: form.project?.municipality ?? form.data.locationMunicipality,
+      locationMunicipality:
+        form.project?.municipality ?? form.data.locationMunicipality,
       locationProvince: form.project?.province ?? form.data.locationProvince,
       zone: form.project?.zone ?? undefined,
     };

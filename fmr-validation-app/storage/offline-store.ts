@@ -2,7 +2,6 @@ import { SQLiteStorage } from 'expo-sqlite/kv-store';
 import { AttachmentPayload, FormRecord, ProjectRecord, ValidationForm } from '@/types/forms';
 import { OfflineSnapshot } from '@/types/offline';
 import { FormStatus } from '@/types/theme';
-import { dummyProjects, standaloneDrafts } from '@/constants/forms';
 
 const SNAPSHOT_KEY = 'snapshot';
 const storage = new SQLiteStorage('fmr-offline');
@@ -45,13 +44,9 @@ const normalizeSnapshot = (snapshot: OfflineSnapshot): OfflineSnapshot => ({
 async function readSnapshot(): Promise<OfflineSnapshot> {
   let raw = await storage.getItemAsync(SNAPSHOT_KEY);
   if (!raw) {
-    const seeded = normalizeSnapshot({
-      projects: dummyProjects,
-      standaloneDrafts,
-    });
-    raw = JSON.stringify(seeded);
-    await storage.setItemAsync(SNAPSHOT_KEY, raw);
-    return seeded;
+    const emptySnapshot: OfflineSnapshot = { projects: [], standaloneDrafts: [] };
+    await storage.setItemAsync(SNAPSHOT_KEY, JSON.stringify(emptySnapshot));
+    return emptySnapshot;
   }
   return JSON.parse(raw) as OfflineSnapshot;
 }

@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ProjectFilterOptions, FmrRepository } from '../../shared/fmr.repository';
+import {
+  ProjectFilterOptions,
+  FmrRepository,
+} from '../../shared/fmr.repository';
 
 @Injectable()
 export class ProjectsService {

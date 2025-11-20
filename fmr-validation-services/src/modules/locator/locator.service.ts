@@ -9,13 +9,18 @@ export class LocatorService {
     const normalizedZone = zone?.trim().toLowerCase() || undefined;
     const forms = await this.repository.getAllForms();
     const items = forms
-      .filter((form) => (normalizedZone ? (form.zone ?? '').toLowerCase() === normalizedZone : true))
+      .filter((form) =>
+        normalizedZone
+          ? (form.zone ?? '').toLowerCase() === normalizedZone
+          : true,
+      )
       .map((form) => ({
         id: form.id,
         projectId: form.linkedProjectId,
         projectName: form.projectName ?? form.data.nameOfProject,
         barangay: form.locationBarangay ?? form.data.locationBarangay,
-        municipality: form.locationMunicipality ?? form.data.locationMunicipality,
+        municipality:
+          form.locationMunicipality ?? form.data.locationMunicipality,
         status: form.status,
         updatedAt: form.updatedAt,
         zone: form.zone ?? 'Unassigned',

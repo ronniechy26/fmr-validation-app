@@ -1,6 +1,8 @@
 import { ValidationForm } from '../common/types/forms';
 
-export function createValidationForm(overrides: Partial<ValidationForm> = {}): ValidationForm {
+export function createValidationForm(
+  overrides: Partial<ValidationForm> = {},
+): ValidationForm {
   return {
     id: 'temp',
     validationDate: '',

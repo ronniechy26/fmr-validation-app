@@ -7,9 +7,14 @@ export class AnalyticsService {
   constructor(private readonly repository: FmrRepository) {}
 
   async getSummary() {
-    const [forms, projects] = await Promise.all([this.repository.getAllForms(), this.repository.getProjects()]);
+    const [forms, projects] = await Promise.all([
+      this.repository.getAllForms(),
+      this.repository.getProjects(),
+    ]);
     const drafts = forms.filter((form) => form.status === 'Draft').length;
-    const pending = forms.filter((form) => form.status === 'Pending Sync').length;
+    const pending = forms.filter(
+      (form) => form.status === 'Pending Sync',
+    ).length;
     const synced = forms.filter((form) => form.status === 'Synced').length;
     const errors = forms.filter((form) => form.status === 'Error').length;
 
@@ -62,7 +67,9 @@ export class AnalyticsService {
         barangay: project.barangay,
         municipality: project.municipality,
         totalForms: formsForProject.length,
-        pending: formsForProject.filter((form) => form.status === 'Pending Sync').length,
+        pending: formsForProject.filter(
+          (form) => form.status === 'Pending Sync',
+        ).length,
       };
     });
 

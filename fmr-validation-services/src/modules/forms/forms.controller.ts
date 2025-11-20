@@ -1,6 +1,19 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { FormStatus } from '../../common/types/forms';
-import type { AttachFormInput, CreateFormInput, FormFilterOptions, UpdateFormInput } from '../../shared/fmr.repository';
+import type {
+  AttachFormInput,
+  CreateFormInput,
+  FormFilterOptions,
+  UpdateFormInput,
+} from '../../shared/fmr.repository';
 import { FormsService } from './forms.service';
 
 @Controller('forms')

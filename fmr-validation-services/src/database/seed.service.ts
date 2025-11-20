@@ -8,8 +8,10 @@ import { seedProjects, standaloneDrafts } from '../data/projects.seed';
 @Injectable()
 export class SeedService implements OnModuleInit {
   constructor(
-    @InjectRepository(ProjectEntity) private readonly projectsRepo: Repository<ProjectEntity>,
-    @InjectRepository(FormRecordEntity) private readonly formsRepo: Repository<FormRecordEntity>,
+    @InjectRepository(ProjectEntity)
+    private readonly projectsRepo: Repository<ProjectEntity>,
+    @InjectRepository(FormRecordEntity)
+    private readonly formsRepo: Repository<FormRecordEntity>,
   ) {}
 
   async onModuleInit() {

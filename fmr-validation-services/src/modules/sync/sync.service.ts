@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { FormRecord } from '../../common/types/forms';
 import { FmrRepository } from '../../shared/fmr.repository';
+import { AbemisService } from '../../shared/abemis.service';
 
 export interface UpsertFormDto {
   id?: string;
@@ -14,9 +15,22 @@ export interface UpsertFormDto {
 
 @Injectable()
 export class SyncService {
-  constructor(private readonly repository: FmrRepository) {}
+  private readonly logger = new Logger(SyncService.name);
 
-  getSnapshot() {
+  constructor(
+    private readonly repository: FmrRepository,
+    private readonly abemisService: AbemisService,
+  ) {}
+
+  async getSnapshot() {
+    try {
+      const projects = await this.abemisService.fetchProjectsFromAbemis();
+      await this.repository.saveProjectsFromUpstream(projects);
+    } catch (error) {
+      this.logger.warn(
+        `Unable to refresh from ABEMIS, serving cached snapshot instead: ${error instanceof Error ? error.message : error}`,
+      );
+    }
     return this.repository.getSnapshot();
   }
 

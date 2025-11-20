@@ -7,15 +7,17 @@ Backend-for-frontend service that feeds the `fmr-validation-app` Expo client. It
 ```bash
 cd fmr-validation-services
 pnpm install        # install once
+cp .env.example .env
+# update ABEMIS_API_KEY if needed (defaults to staging key provided)
 pnpm run start:dev  # start watch mode on http://localhost:3000
 ```
 
-The service enables CORS so you can call it from the Expo app or Thunder Client. Override the port with `PORT=4000 pnpm run start:dev` as needed.
+The service enables CORS so you can call it from the Expo app or Thunder Client. Override the port with `PORT=4000 pnpm run start:dev` as needed. ABEMIS calls default to `https://abemis.staging.bafe.gov.ph` with the provided `x-api-key`; change `ABEMIS_BASE_URL`/`ABEMIS_API_KEY` in `.env` to target other environments.
 
 ### Database Setup (PostgreSQL + TypeORM)
 
 1. Provision a Postgres database and set `DATABASE_URL` in `.env` (ignored by git). Nest's `ConfigModule` loads this variable automatically.
-2. Start the NestJS server (`pnpm run start:dev`). On boot, the new `DatabaseModule` connects via TypeORM, synchronizes the schema, and seeds the mock FMR/ABEMIS data from `src/data/projects.seed.ts` whenever the tables are empty.
+2. Start the NestJS server (`pnpm run start:dev`). On boot, the `DatabaseModule` connects via TypeORM, synchronizes the schema, and seeds the mock FMR data from `src/data/projects.seed.ts` when the tables are empty. After startup, ABEMIS sync refreshes the DB via `/sync/snapshot`.
 3. Use `DATABASE_URL=... pnpm run start:dev` in other environments (staging/prod) to point at hosted Postgres instances.
 
 Every repository call now flows through TypeORM (`src/shared/fmr.repository.ts`), so the API serves and mutates actual database rows. The `/sync/snapshot` endpoint still returns the exact payload shape required by the mobile offline cache.
@@ -45,7 +47,7 @@ Every repository call now flows through TypeORM (`src/shared/fmr.repository.ts`)
 | `GET` | `/annexes` | Static catalog of annex definitions used by the app |
 | `GET` | `/analytics/summary` | Aggregated stats used by the Analytics tab |
 | `GET` | `/locator/highlights` | Location cards for the Locator tab, filterable via `?zone=North|Central|South` |
-| `GET` | `/sync/snapshot` | Combined payload of projects + standalone drafts for seeding SQLite/JSON caches |
+| `GET` | `/sync/snapshot` | Combined payload of projects + standalone drafts for seeding SQLite/JSON caches (refreshes from ABEMIS first) |
 | `POST` | `/sync/forms` | Mock endpoint to upsert offline drafts coming from the mobile cache |
 
 The payloads mirror the `ValidationForm` structure used in the mobile app. Data is currently backed by in-memory seed files (`src/data/*.ts`) so we can swap in real ABEMIS calls later without changing the client contract.
