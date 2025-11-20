@@ -1,4 +1,4 @@
-import { FormStatus } from '@/theme';
+import { FormStatus } from '@/types/theme';
 
 export type ProjectZone = string;
 
@@ -120,7 +120,18 @@ export interface FormRoutePayload {
   meta: FormRouteMeta;
 }
 
+export type ClientFormPayload = {
+  id?: string;
+  annexTitle: string;
+  status: FormStatus;
+  linkedProjectId?: string;
+  abemisId?: string;
+  qrReference?: string;
+  data: ValidationForm;
+};
+
 export interface AttachmentPayload {
+  projectId?: string;
   projectCode?: string;
   abemisId?: string;
   qrReference?: string;

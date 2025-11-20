@@ -1,8 +1,6 @@
-export type FormStatus = 'Draft' | 'Pending Sync' | 'Synced' | 'Error';
+import type { ThemeColors, ThemeMode } from '@/types/theme';
 
-export type ThemeMode = 'light' | 'dark';
-
-const lightColors = {
+const lightColors: ThemeColors = {
   primary: '#1f4b8f',
   secondary: '#f5f7fb',
   success: '#37b26c',
@@ -16,7 +14,7 @@ const lightColors = {
   surfaceMuted: '#eef2fb',
 };
 
-const darkColors = {
+const darkColors: ThemeColors = {
   primary: '#82a6ff',
   secondary: '#0f172a',
   success: '#4ade80',
@@ -30,12 +28,10 @@ const darkColors = {
   surfaceMuted: '#1e2a43',
 };
 
-export const colorPalettes = {
+export const colorPalettes: Record<ThemeMode, ThemeColors> = {
   light: lightColors,
   dark: darkColors,
 };
-
-export type ThemeColors = typeof lightColors;
 
 export const spacing = {
   xs: 4,
@@ -92,5 +88,3 @@ export const theme = {
   fonts,
   typography,
 };
-
-export type Theme = typeof theme;

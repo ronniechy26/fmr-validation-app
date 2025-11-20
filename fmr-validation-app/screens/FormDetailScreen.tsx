@@ -183,12 +183,14 @@ export function FormDetailScreen() {
   };
 
   const handleAttachment = async (payload: AttachmentPayload) => {
-    const updated = await attachDraft(meta.id, payload);
-    if (!updated) {
+    const result = await attachDraft(meta.id, payload);
+    if (!result.record) {
       Alert.alert('Not found', 'No FMR project matches that ABEMIS ID or QR reference.');
       return;
     }
-    const project = updated.linkedProjectId ? findProjectByCode(updated.abemisId ?? updated.qrReference ?? '') : undefined;
+    const updated = result.record;
+    const lookupCode = updated.qrReference ?? updated.abemisId ?? updated.linkedProjectId ?? '';
+    const project = updated.linkedProjectId ? findProjectByCode(lookupCode) : undefined;
     setMeta((prev) => ({
       ...prev,
       linkedProjectId: updated.linkedProjectId,
@@ -202,7 +204,14 @@ export function FormDetailScreen() {
       zone: project?.zone ?? prev.zone,
     }));
     attachmentSheetRef.current?.dismiss();
-    Alert.alert('Attached', project ? `Draft linked to ${project.title}.` : 'Draft updated.');
+    Alert.alert(
+      result.synced ? 'Attached' : 'Attached offline',
+      result.synced
+        ? project
+          ? `Draft linked to ${project.title}.`
+          : 'Draft updated and synced.'
+        : 'Draft linked locally. It will sync once you are online and signed in.',
+    );
   };
 
   const attachmentCtaLabel = meta.linkedProjectId ? 'Reattach' : 'Attach to FMR';

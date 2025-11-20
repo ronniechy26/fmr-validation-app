@@ -1,5 +1,6 @@
 import { createContext, ReactNode, useContext, useMemo, useState } from 'react';
-import { ThemeColors, ThemeMode, colorPalettes } from '@/theme';
+import { colorPalettes } from '@/theme';
+import { ThemeColors, ThemeMode } from '@/types/theme';
 
 type ThemeContextValue = {
   mode: ThemeMode;

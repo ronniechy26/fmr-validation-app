@@ -6,7 +6,8 @@ import { LabeledInput } from '@/components/LabeledInput';
 import { LabeledTextArea } from '@/components/LabeledTextArea';
 import { SectionDivider } from '@/components/SectionDivider';
 import { ValidationForm } from '@/types/forms';
-import { fonts, FormStatus, spacing, typography } from '@/theme';
+import { fonts, spacing, typography } from '@/theme';
+import { FormStatus } from '@/types/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
@@ -79,6 +80,7 @@ export function FormEditorScreen() {
   );
   const [form, setForm] = useState<ValidationForm>(initialForm);
   const [currentStep, setCurrentStep] = useState(0);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setForm(initialForm);
@@ -91,18 +93,28 @@ export function FormEditorScreen() {
 
   const handlePersist = useCallback(
     async (status: FormStatus, label: string) => {
+      setSaving(true);
       const payload: ValidationForm = {
         ...form,
         status,
         updatedAt: new Date().toISOString(),
       };
-      await saveDraft(payload, { annexTitle: annexName, status });
-      Alert.alert(label, 'Saved to offline cache.', [
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]);
+      try {
+        const result = await saveDraft(payload, { annexTitle: annexName, status });
+        const message = result.synced
+          ? 'Saved and synced with the server.'
+          : 'Saved to offline cache. Will sync when back online or after login.';
+        Alert.alert(label, message, [
+          {
+            text: 'OK',
+            onPress: () => router.back(),
+          },
+        ]);
+      } catch (error) {
+        Alert.alert('Save failed', (error as Error).message ?? 'Could not save this form right now.');
+      } finally {
+        setSaving(false);
+      }
     },
     [form, annexName, router, saveDraft],
   );
@@ -345,6 +357,7 @@ export function FormEditorScreen() {
           <TouchableOpacity
             style={[styles.button, styles.secondaryButton, { borderColor: colors.primary }]}
             onPress={() => setCurrentStep((prev) => Math.max(prev - 1, 0))}
+            disabled={saving}
           >
             <Text style={[styles.buttonText, { color: colors.primary }]}>Back</Text>
           </TouchableOpacity>
@@ -354,22 +367,35 @@ export function FormEditorScreen() {
           <TouchableOpacity
             style={[styles.button, styles.primaryButton, { backgroundColor: colors.primary }]}
             onPress={() => setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1))}
+            disabled={saving}
           >
             <Text style={[styles.buttonText, { color: '#fff' }]}>Next</Text>
           </TouchableOpacity>
         ) : (
           <>
             <TouchableOpacity
-              style={[styles.button, styles.secondaryButton, { borderColor: colors.primary }]}
+              style={[
+                styles.button,
+                styles.secondaryButton,
+                { borderColor: colors.primary, opacity: saving ? 0.7 : 1 },
+              ]}
               onPress={() => handlePersist('Draft', 'Saved Draft')}
+              disabled={saving}
             >
-              <Text style={[styles.buttonText, { color: colors.primary }]}>Save Draft (UI only)</Text>
+              <Text style={[styles.buttonText, { color: colors.primary }]}>Save Draft</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.primaryButton, { backgroundColor: colors.primary }]}
+              style={[
+                styles.button,
+                styles.primaryButton,
+                { backgroundColor: colors.primary, opacity: saving ? 0.9 : 1 },
+              ]}
               onPress={() => handlePersist('Pending Sync', 'Queued for Sync')}
+              disabled={saving}
             >
-              <Text style={[styles.buttonText, { color: '#fff' }]}>Submit for Sync (UI only)</Text>
+              <Text style={[styles.buttonText, { color: '#fff' }]}>
+                {saving ? 'Saving…' : 'Submit for Sync'}
+              </Text>
             </TouchableOpacity>
           </>
         )}

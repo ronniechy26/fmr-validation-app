@@ -9,10 +9,12 @@ import { Ionicons } from '@expo/vector-icons';
 
 export function LoginScreen() {
   const { colors } = useThemeMode();
-  const { signIn, isSignedIn } = useAuth();
+  const { signIn, isSignedIn, loading: authLoading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -20,9 +22,21 @@ export function LoginScreen() {
     }
   }, [isSignedIn, router]);
 
-  const handleSubmit = () => {
-    signIn();
-    router.replace('/');
+  const handleSubmit = async () => {
+    if (!email.trim() || !password.trim()) {
+      setError('Enter your email and password.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await signIn(email.trim(), password);
+      router.replace('/');
+    } catch (err) {
+      setError((err as Error).message ?? 'Unable to sign in. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -52,6 +66,8 @@ export function LoginScreen() {
               styles.input,
               { borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.secondary },
             ]}
+            autoCapitalize="none"
+            autoComplete="email"
           />
         </View>
         <View style={styles.field}>
@@ -66,14 +82,24 @@ export function LoginScreen() {
               styles.input,
               { borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.secondary },
             ]}
+            autoComplete="password"
           />
         </View>
         <TouchableOpacity style={styles.forgotButton}>
           <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.submitButton, { backgroundColor: colors.primary }]} onPress={handleSubmit}>
-          <Text style={styles.submitText}>Sign In</Text>
+        {error ? <Text style={[styles.errorText, { color: '#c53030' }]}>{error}</Text> : null}
+
+        <TouchableOpacity
+          style={[
+            styles.submitButton,
+            { backgroundColor: colors.primary, opacity: submitting || authLoading ? 0.8 : 1 },
+          ]}
+          onPress={handleSubmit}
+          disabled={submitting || authLoading}
+        >
+          <Text style={styles.submitText}>{submitting ? 'Signing in…' : 'Sign In'}</Text>
         </TouchableOpacity>
 
       </View>
@@ -156,5 +182,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontFamily: fonts.semibold,
     fontSize: 16,
+  },
+  errorText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
   },
 });

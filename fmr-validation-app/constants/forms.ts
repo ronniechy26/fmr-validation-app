@@ -1,5 +1,5 @@
 import { FormRecord, ProjectRecord, ValidationForm } from '@/types/forms';
-import { FormStatus } from '@/theme';
+import { FormStatus } from '@/types/theme';
 
 const baseForm = (overrides: Partial<ValidationForm>): ValidationForm => ({
   id: 'temp',

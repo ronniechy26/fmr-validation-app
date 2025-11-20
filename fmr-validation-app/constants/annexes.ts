@@ -1,9 +1,4 @@
-export type AnnexForm = {
-  id: 'annexC' | 'annexB' | 'annexA';
-  title: string;
-  description: string;
-  status: 'available' | 'comingSoon';
-};
+import { AnnexForm } from '@/types/annexes';
 
 export const annexForms: AnnexForm[] = [
   {

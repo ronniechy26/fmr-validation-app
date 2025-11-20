@@ -19,15 +19,22 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Configure the backend URL (optional)
+2. Configure the backend URL
 
-   The mobile app reads `EXPO_PUBLIC_API_URL` for the NestJS BFF base URL. Create an `.env` file (or export the variable in your shell) before starting Expo:
+   The mobile app reads `EXPO_PUBLIC_API_URL` for the NestJS BFF base URL. It now defaults to `http://172.16.9.22:3000`. Override if needed by creating an `.env` file (or exporting the variable in your shell) before starting Expo:
 
    ```bash
-   EXPO_PUBLIC_API_URL=http://localhost:3000
+   EXPO_PUBLIC_API_URL=http://172.16.9.22:3000
    ```
 
-   If you skip this step, the app defaults to `http://localhost:3000`.
+   If you skip this step, the app defaults to `http://172.16.9.22:3000`.
+
+3. Sign in against the BFF
+
+   The login screen now calls the NestJS BFF (`POST /auth/login`) and stores a short-lived token for subsequent requests. Use one of the seeded users from `fmr-validation-services/src/data/users.ts` when running locally, for example:
+
+   - `mark.baldeo@da.gov.ph` / `validation123`
+   - `alyssa.cruz@da.gov.ph` / `securepass456`
 
 3. Start the app
 

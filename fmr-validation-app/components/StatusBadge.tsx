@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { fonts, FormStatus, spacing } from '@/theme';
+import { fonts, spacing } from '@/theme';
+import { FormStatus } from '@/types/theme';
 import { useThemeColors } from '@/providers/ThemeProvider';
 
 interface StatusBadgeProps {

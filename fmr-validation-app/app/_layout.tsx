@@ -1,4 +1,4 @@
-import { AuthProvider } from '@/providers/AuthProvider';
+import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { ThemeProvider, useThemeMode } from '@/providers/ThemeProvider';
 import { OfflineDataProvider } from '@/providers/OfflineDataProvider';
 import { fonts } from '@/theme';
@@ -53,9 +53,19 @@ export default function RootLayout() {
 
 function RootStack() {
   const { colors } = useThemeMode();
+  const { isSignedIn, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <Stack
+      initialRouteName={isSignedIn ? '(tabs)' : 'login'}
       screenOptions={{
         headerShown: false,
       }}

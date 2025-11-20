@@ -1,18 +1,28 @@
+import { AttachmentPayload, ClientFormPayload, FormRecord, ValidationForm } from '@/types/forms';
 import { config } from '@/constants/config';
-import { OfflineSnapshot } from '@/storage/offline-store';
+import { OfflineSnapshot } from '@/types/offline';
+import { LoginPayload, LoginResponse } from '@/types/auth';
 
 const { apiBaseUrl } = config;
 
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
-async function request<T>(path: string, options: RequestInit = {}) {
+async function request<T>(path: string, options: (RequestInit & { skipAuth?: boolean }) = {}) {
+  const { skipAuth, ...restOptions } = options;
   const url = `${apiBaseUrl}${path}`;
   const response = await fetch(url, {
-    ...options,
+    ...restOptions,
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      ...(options.headers ?? {}),
+      ...(authToken && !skipAuth ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(restOptions.headers ?? {}),
     },
   });
   if (!response.ok) {
@@ -34,6 +44,25 @@ async function safeParseError(response: Response) {
   return undefined;
 }
 
+export function login(payload: LoginPayload) {
+  return request<LoginResponse>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    skipAuth: true,
+  });
+}
+
 export function fetchSnapshotFromServer(signal?: AbortSignal) {
   return request<OfflineSnapshot>('/sync/snapshot', { method: 'GET' as HttpMethod, signal });
+}
+
+export function syncFormsFromClient(forms: ClientFormPayload[]) {
+  return request<FormRecord[]>('/sync/forms', { method: 'POST', body: JSON.stringify({ forms }) });
+}
+
+export function attachFormWithPayload(formId: string, payload: AttachmentPayload) {
+  return request<FormRecord>(`/forms/${encodeURIComponent(formId)}/attach`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }

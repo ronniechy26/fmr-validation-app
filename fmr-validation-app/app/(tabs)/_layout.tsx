@@ -8,7 +8,7 @@ import { TouchableOpacity, View, StyleSheet } from 'react-native';
 
 export default function TabsLayout() {
   const { colors } = useThemeMode();
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, loading: authLoading } = useAuth();
   const router = useRouter();
   const AddButton = () => (
     <TouchableOpacity
@@ -23,10 +23,10 @@ export default function TabsLayout() {
   );
 
   useEffect(() => {
-    if (!isSignedIn) {
+    if (!authLoading && !isSignedIn) {
       router.replace('/login');
     }
-  }, [isSignedIn, router]);
+  }, [authLoading, isSignedIn, router]);
 
   return (
     <Tabs

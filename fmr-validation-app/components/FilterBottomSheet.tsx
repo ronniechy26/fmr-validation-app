@@ -1,6 +1,7 @@
 import { FilterChip } from '@/components/FilterChip';
 import { useThemeMode } from '@/providers/ThemeProvider';
-import { fonts, FormStatus, spacing } from '@/theme';
+import { fonts, spacing } from '@/theme';
+import { FormStatus } from '@/types/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, useCallback, useEffect, useMemo, useState } from 'react';

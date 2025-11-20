@@ -1,12 +1,8 @@
 import { SQLiteStorage } from 'expo-sqlite/kv-store';
 import { AttachmentPayload, FormRecord, ProjectRecord, ValidationForm } from '@/types/forms';
-import { FormStatus } from '@/theme';
+import { OfflineSnapshot } from '@/types/offline';
+import { FormStatus } from '@/types/theme';
 import { dummyProjects, standaloneDrafts } from '@/constants/forms';
-
-export type OfflineSnapshot = {
-  projects: ProjectRecord[];
-  standaloneDrafts: FormRecord[];
-};
 
 const SNAPSHOT_KEY = 'snapshot';
 const storage = new SQLiteStorage('fmr-offline');
@@ -153,7 +149,7 @@ export async function upsertFormRecord(
 }
 
 export function findProjectByAttachment(projects: ProjectRecord[], payload: AttachmentPayload) {
-  const candidates = [payload.abemisId, payload.projectCode, payload.qrReference]
+  const candidates = [payload.projectId, payload.abemisId, payload.projectCode, payload.qrReference]
     .map((value) => value?.trim().toLowerCase())
     .filter((value): value is string => Boolean(value));
   if (!candidates.length) {
