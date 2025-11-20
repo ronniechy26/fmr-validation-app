@@ -41,6 +41,9 @@ export function FormDataScreen() {
 
   const form = payload.form;
   const annexTitle = payload.meta.annexTitle || 'Annex C – Validation Form';
+  const location = [payload.meta.barangay, payload.meta.municipality, payload.meta.province]
+    .filter(Boolean)
+    .join(', ');
 
   const detailRow = (label: string, value?: string) => (
     <View style={styles.detailRow}>
@@ -56,6 +59,9 @@ export function FormDataScreen() {
           <Text style={[styles.formTitle, { color: colors.textPrimary }]}>
             {form.nameOfProject || 'Annex C Form'}
           </Text>
+          {location ? (
+            <Text style={[styles.locationText, { color: colors.textMuted }]}>{location}</Text>
+          ) : null}
           <View style={styles.badgeRow}>
             <StatusBadge status={form.status} />
             <Text style={[styles.metaText, { color: colors.textMuted }]}>
@@ -176,6 +182,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  locationText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
   },
   metaText: {
     fontFamily: fonts.regular,

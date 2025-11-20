@@ -10,8 +10,8 @@ import { FormStatus } from '@/types/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
-import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useMemo, useRef, useState, useEffect } from 'react';
+import { Animated, Easing, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const filters: ('All' | FormStatus)[] = ['All', 'Draft', 'Pending Sync', 'Synced', 'Error'];
@@ -23,7 +23,7 @@ type LegacyProjectRecord = ProjectRecord & {
   locationProvince?: string;
 };
 
-const normalizeProjectForDisplay = (project: ProjectRecord): ProjectRecord => {
+function normalizeProjectForDisplay(project: ProjectRecord): ProjectRecord {
   const legacy = project as LegacyProjectRecord;
   return {
     ...project,
@@ -32,47 +32,218 @@ const normalizeProjectForDisplay = (project: ProjectRecord): ProjectRecord => {
     municipality: project.municipality ?? legacy.locationMunicipality,
     province: project.province ?? legacy.locationProvince,
   };
-};
+}
 
 export function FormListScreen() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [keyFilter, setKeyFilter] = useState<'all' | 'withForms' | 'withoutForms' | 'withGeotags' | 'withDocs'>('all');
+  const [regionFilter, setRegionFilter] = useState<{ region?: string; province?: string; municipality?: string }>({});
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const pulseAnim = useRef(new Animated.Value(0)).current;
   const { colors, mode } = useThemeMode();
   const { loading, projects: cachedProjects, standaloneDrafts } = useOfflineData();
   const insets = useSafeAreaInsets();
-  const filterSnapPoints = useMemo(() => ['50%', '70%'], []);
+  const filterSnapPoints = useMemo(() => ['50%', '70%', '90%'], []);
+  const PAGE_SIZE = 20;
 
   const openFilters = () => {
     bottomSheetRef.current?.present();
   };
 
-  const projects = useMemo<ProjectRecord[]>(() => {
+  const normalizedProjects = useMemo(() => cachedProjects.map(normalizeProjectForDisplay), [cachedProjects]);
+
+  const searchableFields = (project: ProjectRecord) =>
+    [
+      project.title,
+      project.barangay,
+      project.municipality,
+      project.province,
+      project.abemisId,
+      project.projectCode,
+    ]
+      .filter(Boolean)
+      .map((value) => (value ?? '').toString().toLowerCase());
+
+  const filteredProjects = useMemo<ProjectRecord[]>(() => {
     const query = searchQuery.trim().toLowerCase();
-    return cachedProjects
-      .map((project) => {
-        const normalizedProject = normalizeProjectForDisplay(project);
-        const matchingForms = normalizedProject.forms.filter((form) => {
-          const matchesStatus = activeFilter === 'All' || form.status === activeFilter;
-          const haystack = [
-            normalizedProject.title,
-            normalizedProject.barangay ?? '',
-            normalizedProject.municipality ?? '',
-            normalizedProject.province ?? '',
-            form.annexTitle,
-            form.data.nameOfProject,
-          ]
-            .join(' ')
-            .toLowerCase();
-          const matchesQuery = !query || haystack.includes(query);
-          return matchesStatus && matchesQuery;
-        });
-        if (!matchingForms.length) return null;
-        return { ...normalizedProject, forms: matchingForms };
-      })
-      .filter(Boolean) as ProjectRecord[];
-  }, [activeFilter, cachedProjects, searchQuery]);
+    return normalizedProjects.filter((project) => {
+      const matchesQuery = query
+        ? searchableFields(project).some((value) => value.includes(query))
+        : true;
+      const matchesStatus =
+        activeFilter === 'All' ||
+        project.forms.some((form) => form.status === activeFilter);
+      const hasForms = (project.forms?.length ?? 0) > 0;
+      const hasGeotags = (project.geotags?.length ?? 0) > 0;
+      const hasDocs = (project.proposalDocuments?.length ?? 0) > 0;
+      const matchesKey =
+        keyFilter === 'all' ||
+        (keyFilter === 'withForms' && hasForms) ||
+        (keyFilter === 'withoutForms' && !hasForms) ||
+        (keyFilter === 'withGeotags' && hasGeotags) ||
+        (keyFilter === 'withDocs' && hasDocs);
+      const matchesRegion =
+        (!regionFilter.region ||
+          (project.region ?? '').toLowerCase().includes(regionFilter.region.toLowerCase())) &&
+        (!regionFilter.province ||
+          (project.province ?? '').toLowerCase().includes(regionFilter.province.toLowerCase())) &&
+        (!regionFilter.municipality ||
+          (project.municipality ?? '')
+            .toLowerCase()
+            .includes(regionFilter.municipality.toLowerCase()));
+      return matchesQuery && matchesStatus && matchesKey && matchesRegion;
+    });
+  }, [activeFilter, keyFilter, normalizedProjects, regionFilter, searchQuery]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeFilter, searchQuery, cachedProjects, keyFilter, regionFilter]);
+
+  useEffect(() => {
+    if (!loading) {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [loading, pulseAnim]);
+
+  const projects = useMemo<ProjectRecord[]>(() => {
+    const sorted = [...filteredProjects].sort((a, b) => {
+      const resolveTimestamp = (project: ProjectRecord) => {
+        const raw =
+          project.forms[0]?.updatedAt ??
+          (project.forms[0]?.data as any)?.updatedAt ??
+          project.title ??
+          '';
+        return new Date(raw).getTime() || 0;
+      };
+      return resolveTimestamp(b) - resolveTimestamp(a);
+    });
+    return sorted.slice(0, page * PAGE_SIZE);
+  }, [filteredProjects, page]);
+
+  const regionOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          normalizedProjects
+            .map((project) => project.region?.trim())
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort(),
+    [normalizedProjects],
+  );
+
+  const provinceOptions = useMemo(() => {
+    const source = regionFilter.region
+      ? normalizedProjects.filter(
+        (project) =>
+          project.region?.toLowerCase() === regionFilter.region?.toLowerCase(),
+      )
+      : normalizedProjects;
+    return Array.from(
+      new Set(
+        source
+          .map((project) => project.province?.trim())
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort();
+  }, [normalizedProjects, regionFilter.region]);
+
+  const municipalityOptions = useMemo(() => {
+    const source = regionFilter.province
+      ? normalizedProjects.filter(
+        (project) =>
+          project.province?.toLowerCase() ===
+          regionFilter.province?.toLowerCase(),
+      )
+      : normalizedProjects;
+    return Array.from(
+      new Set(
+        source
+          .map((project) => project.municipality?.trim())
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort();
+  }, [normalizedProjects, regionFilter.province]);
+
+  const locationOptions = useMemo(
+    () =>
+      normalizedProjects.map((project) => ({
+        region: project.region,
+        province: project.province,
+        municipality: project.municipality,
+      })),
+    [normalizedProjects],
+  );
+
+  const buildFallbackForm = (project: ProjectRecord): FormRecord => {
+    const now = new Date().toISOString();
+    return {
+      id: project.id ?? `project-${now}`,
+      annexTitle: 'Annex C – Validation Form',
+      status: 'Draft',
+      updatedAt: now,
+      abemisId: project.abemisId,
+      qrReference: project.qrReference,
+      linkedProjectId: project.id,
+      data: {
+        id: project.id ?? `project-${now}`,
+        validationDate: '',
+        district: project.district ?? '',
+        nameOfProject: project.title ?? 'Untitled FMR',
+        typeOfProject: project.projectType ?? 'FMR',
+        proponent: project.beneficiary ?? '',
+        locationBarangay: project.barangay ?? '',
+        locationMunicipality: project.municipality ?? '',
+        locationProvince: project.province ?? '',
+        scopeOfWorks: '',
+        estimatedCost: project.allocatedAmount ?? '',
+        estimatedLengthLinear: '',
+        estimatedLengthWidth: '',
+        estimatedLengthThickness: '',
+        projectLinkNarrative: '',
+        publicMarketName: '',
+        distanceKm: '',
+        agriCommodities: '',
+        areaHectares: '',
+        numFarmers: '',
+        roadRemarks: '',
+        barangaysCovered: '',
+        startLatDMS: '',
+        startLonDMS: '',
+        endLatDMS: '',
+        endLonDMS: '',
+        preparedByName: '',
+        preparedByDesignation: '',
+        recommendedByName: '',
+        notedByName: '',
+        status: 'Draft',
+        updatedAt: now,
+      },
+    };
+  };
 
   const filteredStandaloneDrafts = useMemo<FormRecord[]>(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -91,43 +262,118 @@ export function FormListScreen() {
     });
   }, [activeFilter, searchQuery]);
 
-  const handleNavigate = (entry: FormRecord, project?: ProjectRecord) => {
+  const handleNavigate = (entry: FormRecord | undefined, project?: ProjectRecord) => {
     const normalizedProject = project ? normalizeProjectForDisplay(project) : undefined;
+    const formRecord: FormRecord =
+      entry ??
+      ({
+        id: normalizedProject?.id ?? `draft-${Date.now()}`,
+        annexTitle: 'Annex C – Validation Form',
+        status: 'Draft',
+        updatedAt: new Date().toISOString(),
+        abemisId: normalizedProject?.abemisId,
+        qrReference: normalizedProject?.qrReference,
+        linkedProjectId: normalizedProject?.id,
+        data: {
+          id: normalizedProject?.id ?? `draft-${Date.now()}`,
+          validationDate: '',
+          district: normalizedProject?.district ?? '',
+          nameOfProject: normalizedProject?.title ?? 'Untitled FMR',
+          typeOfProject: normalizedProject?.projectType ?? 'FMR',
+          proponent: normalizedProject?.beneficiary ?? '',
+          locationBarangay: normalizedProject?.barangay ?? '',
+          locationMunicipality: normalizedProject?.municipality ?? '',
+          locationProvince: normalizedProject?.province ?? '',
+          scopeOfWorks: '',
+          estimatedCost: normalizedProject?.allocatedAmount ?? '',
+          estimatedLengthLinear: '',
+          estimatedLengthWidth: '',
+          estimatedLengthThickness: '',
+          projectLinkNarrative: '',
+          publicMarketName: '',
+          distanceKm: '',
+          agriCommodities: '',
+          areaHectares: '',
+          numFarmers: '',
+          roadRemarks: '',
+          barangaysCovered: '',
+          startLatDMS: '',
+          startLonDMS: '',
+          endLatDMS: '',
+          endLonDMS: '',
+          preparedByName: '',
+          preparedByDesignation: '',
+          recommendedByName: '',
+          notedByName: '',
+          status: 'Draft',
+          updatedAt: new Date().toISOString(),
+        },
+      } as FormRecord);
+
+    const normalizedFormProject = normalizedProject ?? (formRecord.linkedProjectId ? project : undefined);
     const payload: FormRoutePayload = {
-      form: entry.data,
+      form: formRecord.data,
       meta: {
-        id: entry.id,
-        annexTitle: entry.annexTitle,
-        status: entry.status,
-        abemisId: entry.abemisId ?? normalizedProject?.abemisId,
-        qrReference: entry.qrReference ?? normalizedProject?.qrReference,
-        linkedProjectId: normalizedProject?.id ?? entry.linkedProjectId,
-        linkedProjectTitle: normalizedProject?.title,
-        projectCode: normalizedProject?.projectCode,
-        barangay: normalizedProject?.barangay ?? entry.data.locationBarangay,
-        municipality: normalizedProject?.municipality ?? entry.data.locationMunicipality,
-        province: normalizedProject?.province ?? entry.data.locationProvince,
-        zone: normalizedProject?.zone,
+        id: formRecord.id,
+        annexTitle: formRecord.annexTitle,
+        status: formRecord.status,
+        abemisId: formRecord.abemisId ?? normalizedFormProject?.abemisId,
+        qrReference: formRecord.qrReference ?? normalizedFormProject?.qrReference,
+        linkedProjectId: normalizedFormProject?.id ?? formRecord.linkedProjectId,
+        linkedProjectTitle: normalizedFormProject?.title,
+        projectCode: normalizedFormProject?.projectCode,
+        barangay: normalizedFormProject?.barangay ?? formRecord.data.locationBarangay,
+        municipality: normalizedFormProject?.municipality ?? formRecord.data.locationMunicipality,
+        province: normalizedFormProject?.province ?? formRecord.data.locationProvince,
+        zone: normalizedFormProject?.zone,
       },
     };
     router.push({
       pathname: '/form-detail',
       params: {
         record: JSON.stringify(payload),
-        projectId: normalizedProject?.id,
-        formId: entry.id,
+        projectId: normalizedFormProject?.id,
+        formId: formRecord.id,
       },
     });
   };
 
   const listBottomSpacer = (insets.bottom || spacing.lg) + spacing.xxl;
+  const loadMore = () => {
+    if (projects.length < filteredProjects.length) {
+      setPage((prev) => prev + 1);
+    }
+  };
 
   return (
     <>
       <Screen>
         {loading && (
-          <View style={[styles.loadingCard, { borderColor: colors.border, backgroundColor: colors.surface }]}> 
+          <View style={[styles.loadingCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
             <Text style={[styles.loadingText, { color: colors.textMuted }]}>Preparing offline dataset…</Text>
+            <View style={styles.loadingRow}>
+              <Animated.View
+                style={[
+                  styles.pulseDot,
+                  {
+                    backgroundColor: colors.success ?? '#16a34a',
+                    transform: [
+                      {
+                        scale: pulseAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 1.3],
+                        }),
+                      },
+                    ],
+                    opacity: pulseAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 0.6],
+                    }),
+                  },
+                ]}
+              />
+              <Text style={[styles.pulseText, { color: colors.textPrimary }]}>Syncing data</Text>
+            </View>
           </View>
         )}
         <View style={styles.topBanner}>
@@ -140,13 +386,13 @@ export function FormListScreen() {
               <Text style={[styles.appSubtitle, { color: colors.textMuted }]}>Field Monitoring & Reporting</Text>
             </View>
           </View>
-        <TouchableOpacity
-          onPress={() => router.push('/settings')}
-          style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.secondary }]}
-        >
-          <Text style={styles.avatarText}>MP</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            onPress={() => router.push('/settings')}
+            style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.secondary }]}
+          >
+            <Text style={styles.avatarText}>MP</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.searchRow}>
           <View
@@ -161,7 +407,7 @@ export function FormListScreen() {
             <Ionicons name="search" size={16} color={colors.textMuted} />
             <TextInput
               style={[styles.searchInput, { color: colors.textPrimary }]}
-              placeholder="Search project or location"
+              placeholder="Search by project, ABEMIS ID, code, or location"
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -183,13 +429,15 @@ export function FormListScreen() {
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
           showsVerticalScrollIndicator={false}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
           ListFooterComponent={
             <View style={{ paddingTop: spacing.xl, paddingBottom: listBottomSpacer }}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Standalone drafts</Text>
               <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>Drafts waiting for QR or ABEMIS attachment.</Text>
               <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
                 {filteredStandaloneDrafts.length === 0 ? (
-                  <View style={[styles.emptyStandalone, { borderColor: colors.border }]}> 
+                  <View style={[styles.emptyStandalone, { borderColor: colors.border }]}>
                     <Ionicons name="document-outline" size={18} color={colors.textMuted} />
                     <Text style={[styles.emptyStandaloneText, { color: colors.textMuted }]}>No standalone drafts match the filter.</Text>
                   </View>
@@ -218,7 +466,7 @@ export function FormListScreen() {
           }
           renderItem={({ item }) => {
             const normalizedItem = normalizeProjectForDisplay(item);
-            const primaryForm = normalizedItem.forms[0];
+            const primaryForm = normalizedItem.forms[0] ?? buildFallbackForm(normalizedItem);
             return (
               <TouchableOpacity
                 style={[
@@ -285,12 +533,12 @@ export function FormListScreen() {
                           <View style={styles.formInstances}>
                             {instances.map((instance, index) => (
                               <TouchableOpacity
-                            key={instance.id}
-                            style={[styles.formButton, { backgroundColor: colors.primary }]}
+                                key={instance.id}
+                                style={[styles.formButton, { backgroundColor: colors.primary }]}
                                 onPress={() => handleNavigate(instance, item)}
-                          >
-                            <Text style={[styles.formButtonText, { color: '#fff' }]}>Form #{index + 1}</Text>
-                          </TouchableOpacity>
+                              >
+                                <Text style={[styles.formButtonText, { color: '#fff' }]}>Form #{index + 1}</Text>
+                              </TouchableOpacity>
                             ))}
                           </View>
                         </View>
@@ -305,10 +553,18 @@ export function FormListScreen() {
 
       </Screen>
       <FilterBottomSheet
+        index={3}
         ref={bottomSheetRef}
         snapPoints={filterSnapPoints}
         activeFilter={activeFilter}
-        onApply={(filter) => setActiveFilter(filter)}
+        activeKeyFilter={keyFilter}
+        activeRegionFilter={regionFilter}
+        locationOptions={locationOptions}
+        onApply={(status, key, region) => {
+          setActiveFilter(status);
+          setKeyFilter(key);
+          setRegionFilter(region);
+        }}
       />
     </>
   );
@@ -552,5 +808,19 @@ const styles = StyleSheet.create({
   loadingText: {
     fontFamily: fonts.medium,
     fontSize: 13,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  pulseDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  pulseText: {
+    fontFamily: fonts.semibold,
   },
 });

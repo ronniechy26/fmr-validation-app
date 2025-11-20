@@ -101,6 +101,19 @@ function RootStack() {
       <Stack.Screen
         name="form-detail"
         options={{
+          title: 'Project Details',
+          headerShown: true,
+          headerTintColor: '#fff',
+          headerStyle: { backgroundColor: colors.primary },
+          headerTitleAlign: 'center',
+          headerTitleStyle: { fontFamily: fonts.semibold },
+          headerBackTitleStyle: { fontFamily: fonts.regular },
+          headerBackTitle: 'Back',
+        }}
+      />
+      <Stack.Screen
+        name="form-data"
+        options={{
           title: 'Form Details',
           headerShown: true,
           headerTintColor: '#fff',

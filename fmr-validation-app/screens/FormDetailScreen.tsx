@@ -1,4 +1,4 @@
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { AttachmentSheet } from '@/components/AttachmentSheet';
@@ -10,6 +10,7 @@ import { AttachmentPayload, FormRecord, FormRoutePayload, ProjectRecord, Validat
 import { useThemeColors } from '@/providers/ThemeProvider';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { Image } from 'expo-image';
 
 export function FormDetailScreen() {
   const router = useRouter();
@@ -194,6 +195,7 @@ export function FormDetailScreen() {
 
   const annexTitle = meta.annexTitle ?? 'Annex C – Validation Form';
   const projectForms = useMemo(() => activeProject?.forms ?? [], [activeProject]);
+  const geotagImages = useMemo(() => activeProject?.geotags ?? [], [activeProject]);
   const handleSelectForm = (formId: string) => {
     const next = projectForms.find((f) => f.id === formId);
     if (next) {
@@ -291,20 +293,14 @@ export function FormDetailScreen() {
           </View>
           <Text style={[styles.annexTag, { color: colors.textPrimary }]}>{annexTitle}</Text>
         </View>
-        <TouchableOpacity
-          style={[styles.viewFormButton, { borderColor: colors.primary }]}
-          onPress={() => openFormData(activeFormRecord)}
-        >
-          <Text style={[styles.viewFormText, { color: colors.primary }]}>View Form Data</Text>
-        </TouchableOpacity>
       </View>
 
       {activeProject && (
-        <View style={[styles.projectCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Project Details</Text>
-          <View style={styles.projectGrid}>
-            <SectionDivider label="Overview" />
-            {detailRow('Project Code', activeProject.projectCode)}
+      <View style={[styles.projectCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+        <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Project Details</Text>
+        <View style={styles.projectGrid}>
+          <SectionDivider label="Overview" />
+          {detailRow('Project Code', activeProject.projectCode)}
             {detailRow('Type', activeProject.projectType)}
             {detailRow('Stage', activeProject.stage)}
             {detailRow('Status', activeProject.status)}
@@ -330,6 +326,65 @@ export function FormDetailScreen() {
           </View>
         </View>
       )}
+
+      {geotagImages.length ? (
+        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Geotag Photos</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={260 + spacing.sm}
+            decelerationRate="fast"
+            contentContainerStyle={{ gap: spacing.sm }}
+          >
+            {geotagImages.map((item) => (
+              <View key={item.id} style={[styles.carouselItem, { borderColor: colors.border }]}>
+                <Image
+                  style={styles.geotagImage}
+                  source={{ uri: item.url }}
+                  contentFit="cover"
+                  transition={200}
+                />
+                <View style={[styles.carouselMeta, { backgroundColor: colors.surfaceMuted }]}>
+                  <Text style={[styles.listTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {item.photoName || 'Geotag'}
+                  </Text>
+                  <Text style={[styles.listSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
+                    {item.url}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
+      {activeProject?.proposalDocuments?.length ? (
+        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Proposal Documents</Text>
+          <View style={{ gap: spacing.sm }}>
+            {activeProject.proposalDocuments.map((doc) => (
+              <View key={doc.id} style={[styles.listRow, { borderColor: colors.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.listTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+                    {doc.fileName}
+                  </Text>
+                  <Text style={[styles.listSubtitle, { color: colors.textMuted }]}>
+                    {doc.category || 'Document'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.linkPill, { borderColor: colors.primary }]}
+                  onPress={() => router.push({ pathname: '/form-data', params: { record: JSON.stringify({}) } })}
+                  disabled
+                >
+                  <Text style={[styles.linkPillText, { color: colors.primary }]}>Open</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       <View style={[styles.attachmentCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
         <View style={{ flex: 1, gap: spacing.xs }}>
@@ -493,6 +548,46 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: spacing.md,
     gap: spacing.sm,
+  },
+  listRow: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  listTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+  },
+  listSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+  },
+  linkPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  linkPillText: {
+    fontFamily: fonts.semibold,
+  },
+  carouselItem: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  geotagImage: {
+    width: '100%',
+    height: 210,
+  },
+  carouselMeta: {
+    padding: spacing.sm,
+    backgroundColor: '#f8fafc',
+    gap: 4,
   },
   cardLabel: {
     fontFamily: fonts.medium,

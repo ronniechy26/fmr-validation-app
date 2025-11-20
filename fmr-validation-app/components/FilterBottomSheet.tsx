@@ -6,30 +6,100 @@ import { FormStatus } from '@/types/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActionSheetIOS, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 
 type StatusFilter = 'All' | FormStatus;
+type KeyFilter = 'all' | 'withForms' | 'withoutForms' | 'withGeotags' | 'withDocs';
+type RegionFilter = { region?: string; province?: string; municipality?: string };
 
 interface FilterBottomSheetProps {
   activeFilter: StatusFilter;
-  onApply: (filter: StatusFilter) => void;
+  activeKeyFilter: KeyFilter;
+  activeRegionFilter?: RegionFilter;
+  onApply: (filter: StatusFilter, keyFilter: KeyFilter, regionFilter: RegionFilter) => void;
   snapPoints: string[];
+  locationOptions?: RegionFilter[];
+  index?: number;
 }
 
 const statusFilters: StatusFilter[] = ['All', 'Draft', 'Pending Sync', 'Synced', 'Error'];
+const keyFilters: { label: string; value: KeyFilter }[] = [
+  { label: 'All projects', value: 'all' },
+  { label: 'With forms', value: 'withForms' },
+  { label: 'No forms', value: 'withoutForms' },
+  { label: 'With geotags', value: 'withGeotags' },
+  { label: 'With documents', value: 'withDocs' },
+];
 
 export const FilterBottomSheet = forwardRef(function FilterSheet(
-  { activeFilter, onApply, snapPoints }: FilterBottomSheetProps,
+  {
+    activeFilter,
+    activeKeyFilter,
+    activeRegionFilter,
+    onApply,
+    snapPoints,
+    locationOptions = [],
+    index=1,
+  }: FilterBottomSheetProps,
   ref: ForwardedRef<BottomSheetModal>,
 ) {
   const { colors, mode } = useThemeMode();
   const accent = colors.primary;
   const heroTint = mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(31,75,143,0.08)';
   const [selectedFilter, setSelectedFilter] = useState<StatusFilter>(activeFilter);
+  const [selectedKeyFilter, setSelectedKeyFilter] = useState<KeyFilter>(activeKeyFilter);
+  const [selectedRegion, setSelectedRegion] = useState<RegionFilter>({
+    ...(activeRegionFilter ?? {}),
+  });
+  const regionOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          locationOptions
+            .map((item) => item.region?.trim())
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort(),
+    [locationOptions],
+  );
+  const provinceOptions = useMemo(() => {
+    const source = selectedRegion.region
+      ? locationOptions.filter(
+          (item) =>
+            item.region?.toLowerCase() === selectedRegion.region?.toLowerCase(),
+        )
+      : locationOptions;
+    return Array.from(
+      new Set(
+        source
+          .map((item) => item.province?.trim())
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort();
+  }, [locationOptions, selectedRegion.region]);
+  const municipalityOptions = useMemo(() => {
+    const source = selectedRegion.province
+      ? locationOptions.filter(
+          (item) =>
+            item.province?.toLowerCase() ===
+            selectedRegion.province?.toLowerCase(),
+        )
+      : locationOptions;
+    return Array.from(
+      new Set(
+        source
+          .map((item) => item.municipality?.trim())
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort();
+  }, [locationOptions, selectedRegion.province]);
 
   useEffect(() => {
     setSelectedFilter(activeFilter);
-  }, [activeFilter]);
+    setSelectedKeyFilter(activeKeyFilter);
+    setSelectedRegion({ ...(activeRegionFilter ?? {}) });
+  }, [activeFilter, activeKeyFilter, activeRegionFilter]);
 
   const statusHint = useMemo(() => {
     switch (selectedFilter) {
@@ -52,7 +122,7 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
   };
 
   const handleApply = () => {
-    onApply(selectedFilter);
+    onApply(selectedFilter, selectedKeyFilter, selectedRegion);
     close();
   };
 
@@ -60,9 +130,89 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
     setSelectedFilter(filter);
   };
 
+  const handleRegionSelect = (field: keyof RegionFilter, value?: string) => {
+    setSelectedRegion((prev) => {
+      const next = { ...prev };
+      if (field === 'region') {
+        next.region = value;
+        next.province = undefined;
+        next.municipality = undefined;
+      } else if (field === 'province') {
+        next.province = value;
+        next.municipality = undefined;
+      } else {
+        next.municipality = value;
+      }
+      return next;
+    });
+  };
+
+  const renderDropdown = (
+    label: string,
+    options: (string | undefined)[],
+    selected?: string,
+    onSelect?: (value?: string) => void,
+  ) => {
+    const stringOptions = options.filter((opt): opt is string => Boolean(opt));
+    const currentLabel = selected || 'Any';
+    if (Platform.OS === 'android') {
+      return (
+        <View style={styles.dropdownRow}>
+          <Text style={[styles.locationLabel, { color: colors.textMuted }]}>{label}</Text>
+          <View style={[styles.pickerContainer, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+            <Picker
+              selectedValue={selected ?? ''}
+              onValueChange={(value) => onSelect?.(value || undefined)}
+              style={styles.picker}
+              dropdownIconColor={colors.textMuted}
+              mode="dropdown"
+            >
+              <Picker.Item label="Any" value="" />
+              {stringOptions.map((opt) => (
+                <Picker.Item key={opt} label={opt} value={opt} />
+              ))}
+            </Picker>
+          </View>
+        </View>
+      );
+    }
+    return (
+      <TouchableOpacity
+        style={[
+          styles.iosPicker,
+          { borderColor: colors.border, backgroundColor: colors.surface },
+        ]}
+        onPress={() =>
+          ActionSheetIOS.showActionSheetWithOptions(
+            {
+              options: ['Any', ...stringOptions, 'Cancel'],
+              cancelButtonIndex: stringOptions.length + 1,
+            },
+            (index) => {
+              if (index === 0) {
+                onSelect?.(undefined);
+              } else if (index > 0 && index <= stringOptions.length) {
+                const choice = stringOptions[index - 1];
+                onSelect?.(choice);
+              }
+            },
+          )
+        }
+      >
+        <View>
+          <Text style={[styles.locationLabel, { color: colors.textMuted }]}>{label}</Text>
+          <Text style={[styles.iosPickerText, { color: colors.textPrimary }]}>
+            {currentLabel || 'Any'}
+          </Text>
+        </View>
+        <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <BottomSheetModal
-      index={1}
+      index={index}
       ref={ref}
       snapPoints={snapPoints}
       backdropComponent={SheetBackdrop}
@@ -102,6 +252,53 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
               <FilterChip key={filter} label={filter} active={filter === selectedFilter} onPress={() => handleSelect(filter)} />
             ))}
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>PROJECTS</Text>
+          <View style={styles.keyFilterList}>
+            {keyFilters.map((filter) => {
+              const active = filter.value === selectedKeyFilter;
+              return (
+                <TouchableOpacity
+                  key={filter.value}
+                  style={[
+                    styles.keyFilterPill,
+                    {
+                      borderColor: active ? colors.primary : colors.border,
+                      backgroundColor: active ? colors.surfaceMuted : colors.surface,
+                    },
+                  ]}
+                  onPress={() => setSelectedKeyFilter(filter.value)}
+                >
+                  <Text
+                    style={[
+                      styles.keyFilterText,
+                      { color: active ? colors.primary : colors.textPrimary },
+                    ]}
+                  >
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>LOCATION</Text>
+          {renderDropdown('Region', [undefined, ...regionOptions], selectedRegion.region, (val) =>
+            handleRegionSelect('region', val),
+          )}
+          {renderDropdown('Province', [undefined, ...provinceOptions], selectedRegion.province, (val) =>
+            handleRegionSelect('province', val),
+          )}
+          {renderDropdown(
+            'Municipality',
+            [undefined, ...municipalityOptions],
+            selectedRegion.municipality,
+            (val) => handleRegionSelect('municipality', val),
+          )}
         </View>
 
         <TouchableOpacity
@@ -180,6 +377,72 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  keyFilterList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  keyFilterPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  keyFilterText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  locationLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    marginRight: spacing.xs,
+  },
+  locationPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  locationPillText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+  },
+  dropdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  pickerContainer: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
+  picker: {
+    width: '100%',
+    height: 48,
+  },
+  iosPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  iosPickerText: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
   },
   applyButton: {
     borderRadius: 12,
