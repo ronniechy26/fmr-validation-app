@@ -13,8 +13,19 @@ export function FormDataScreen() {
   const params = useLocalSearchParams<{ record?: string }>();
   const colors = useThemeColors();
 
+  const recordParam = useMemo(() => {
+    const raw = params.record;
+    if (!raw) return null;
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }, [params.record]);
+
   const payload = useMemo<FormRoutePayload>(() => {
-    if (!params.record) {
+    if (!recordParam) {
       Alert.alert('Missing data', 'No form data was provided.');
       return {
         form: fallbackForm(),
@@ -26,7 +37,7 @@ export function FormDataScreen() {
       };
     }
     try {
-      return JSON.parse(params.record as string) as FormRoutePayload;
+      return JSON.parse(recordParam) as FormRoutePayload;
     } catch {
       return {
         form: fallbackForm(),
@@ -41,6 +52,8 @@ export function FormDataScreen() {
 
   const form = payload.form;
   const annexTitle = payload.meta.annexTitle || 'Annex C – Validation Form';
+  const formStatus = (payload.form as any).status ?? payload.meta.status ?? 'Draft';
+  const formUpdatedAt = payload.form.updatedAt ?? new Date().toISOString();
   const location = [payload.meta.barangay, payload.meta.municipality, payload.meta.province]
     .filter(Boolean)
     .join(', ');
@@ -63,9 +76,9 @@ export function FormDataScreen() {
             <Text style={[styles.locationText, { color: colors.textMuted }]}>{location}</Text>
           ) : null}
           <View style={styles.badgeRow}>
-            <StatusBadge status={form.status} />
+            <StatusBadge status={formStatus} />
             <Text style={[styles.metaText, { color: colors.textMuted }]}>
-              Last updated {new Date(form.updatedAt).toLocaleString()}
+              Last updated {new Date(formUpdatedAt).toLocaleString()}
             </Text>
           </View>
           <Text style={[styles.annexTag, { color: colors.textPrimary }]}>{annexTitle}</Text>

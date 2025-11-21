@@ -220,9 +220,10 @@ export function FormDetailScreen() {
         zone: activeProject?.zone,
       },
     };
+    const record = encodeURIComponent(JSON.stringify(payload));
     router.push({
       pathname: '/form-data',
-      params: { record: JSON.stringify(payload) },
+      params: { record },
     });
   };
 
