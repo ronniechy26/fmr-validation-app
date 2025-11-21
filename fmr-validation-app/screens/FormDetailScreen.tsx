@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Carousel, { Pagination, type ICarouselInstance } from 'react-native-reanimated-carousel';
 import { useSharedValue } from 'react-native-reanimated';
 import { ImageLightbox } from '@/components/ImageLightbox';
+import * as WebBrowser from 'expo-web-browser';
 
 export function FormDetailScreen() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export function FormDetailScreen() {
   const geotagProgress = useSharedValue(0);
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ uri?: string; title?: string } | null>(null);
+  const [docPreview, setDocPreview] = useState<{ uri?: string; title?: string } | null>(null);
   const params = useLocalSearchParams<{
     form?: string;
     annex?: string;
@@ -192,6 +194,30 @@ export function FormDetailScreen() {
   const closeLightbox = () => {
     setLightboxVisible(false);
     setLightboxImage(null);
+  };
+
+  const isImageUrl = (url?: string) => {
+    if (!url) return false;
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(url);
+  };
+
+  const isPdfUrl = (url?: string) => {
+    if (!url) return false;
+    return /\.pdf($|\?)/i.test(url);
+  };
+
+  const handleOpenDocument = async (uri?: string, title?: string) => {
+    if (!uri) return;
+    if (isImageUrl(uri)) {
+      setLightboxVisible(true);
+      setLightboxImage({ uri, title });
+      return;
+    }
+    if (isPdfUrl(uri)) {
+      await WebBrowser.openBrowserAsync(uri);
+      return;
+    }
+    await WebBrowser.openBrowserAsync(uri);
   };
 
   const openAttachmentSheet = () => {
@@ -548,9 +574,13 @@ export function FormDetailScreen() {
                 </View>
                 <TouchableOpacity
                   style={[styles.iconButton, { backgroundColor: colors.surfaceMuted }]}
-                  disabled
+                  onPress={() => handleOpenDocument(doc.url, doc.fileName)}
                 >
-                  <Ionicons name="download-outline" size={18} color={colors.textMuted} />
+                  <Ionicons
+                    name={isImageUrl(doc.url) ? 'image-outline' : isPdfUrl(doc.url) ? 'document-outline' : 'open-outline'}
+                    size={18}
+                    color={colors.primary}
+                  />
                 </TouchableOpacity>
               </View>
             ))}
