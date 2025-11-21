@@ -5,6 +5,7 @@ import { FormStatus } from '@/types/theme';
 
 const SNAPSHOT_KEY = 'snapshot';
 const storage = new SQLiteStorage('fmr-offline');
+const LAST_SYNC_KEY = 'last-sync-at';
 
 const cloneForm = (form: FormRecord): FormRecord => ({
   ...form,
@@ -63,6 +64,17 @@ export async function loadSnapshot(): Promise<OfflineSnapshot> {
 export async function replaceSnapshot(snapshot: OfflineSnapshot): Promise<OfflineSnapshot> {
   await writeSnapshot(snapshot);
   return normalizeSnapshot(snapshot);
+}
+
+export async function getLastSyncTimestamp(): Promise<number | null> {
+  const value = await storage.getItemAsync(LAST_SYNC_KEY);
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export async function setLastSyncTimestamp(timestamp: number) {
+  await storage.setItemAsync(LAST_SYNC_KEY, `${timestamp}`);
 }
 
 export async function deleteStandaloneDraft(formId: string) {

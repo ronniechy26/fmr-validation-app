@@ -15,6 +15,7 @@ import { Alert, Animated, Easing, StyleSheet, Text, TextInput, TouchableOpacity,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FlashList } from '@shopify/flash-list';
+import { logger } from '@/lib/logger';
 
 const filters: ('All' | FormStatus)[] = ['All', 'Draft', 'Pending Sync', 'Synced', 'Error'];
 
@@ -27,12 +28,16 @@ type LegacyProjectRecord = ProjectRecord & {
 
 function normalizeProjectForDisplay(project: ProjectRecord): ProjectRecord {
   const legacy = project as LegacyProjectRecord;
+  const linkedForms = (project.forms ?? []).filter(
+    (form) => form.linkedProjectId === project.id || form.linkedProjectId === project.projectCode,
+  );
   return {
     ...project,
     title: (project.title as unknown as string | undefined) ?? legacy.name ?? 'Untitled FMR',
     barangay: project.barangay ?? legacy.locationBarangay,
     municipality: project.municipality ?? legacy.locationMunicipality,
     province: project.province ?? legacy.locationProvince,
+    forms: linkedForms,
   };
 }
 
@@ -118,6 +123,7 @@ export function FormListScreen() {
     const syncResult = await syncDrafts();
     if (!syncResult.ok && syncResult.message) {
       Alert.alert('Sync drafts', syncResult.message);
+      logger.warn('ui', 'syncDrafts:alert', { message: syncResult.message });
     }
     await refresh({ silent: true });
     setRefreshing(false);
@@ -224,7 +230,7 @@ export function FormListScreen() {
     return {
       id: project.id ?? `project-${now}`,
       annexTitle: 'Annex C – Validation Form',
-      status: 'Draft',
+      status: undefined as unknown as FormStatus,
       updatedAt: now,
       abemisId: project.abemisId,
       qrReference: project.qrReference,
@@ -491,11 +497,12 @@ export function FormListScreen() {
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListFooterComponent={<View style={{ height: spacing.md }} />}
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
             renderItem={({ item }) => {
               const normalizedItem = normalizeProjectForDisplay(item);
-              const primaryForm = normalizedItem.forms[0] ?? buildFallbackForm(normalizedItem);
+              const primaryForm =
+                normalizedItem.forms.find((form) => form.status === 'Synced') ??
+                normalizedItem.forms[0] ??
+                buildFallbackForm(normalizedItem);
               return (
                 <TouchableOpacity
                   style={[
@@ -503,38 +510,50 @@ export function FormListScreen() {
                     {
                       backgroundColor: colors.surface,
                       borderColor: colors.border,
-                      shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
+                      shadowColor: mode === 'dark' ? '#000' : '#0f172a',
                     },
                   ]}
                   onPress={() => handleNavigate(primaryForm, normalizedItem)}
                 >
                   <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
-                        {normalizedItem.title || 'Untitled FMR'}
-                      </Text>
-                      <View style={styles.locationRow}>
-                        <Ionicons name="pin" size={14} color={colors.textMuted} />
-                        <Text style={[styles.locationText, { color: colors.textMuted }]}>
-                          {normalizedItem.barangay ?? '—'}, {normalizedItem.municipality ?? '—'}
+                      <View style={styles.cardTitleRow}>
+                        <Text style={[styles.cardTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                          {normalizedItem.title || 'Untitled FMR'}
                         </Text>
+                        {normalizedItem.zone ? (
+                          <View style={[styles.zonePill, { backgroundColor: colors.surfaceMuted }]}>
+                            <Text style={[styles.zoneText, { color: colors.textPrimary }]}>{normalizedItem.zone}</Text>
+                          </View>
+                        ) : null}
                       </View>
-                    </View>
-                    <StatusBadge status={primaryForm.status} />
+                      {normalizedItem.projectCode ? (
+                        <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                          Project Code: {normalizedItem.projectCode}
+                        </Text>
+                      ) : null}
+                  </View>
+                    {primaryForm.status === 'Synced' ? <StatusBadge status={primaryForm.status} /> : null}
                   </View>
 
                   <View style={styles.cardMetaRow}>
                     <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
-                      <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
-                      <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>
-                        {normalizedItem.barangay ?? '—'}
-                      </Text>
+                      <Ionicons name="business-outline" size={14} color={colors.textMuted} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
+                        <Text style={[styles.metaPillValue, { color: colors.textPrimary }]} numberOfLines={1}>
+                          {normalizedItem.municipality ?? '—'}
+                        </Text>
+                      </View>
                     </View>
                     <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
-                      <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
-                      <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>
-                        {normalizedItem.municipality ?? '—'}
-                      </Text>
+                      <Ionicons name="compass-outline" size={14} color={colors.textMuted} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
+                        <Text style={[styles.metaPillValue, { color: colors.textPrimary }]} numberOfLines={1}>
+                          {normalizedItem.barangay ?? '—'}
+                        </Text>
+                      </View>
                     </View>
                   </View>
 
@@ -652,7 +671,9 @@ export function FormListScreen() {
                   <View style={styles.standaloneInfoRow}>
                     <Ionicons name="qr-code-outline" size={14} color={colors.textMuted} />
                     <Text style={[styles.standaloneNote, { color: colors.textMuted }]}>
-                      {item.qrReference || item.abemisId || 'Not attached'}
+                      {item.qrReference || item.abemisId
+                        ? [item.qrReference, item.abemisId].filter(Boolean).join(' • ')
+                        : 'Not attached'}
                     </Text>
                   </View>
                 </View>
@@ -843,6 +864,9 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   metaPillLabel: {
     fontFamily: fonts.medium,
@@ -856,6 +880,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  zonePill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: 999,
+  },
+  zoneText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
   },
   formsRow: {
     marginTop: spacing.sm,

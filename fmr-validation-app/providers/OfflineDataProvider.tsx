@@ -13,12 +13,15 @@ import {
 import { attachFormWithPayload, deleteForm, fetchSnapshotFromServer, HttpError, syncFormsFromClient } from '@/lib/api';
 import { FormStatus } from '@/types/theme';
 import { useAuth } from './AuthProvider';
+import { logger } from '@/lib/logger';
+import { getLastSyncTimestamp, setLastSyncTimestamp } from '@/storage/offline-store';
 
 type OfflineDataContextValue = {
   loading: boolean;
   projects: ProjectRecord[];
   standaloneDrafts: FormRecord[];
-  refresh: (options?: { silent?: boolean }) => Promise<OfflineSnapshot | null>;
+  lastSyncedAt: number | null;
+  refresh: (options?: { silent?: boolean; force?: boolean }) => Promise<OfflineSnapshot | null>;
   attachDraft: (formId: string, payload: AttachmentPayload) => Promise<AttachmentResult>;
   syncDrafts: () => Promise<{ ok: boolean; message?: string }>;
   deleteDraft: (formId: string) => Promise<boolean>;
@@ -35,17 +38,32 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
   const { token } = useAuth();
   const [snapshot, setSnapshot] = useState<OfflineSnapshot | null>(null);
   const [loading, setLoading] = useState(Boolean(ready));
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    getLastSyncTimestamp().then((timestamp) => setLastSyncedAt(timestamp)).catch(() => setLastSyncedAt(null));
+  }, []);
 
   const refresh = useCallback(
-    async (options?: { silent?: boolean }) => {
+    async (options?: { silent?: boolean; force?: boolean }) => {
       const showSpinner = !options?.silent;
       if (showSpinner) {
         setLoading(true);
       }
+      const now = Date.now();
+      const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+      const withinStaleWindow = lastSyncedAt && now - lastSyncedAt < ONE_DAY_MS;
+
       try {
-        if (token) {
+        if (token && (options?.force || !withinStaleWindow)) {
           const remoteSnapshot = await fetchSnapshotFromServer();
+          logger.info('offline', 'refresh:remote-success', {
+            projects: remoteSnapshot.projects.length,
+            drafts: remoteSnapshot.standaloneDrafts.length,
+          });
           const normalized = await replaceSnapshot(remoteSnapshot);
+          await setLastSyncTimestamp(now);
+          setLastSyncedAt(now);
           setSnapshot(normalized);
           if (showSpinner) {
             setLoading(false);
@@ -53,17 +71,21 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
           return normalized;
         }
       } catch (error) {
-        console.warn('[OfflineDataProvider] Falling back to cached snapshot:', error);
+        logger.warn('offline', 'refresh:remote-fallback', { error: String(error) });
       }
 
       const cached = await loadSnapshot();
+      logger.info('offline', 'refresh:cache', {
+        projects: cached.projects.length,
+        drafts: cached.standaloneDrafts.length,
+      });
       setSnapshot(cached);
       if (showSpinner) {
         setLoading(false);
       }
       return cached;
     },
-    [token],
+    [token, lastSyncedAt],
   );
 
   useEffect(() => {
@@ -89,13 +111,14 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
         try {
           await attachFormWithPayload(formId, payload);
           const refreshed = await refresh({ silent: true });
+          logger.info('offline', 'attach:remote-success', { formId, payload });
           const updated = findFormById(refreshed ?? snapshot, formId);
           return { record: updated, synced: true };
         } catch (error) {
           if (error instanceof HttpError && error.status >= 400 && error.status < 500) {
             return { record: undefined, synced: false, error: error.message };
           }
-          console.warn('[OfflineDataProvider] Remote attach failed, falling back to offline cache:', error);
+          logger.warn('offline', 'attach:remote-fallback', { formId, error: String(error) });
         }
       }
 
@@ -108,6 +131,7 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
         };
       }
       setSnapshot(result.snapshot);
+      logger.info('offline', 'attach:local', { formId, payload });
       return { record: result.attached, synced: false };
     },
     [token, refresh, findFormById, snapshot],
@@ -139,12 +163,13 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
               data: result.record.data,
             },
           ]);
+          logger.info('offline', 'saveDraft:remote-success', { formId: result.record.id });
           synced = true;
           refresh({ silent: true }).catch((error) =>
-            console.warn('[OfflineDataProvider] Background refresh after save failed:', error),
+            logger.warn('offline', 'saveDraft:refresh-failed', { error: String(error) }),
           );
         } catch (error) {
-          console.warn('[OfflineDataProvider] Failed to sync draft with server, keeping offline copy:', error);
+          logger.warn('offline', 'saveDraft:remote-failed', { formId: result.record.id, error: String(error) });
         }
       }
 
@@ -159,14 +184,16 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
         try {
           await deleteForm(formId);
           await refresh({ silent: true });
+          logger.info('offline', 'delete:remote-success', { formId });
           return true;
         } catch (error) {
-          console.warn('[OfflineDataProvider] Remote delete failed, falling back to offline cache:', error);
+          logger.warn('offline', 'delete:remote-fallback', { formId, error: String(error) });
         }
       }
       const result = await deleteStandaloneDraft(formId);
       if (!result) return false;
       setSnapshot(result.snapshot);
+      logger.info('offline', 'delete:local', { formId });
     return true;
   },
     [token, refresh],
@@ -180,15 +207,18 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
 
     if (!snapshot) {
       await refresh({ silent: true });
+      logger.info('offline', 'syncDrafts:noop', { reason: 'no_snapshot' });
       return { ok: true };
     }
     if (!token) {
       await refresh({ silent: true });
+      logger.warn('offline', 'syncDrafts:skipped', { reason: 'no_token' });
       return { ok: false, message: 'Sign in to sync drafts with the server.' };
     }
     const drafts = snapshot.standaloneDrafts ?? [];
     if (!drafts.length) {
       await refresh({ silent: true });
+      logger.info('offline', 'syncDrafts:noop', { reason: 'no_drafts' });
       return { ok: true };
     }
     try {
@@ -204,11 +234,12 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
         })),
       );
       refresh({ silent: true }).catch((error) =>
-        console.warn('[OfflineDataProvider] Background refresh after sync failed:', error),
+        logger.warn('offline', 'syncDrafts:refresh-failed', { error: String(error) }),
       );
+      logger.info('offline', 'syncDrafts:remote-success', { count: drafts.length });
       return { ok: true };
     } catch (error) {
-      console.warn('[OfflineDataProvider] Failed to sync drafts with server:', error);
+      logger.error('offline', 'syncDrafts:remote-failed', { error: String(error) });
       return { ok: false, message: 'Unable to sync drafts right now. Please try again later.' };
     }
   }, [snapshot, token, refresh]);
@@ -229,13 +260,14 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
       projects: snapshot?.projects ?? [],
       standaloneDrafts: snapshot?.standaloneDrafts ?? [],
       refresh,
+      lastSyncedAt,
       attachDraft,
       syncDrafts,
       deleteDraft,
       saveDraft,
       findProjectByCode,
     }),
-    [loading, snapshot, refresh, attachDraft, syncDrafts, deleteDraft, saveDraft, findProjectByCode],
+    [loading, snapshot, lastSyncedAt, refresh, attachDraft, syncDrafts, deleteDraft, saveDraft, findProjectByCode],
   );
 
   return <OfflineDataContext.Provider value={value}>{children}</OfflineDataContext.Provider>;

@@ -15,6 +15,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -30,7 +31,7 @@ export function LoginScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await signIn(email.trim(), password);
+      await signIn(email.trim(), password, { remember: rememberMe });
       router.replace('/');
     } catch (err) {
       setError((err as Error).message ?? 'Unable to sign in. Please try again.');
@@ -90,6 +91,19 @@ export function LoginScreen() {
         </TouchableOpacity>
 
         {error ? <Text style={[styles.errorText, { color: '#c53030' }]}>{error}</Text> : null}
+
+        <TouchableOpacity
+          style={styles.rememberRow}
+          onPress={() => setRememberMe((prev) => !prev)}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={rememberMe ? 'checkbox' : 'square-outline'}
+            size={18}
+            color={rememberMe ? colors.primary : colors.textMuted}
+          />
+          <Text style={[styles.rememberText, { color: colors.textPrimary }]}>Remember me on this device</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[
@@ -185,6 +199,15 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontFamily: fonts.medium,
+    fontSize: 13,
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  rememberText: {
+    fontFamily: fonts.regular,
     fontSize: 13,
   },
 });

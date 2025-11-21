@@ -9,7 +9,7 @@ type AuthContextValue = {
   loading: boolean;
   token: string | null;
   user: LoginResponse['user'] | null;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, options?: { remember?: boolean }) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -19,7 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<StoredSession<LoginResponse['user']> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const persistSession = useCallback(async (response: LoginResponse) => {
+  const persistSession = useCallback(async (response: LoginResponse, remember = true) => {
     const expiresAt = Date.now() + response.expiresIn * 1000;
     const refreshExpiresAt = Date.now() + response.refreshExpiresIn * 1000;
     const nextSession: StoredSession<LoginResponse['user']> = {
@@ -31,7 +31,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     setSession(nextSession);
     setAuthToken(response.accessToken);
-    await saveSession(nextSession);
+    if (remember) {
+      await saveSession(nextSession);
+    }
   }, []);
 
   useEffect(() => {
@@ -68,9 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     bootstrap();
   }, [persistSession]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string, options?: { remember?: boolean }) => {
     const response = await login({ email, password });
-    await persistSession(response);
+    await persistSession(response, options?.remember ?? true);
   }, [persistSession]);
 
   const signOut = useCallback(async () => {

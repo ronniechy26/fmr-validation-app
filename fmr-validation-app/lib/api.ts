@@ -2,6 +2,7 @@ import { AttachmentPayload, ClientFormPayload, FormRecord, ValidationForm } from
 import { config } from '@/constants/config';
 import { OfflineSnapshot } from '@/types/offline';
 import { LoginPayload, LoginResponse } from '@/types/auth';
+import { logger } from '@/lib/logger';
 
 const { apiBaseUrl } = config;
 
@@ -25,6 +26,7 @@ export class HttpError extends Error {
 async function request<T>(path: string, options: (RequestInit & { skipAuth?: boolean }) = {}) {
   const { skipAuth, ...restOptions } = options;
   const url = `${apiBaseUrl}${path}`;
+  logger.info('api', 'request:start', { path, method: restOptions.method ?? 'GET' });
   let response: Response;
   try {
     response = await fetch(url, {
@@ -38,12 +40,15 @@ async function request<T>(path: string, options: (RequestInit & { skipAuth?: boo
     });
   } catch (error) {
     const fallbackMessage = (error as Error | undefined)?.message || 'Network request failed';
+    logger.error('api', 'request:error', { path, error: fallbackMessage });
     throw new HttpError(fallbackMessage, 0);
   }
   if (!response.ok) {
     const message = await safeParseError(response);
+    logger.warn('api', 'request:fail', { path, status: response.status, message });
     throw new HttpError(message || `Request failed with status ${response.status}`, response.status);
   }
+  logger.info('api', 'request:success', { path, status: response.status });
   return (await response.json()) as T;
 }
 

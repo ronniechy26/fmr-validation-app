@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { Section } from '@/components/Section';
@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { useRouter } from 'expo-router';
+import { useOfflineData } from '@/providers/OfflineDataProvider';
+import { formatDistanceToNow } from 'date-fns';
 
 export function SettingsScreen() {
   const [autoSync, setAutoSync] = useState(true);
@@ -15,6 +17,13 @@ export function SettingsScreen() {
   const darkMode = mode === 'dark';
   const { signOut } = useAuth();
   const router = useRouter();
+  const { refresh, lastSyncedAt } = useOfflineData();
+  const [syncing, setSyncing] = useState(false);
+
+  const lastSyncedLabel = useMemo(() => {
+    if (!lastSyncedAt) return 'Not synced yet';
+    return `${formatDistanceToNow(lastSyncedAt, { addSuffix: true })}`;
+  }, [lastSyncedAt]);
 
   return (
     <Screen scroll>
@@ -59,6 +68,31 @@ export function SettingsScreen() {
             </Text>
           </View>
           <Switch value={offlineMode} onValueChange={setOfflineMode} trackColor={{ true: '#b3c6ec', false: '#d8dce8' }} />
+        </View>
+        <View style={[styles.row, { alignItems: 'flex-start' }]}>
+          <View style={styles.rowText}>
+            <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>Manual sync</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+              Refresh the offline dataset on demand. Last synced {lastSyncedLabel}.
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[
+              styles.syncButton,
+              { backgroundColor: colors.primary, opacity: syncing ? 0.6 : 1 },
+            ]}
+            onPress={async () => {
+              if (syncing) return;
+              setSyncing(true);
+              await refresh({ force: true });
+              setSyncing(false);
+            }}
+            disabled={syncing}
+          >
+            <Text style={[styles.syncButtonText, { color: '#fff' }]}>
+              {syncing ? 'Syncing…' : 'Sync now'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </Section>
 
@@ -168,5 +202,16 @@ const styles = StyleSheet.create({
   logoutText: {
     fontFamily: fonts.semibold,
     fontSize: 15,
+  },
+  syncButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    minWidth: 96,
+    alignItems: 'center',
+  },
+  syncButtonText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
   },
 });

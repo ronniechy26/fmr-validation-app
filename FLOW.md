@@ -34,3 +34,10 @@ flowchart TD
     O --> Y[/forms attach / sync]
   end
 ```
+
+## Syncing Mechanics
+- Mobile keeps an offline snapshot in SQLite (`storage/offline-store.ts`), hydrated by `/sync/snapshot` when signed in or by cached data when offline.
+- Pull-to-refresh (Forms tab) calls `syncDrafts` to push standalone drafts; if offline, shows an alert and skips the push. Afterward, it silently refreshes the snapshot.
+- Saves/attachments: when signed in, `saveDraft` pushes the draft via `/sync/forms` and `attachDraft` calls `/forms/:id/attach`, then refreshes the snapshot in the background. Offline paths write to the cache and queue for later.
+- Deletes: standalone draft delete calls `/forms/:id` when signed in; otherwise it deletes locally. Snapshot refresh runs after server delete.
+- Sync depends on AuthProvider tokens; if not signed in or network fails, local cache remains the source until connectivity/auth is restored.

@@ -1,21 +1,22 @@
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { AttachmentSheet } from '@/components/AttachmentSheet';
 import { SectionDivider } from '@/components/SectionDivider';
+import { AttachmentSheet } from '@/components/AttachmentSheet';
 import { fonts, spacing, typography } from '@/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { AttachmentPayload, FormRecord, FormRoutePayload, ProjectRecord, ValidationForm } from '@/types/forms';
 import { useThemeColors } from '@/providers/ThemeProvider';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Image } from 'expo-image';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
 
 export function FormDetailScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const { projects, standaloneDrafts, attachDraft, findProjectByCode } = useOfflineData();
+  const attachmentSheetRef = useRef<BottomSheetModal>(null);
   const params = useLocalSearchParams<{
     form?: string;
     annex?: string;
@@ -69,10 +70,7 @@ export function FormDetailScreen() {
     if (!params.record) return null;
     try {
       const parsed = JSON.parse(params.record as string) as FormRoutePayload;
-      const project =
-        findProjectByAnyId(parsed.meta.linkedProjectId) ??
-        findProjectByAnyId(parsed.meta.projectCode) ??
-        findProjectByAnyId(parsed.meta.abemisId);
+      const project = parsed.meta.linkedProjectId ? findProjectByAnyId(parsed.meta.linkedProjectId) : undefined;
       const normalized = project ? normalizeProjectForDisplay(project) : undefined;
       const formRecord: FormRecord = {
         id: parsed.meta.id,
@@ -89,18 +87,6 @@ export function FormDetailScreen() {
       return null;
     }
   }, [findProjectByAnyId, normalizeProjectForDisplay, params.record]);
-
-  const resolveFallbackSelection = useCallback(() => {
-    const firstProject = projects[0];
-    if (firstProject?.forms?.length) {
-      const normalized = normalizeProjectForDisplay(firstProject);
-      return { formRecord: normalized.forms[0], project: normalized };
-    }
-    if (standaloneDrafts[0]) {
-      return { formRecord: standaloneDrafts[0], project: undefined };
-    }
-    return null;
-  }, [normalizeProjectForDisplay, projects, standaloneDrafts]);
 
   const emptyForm: ValidationForm = useMemo(
     () => ({
@@ -141,69 +127,74 @@ export function FormDetailScreen() {
   );
 
   const initialSelection = useMemo(() => {
-    return (
-      resolveSelectionFromProject() ??
-      resolveSelectionFromStandalone() ??
-      resolveSelectionFromRecord() ??
-      resolveFallbackSelection() ?? {
-        formRecord: {
-          id: 'fallback',
-          annexTitle: params.annex ?? 'Annex C – Validation Form',
-          status: 'Draft',
-          updatedAt: emptyForm.updatedAt,
-          abemisId: undefined,
-          qrReference: undefined,
-          linkedProjectId: undefined,
-          data: emptyForm,
-        } as FormRecord,
-        project: undefined,
-      }
-    );
-  }, [
-    emptyForm,
-    params.annex,
-    resolveFallbackSelection,
-    resolveSelectionFromProject,
-    resolveSelectionFromRecord,
-    resolveSelectionFromStandalone,
-  ]);
+    const fromParams = resolveSelectionFromProject();
+    if (fromParams) return fromParams;
+    const fromRecord = resolveSelectionFromRecord();
+    if (fromRecord) return fromRecord;
+    const fromStandalone = resolveSelectionFromStandalone();
+    if (fromStandalone) return fromStandalone;
+    return null;
+  }, [resolveSelectionFromProject, resolveSelectionFromRecord, resolveSelectionFromStandalone]);
 
   const [selection, setSelection] = useState(initialSelection);
   useEffect(() => {
     setSelection(initialSelection);
   }, [initialSelection]);
 
-  const activeFormRecord = selection.formRecord;
-  const activeProject = selection.project;
+  const activeFormRecord = selection?.formRecord;
+  const activeProject = selection?.project;
 
   const meta = useMemo(() => {
     return {
-      id: activeFormRecord.id,
-      annexTitle: activeFormRecord.annexTitle || params.annex || 'Annex C – Validation Form',
-      status: activeFormRecord.status,
-      linkedProjectId: activeProject?.id ?? activeFormRecord.linkedProjectId,
+      id: activeFormRecord?.id ?? '',
+      annexTitle: activeFormRecord?.annexTitle || params.annex,
+      status: activeFormRecord?.status,
+      linkedProjectId: activeProject?.id ?? activeFormRecord?.linkedProjectId,
       linkedProjectTitle: activeProject?.title,
       projectCode: activeProject?.projectCode,
-      abemisId: activeFormRecord.abemisId ?? activeProject?.abemisId,
-      qrReference: activeFormRecord.qrReference ?? activeProject?.qrReference,
-      barangay: activeProject?.barangay ?? activeFormRecord.data.locationBarangay,
-      municipality: activeProject?.municipality ?? activeFormRecord.data.locationMunicipality,
-      province: activeProject?.province ?? activeFormRecord.data.locationProvince,
+      abemisId: activeFormRecord?.abemisId ?? activeProject?.abemisId,
+      qrReference: activeFormRecord?.qrReference ?? activeProject?.qrReference,
+      barangay: activeProject?.barangay ?? activeFormRecord?.data.locationBarangay,
+      municipality: activeProject?.municipality ?? activeFormRecord?.data.locationMunicipality,
+      province: activeProject?.province ?? activeFormRecord?.data.locationProvince,
       zone: activeProject?.zone,
     };
   }, [activeFormRecord, activeProject, params.annex]);
 
-  const annexTitle = meta.annexTitle ?? 'Annex C – Validation Form';
+  const annexTitle = meta.annexTitle ?? '';
   const projectForms = useMemo(() => activeProject?.forms ?? [], [activeProject]);
   const geotagImages = useMemo(() => activeProject?.geotags ?? [], [activeProject]);
   const handleSelectForm = (formId: string) => {
     const next = projectForms.find((f) => f.id === formId);
     if (next) {
-      setSelection({ formRecord: next, project: activeProject });
+      if (!activeProject) return;
+      setSelection({ formRecord: next, project: activeProject as ProjectRecord });
     }
   };
-  const attachmentSheetRef = useRef<BottomSheetModal>(null);
+  const openAttachmentSheet = () => {
+    attachmentSheetRef.current?.present();
+  };
 
+  const handleAttachment = async (payload: AttachmentPayload) => {
+    if (!activeFormRecord) {
+      return { success: false, error: 'No draft selected.' };
+    }
+    const result = await attachDraft(activeFormRecord.id, payload);
+    if (!result.record) {
+      return { success: false, error: result.error ?? 'No matching FMR found for that reference.' };
+    }
+    const updated = result.record;
+    const lookup =
+      updated.linkedProjectId || updated.abemisId || updated.qrReference || activeProject?.id || activeProject?.projectCode;
+    const project = lookup ? findProjectByCode(lookup) : undefined;
+    const normalizedProject = project ? normalizeProjectForDisplay(project) : activeProject;
+    setSelection({
+      formRecord: { ...updated, data: updated.data },
+      project: normalizedProject,
+    });
+    attachmentSheetRef.current?.dismiss();
+    return { success: true, message: 'Draft attached.' };
+  };
   const detailRow = (label: string, value?: string) => (
     <View style={styles.detailRow}>
       <Text style={[styles.detailLabel, { color: colors.textMuted }]}>{label}</Text>
@@ -211,60 +202,23 @@ export function FormDetailScreen() {
     </View>
   );
 
-  const openAttachmentSheet = () => {
-    attachmentSheetRef.current?.present();
-  };
-
-  const handleAttachment = async (payload: AttachmentPayload) => {
-    const result = await attachDraft(meta.id, payload);
-    if (!result.record) {
-      return {
-        success: false,
-        error: result.error ?? 'No FMR project matches that ABEMIS ID or QR reference.',
-      };
-    }
-    const updated = result.record;
-    const lookupCode = updated.qrReference ?? updated.abemisId ?? updated.linkedProjectId ?? '';
-    const project = updated.linkedProjectId ? findProjectByCode(lookupCode) : undefined;
-    const normalizedProject = project ? normalizeProjectForDisplay(project) : activeProject;
-    setSelection({
-      formRecord: { ...updated, data: updated.data },
-      project: normalizedProject,
-    });
-    attachmentSheetRef.current?.dismiss();
-    const message = result.synced
-      ? project
-        ? `Draft linked to ${project.title}.`
-        : 'Draft updated and synced.'
-      : 'Draft linked locally. It will sync once you are online and signed in.';
-    Alert.alert(
-      result.synced ? 'Attached' : 'Attached offline',
-      message,
-    );
-    return { success: true, message };
-  };
-
-  const attachmentCtaLabel = meta.linkedProjectId ? 'Reattach' : 'Attach to FMR';
-  const attachmentDescription = meta.linkedProjectTitle
-    ? `Linked to ${meta.linkedProjectTitle}${meta.abemisId ? ` (${meta.abemisId})` : ''}`
-    : 'This draft is not tied to an ABEMIS record yet.';
-
   const openFormData = (entry: FormRecord) => {
+    if (!activeProject) return;
     const payload: FormRoutePayload = {
       form: entry.data,
       meta: {
         id: entry.id,
         annexTitle: entry.annexTitle,
         status: entry.status,
-        linkedProjectId: activeProject?.id ?? entry.linkedProjectId,
-        linkedProjectTitle: activeProject?.title,
-        projectCode: activeProject?.projectCode,
-        abemisId: entry.abemisId ?? activeProject?.abemisId,
-        qrReference: entry.qrReference ?? activeProject?.qrReference,
-        barangay: activeProject?.barangay ?? entry.data.locationBarangay,
-        municipality: activeProject?.municipality ?? entry.data.locationMunicipality,
-        province: activeProject?.province ?? entry.data.locationProvince,
-        zone: activeProject?.zone,
+        linkedProjectId: activeProject.id,
+        linkedProjectTitle: activeProject.title,
+        projectCode: activeProject.projectCode,
+        abemisId: entry.abemisId ?? activeProject.abemisId,
+        qrReference: entry.qrReference ?? activeProject.qrReference,
+        barangay: activeProject.barangay ?? entry.data.locationBarangay,
+        municipality: activeProject.municipality ?? entry.data.locationMunicipality,
+        province: activeProject.province ?? entry.data.locationProvince,
+        zone: activeProject.zone,
       },
     };
     router.push({
@@ -273,13 +227,81 @@ export function FormDetailScreen() {
     });
   };
 
+  if (!selection || !activeFormRecord) {
+    return (
+      <Screen>
+        <Text style={[styles.projectTitle, { color: colors.textPrimary }]}>No record selected.</Text>
+      </Screen>
+    );
+  }
+
+  if (!activeProject) {
+    return (
+      <Screen scroll applyTopInset={false}>
+        <View style={[styles.projectHeader, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <View style={{ gap: spacing.xs, flex: 1 }}>
+            <Text style={[styles.projectTitle, { color: colors.textPrimary }]}>
+              {activeFormRecord.data.nameOfProject || 'Standalone Draft'}
+            </Text>
+            <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
+              {activeFormRecord.data.locationBarangay || '—'},{' '}
+              {activeFormRecord.data.locationMunicipality || '—'}
+            </Text>
+            <View style={styles.badgeRow}>
+              <StatusBadge status={activeFormRecord.status} />
+              <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                Last updated {new Date(activeFormRecord.updatedAt).toLocaleString()}
+              </Text>
+            </View>
+            <Text style={[styles.annexTag, { color: colors.textPrimary }]}>{annexTitle || 'Standalone Draft'}</Text>
+          </View>
+        </View>
+
+        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Draft Details</Text>
+          {detailRow('Annex', annexTitle || '—')}
+          {detailRow('Status', activeFormRecord.status)}
+          {detailRow('Barangay', activeFormRecord.data.locationBarangay)}
+          {detailRow('Municipality', activeFormRecord.data.locationMunicipality)}
+          {detailRow('Province', activeFormRecord.data.locationProvince)}
+        </View>
+
+        <TouchableOpacity
+          style={[styles.viewFormButton, { borderColor: colors.primary, marginTop: spacing.sm }]}
+          onPress={() => openFormData(activeFormRecord)}
+        >
+          <Text style={[styles.viewFormText, { color: colors.primary }]}>View Form Data</Text>
+        </TouchableOpacity>
+
+        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Attach to FMR</Text>
+          <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
+            Link this standalone draft using a QR scan or ABEMIS ID.
+          </Text>
+          <TouchableOpacity
+            style={[styles.attachmentButton, { borderColor: colors.primary, marginTop: spacing.sm }]}
+            onPress={openAttachmentSheet}
+          >
+            <Text style={[styles.attachmentButtonText, { color: colors.primary }]}>Open attachment sheet</Text>
+          </TouchableOpacity>
+        </View>
+
+        <AttachmentSheet
+          ref={attachmentSheetRef}
+          onAttach={handleAttachment}
+          initialAbemisId={activeFormRecord.abemisId}
+        />
+      </Screen>
+    );
+  }
+
   return (
     <Screen scroll applyTopInset={false}>
       <View style={[styles.projectHeader, { borderColor: colors.border, backgroundColor: colors.surface }]}>
         <View style={{ gap: spacing.xs, flex: 1 }}>
-          <Text style={[styles.projectTitle, { color: colors.textPrimary }]}>
-            {activeProject?.title ?? 'Standalone Draft'}
-          </Text>
+            <Text style={[styles.projectTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+              {activeProject?.title ?? 'Standalone Draft'}
+            </Text>
           {activeProject ? (
             <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
               {activeProject.barangay ?? '—'}, {activeProject.municipality ?? '—'}, {activeProject.province ?? '—'}
@@ -390,25 +412,6 @@ export function FormDetailScreen() {
         </View>
       ) : null}
 
-      {!activeProject && (
-        <View style={[styles.attachmentCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <View style={{ flex: 1, gap: spacing.xs }}>
-            <Text style={[styles.attachmentTitle, { color: colors.textPrimary }]}>Attach to an FMR</Text>
-            <Text style={[styles.attachmentDescription, { color: colors.textMuted }]}>
-              {attachmentDescription}
-            </Text>
-            {!!meta.barangay && !!meta.municipality && (
-              <Text style={[styles.attachmentLocation, { color: colors.textMuted }]}>
-                {meta.barangay}, {meta.municipality}
-              </Text>
-            )}
-          </View>
-          <TouchableOpacity style={[styles.attachmentButton, { borderColor: colors.primary }]} onPress={openAttachmentSheet}>
-            <Text style={[styles.attachmentButtonText, { color: colors.primary }]}>{attachmentCtaLabel}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
       {activeProject && projectForms.length > 0 && (
         <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
           <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Attached Forms</Text>
@@ -452,8 +455,6 @@ export function FormDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
-
-      <AttachmentSheet ref={attachmentSheetRef} onAttach={handleAttachment} initialAbemisId={meta.abemisId} />
     </Screen>
   );
 }
@@ -511,6 +512,17 @@ const styles = StyleSheet.create({
   viewFormText: {
     fontFamily: fonts.semibold,
   },
+  attachmentButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  attachmentButtonText: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+  },
   detailRow: {
     gap: spacing.xs,
   },
@@ -520,36 +532,6 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 15,
     fontFamily: fonts.regular,
-  },
-  attachmentCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  attachmentTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-  },
-  attachmentDescription: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-  },
-  attachmentLocation: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-  },
-  attachmentButton: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  attachmentButtonText: {
-    fontFamily: fonts.semibold,
   },
   sectionCard: {
     borderWidth: 1,
