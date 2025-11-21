@@ -118,6 +118,19 @@ function RootStack() {
         }}
       />
       <Stack.Screen
+        name="standalone-detail"
+        options={{
+          title: 'Standalone Draft',
+          headerShown: true,
+          headerTintColor: '#fff',
+          headerStyle: { backgroundColor: colors.primary },
+          headerTitleAlign: 'center',
+          headerTitleStyle: { fontFamily: fonts.semibold },
+          headerBackTitleStyle: { fontFamily: fonts.regular },
+          headerBackTitle: 'Back',
+        }}
+      />
+      <Stack.Screen
         name="form-data"
         options={{
           title: 'Form Details',

@@ -203,22 +203,21 @@ export function FormDetailScreen() {
   );
 
   const openFormData = (entry: FormRecord) => {
-    if (!activeProject) return;
     const payload: FormRoutePayload = {
       form: entry.data,
       meta: {
         id: entry.id,
         annexTitle: entry.annexTitle,
         status: entry.status,
-        linkedProjectId: activeProject.id,
-        linkedProjectTitle: activeProject.title,
-        projectCode: activeProject.projectCode,
-        abemisId: entry.abemisId ?? activeProject.abemisId,
-        qrReference: entry.qrReference ?? activeProject.qrReference,
-        barangay: activeProject.barangay ?? entry.data.locationBarangay,
-        municipality: activeProject.municipality ?? entry.data.locationMunicipality,
-        province: activeProject.province ?? entry.data.locationProvince,
-        zone: activeProject.zone,
+        linkedProjectId: activeProject?.id ?? entry.linkedProjectId,
+        linkedProjectTitle: activeProject?.title,
+        projectCode: activeProject?.projectCode,
+        abemisId: entry.abemisId ?? activeProject?.abemisId,
+        qrReference: entry.qrReference ?? activeProject?.qrReference,
+        barangay: activeProject?.barangay ?? entry.data.locationBarangay,
+        municipality: activeProject?.municipality ?? entry.data.locationMunicipality,
+        province: activeProject?.province ?? entry.data.locationProvince,
+        zone: activeProject?.zone,
       },
     };
     router.push({

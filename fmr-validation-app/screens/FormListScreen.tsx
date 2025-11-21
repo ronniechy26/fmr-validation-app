@@ -355,8 +355,9 @@ export function FormListScreen() {
         zone: normalizedFormProject?.zone,
       },
     };
+    const isStandalone = !normalizedFormProject;
     router.push({
-      pathname: '/form-detail',
+      pathname: isStandalone ? '/standalone-detail' : '/form-detail',
       params: {
         record: JSON.stringify(payload),
         projectId: normalizedFormProject?.id,
