@@ -89,3 +89,9 @@ export function attachFormWithPayload(formId: string, payload: AttachmentPayload
     body: JSON.stringify(payload),
   });
 }
+
+export function deleteForm(formId: string) {
+  return request<void>(`/forms/${encodeURIComponent(formId)}`, {
+    method: 'DELETE',
+  });
+}

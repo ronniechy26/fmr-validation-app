@@ -34,10 +34,7 @@ export class AddLatLong1700000000001 implements MigrationInterface {
     if (hasLatitude) {
       await queryRunner.dropColumn('projects', 'latitude');
     }
-    const hasLongitude = await queryRunner.hasColumn(
-      'projects',
-      'longitude',
-    );
+    const hasLongitude = await queryRunner.hasColumn('projects', 'longitude');
     if (hasLongitude) {
       await queryRunner.dropColumn('projects', 'longitude');
     }

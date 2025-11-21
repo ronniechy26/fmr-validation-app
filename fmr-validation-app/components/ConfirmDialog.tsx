@@ -6,6 +6,7 @@ type ConfirmDialogProps = {
   title: string;
   subtitle?: string;
   visible: boolean;
+  loading?: boolean;
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm: () => void;
@@ -16,6 +17,7 @@ export function ConfirmDialog({
   title,
   subtitle,
   visible,
+  loading = false,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   onConfirm,
@@ -33,8 +35,12 @@ export function ConfirmDialog({
             <TouchableOpacity style={[styles.button, { borderColor: colors.border }]} onPress={onCancel}>
               <Text style={[styles.buttonText, { color: colors.textPrimary }]}>{cancelLabel}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={onConfirm}>
-              <Text style={[styles.buttonText, { color: '#fff' }]}>{confirmLabel}</Text>
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
+              onPress={onConfirm}
+              disabled={loading}
+            >
+              <Text style={[styles.buttonText, { color: '#fff' }]}>{loading ? 'Please wait…' : confirmLabel}</Text>
             </TouchableOpacity>
           </View>
         </View>

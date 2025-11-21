@@ -64,7 +64,7 @@ export class AuthService {
     try {
       decoded = this.jwtService.verify(refreshToken, {
         secret: this.refreshSecret,
-      }) as { sub: string };
+      });
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }

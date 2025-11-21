@@ -6,6 +6,7 @@ import { FormRecordEntity } from './entities/form-record.entity';
 import { SeedService } from './seed.service';
 import { Init1700000000000 } from './migrations/1700000000000-init';
 import { AddLatLong1700000000001 } from './migrations/1700000000001-add-lat-long';
+import { AddFormMeta1729550000000 } from './migrations/1729550000000-add-form-meta';
 import { AbemisService } from '../shared/abemis.service';
 
 @Module({
@@ -20,7 +21,7 @@ import { AbemisService } from '../shared/abemis.service';
         entities: [ProjectEntity, FormRecordEntity],
         synchronize: false,
         migrationsRun: true,
-        migrations: [Init1700000000000, AddLatLong1700000000001],
+        migrations: [Init1700000000000, AddLatLong1700000000001, AddFormMeta1729550000000],
       }),
     }),
     TypeOrmModule.forFeature([ProjectEntity, FormRecordEntity]),

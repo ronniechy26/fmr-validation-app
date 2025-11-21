@@ -28,6 +28,12 @@ export class FormRecordEntity {
   @Column('text', { nullable: true })
   qrReference?: string | null;
 
+  @Column('text', { nullable: true })
+  createdBy?: string | null;
+
+  @Column('text', { nullable: true })
+  region?: string | null;
+
   @ManyToOne(() => ProjectEntity, (project) => project.forms, {
     nullable: true,
     onDelete: 'SET NULL',

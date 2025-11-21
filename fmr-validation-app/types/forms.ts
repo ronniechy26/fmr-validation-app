@@ -42,9 +42,11 @@ export interface FormRecord {
   annexTitle: string;
   status: FormStatus;
   updatedAt: string;
+  createdBy?: string;
   abemisId?: string;
   qrReference?: string;
   linkedProjectId?: string;
+  region?: string;
   data: ValidationForm;
 }
 

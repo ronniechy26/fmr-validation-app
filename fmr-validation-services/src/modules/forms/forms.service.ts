@@ -35,6 +35,14 @@ export class FormsService {
     return form;
   }
 
+  async delete(formId: string) {
+    const deleted = await this.repository.deleteForm(formId);
+    if (!deleted) {
+      throw new NotFoundException('Form not found');
+    }
+    return { ok: true };
+  }
+
   async attach(formId: string, payload: AttachFormInput) {
     const form = await this.repository.attachForm(formId, payload);
     if (!form) {

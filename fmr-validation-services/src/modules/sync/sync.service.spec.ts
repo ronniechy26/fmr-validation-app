@@ -11,7 +11,7 @@ describe('SyncService', () => {
         if (key === 'ABEMIS_SYNC_INTERVAL_MS') return options?.intervalMs ?? 0;
         return defaultValue;
       },
-    } as any);
+    }) as any;
 
   it('upserts client forms via the repository', async () => {
     const upsertFormFromClient = jest.fn().mockResolvedValue({
@@ -39,7 +39,10 @@ describe('SyncService', () => {
     ]);
 
     expect(upsertFormFromClient).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'draft-1', annexTitle: 'Annex C – Validation Form' }),
+      expect.objectContaining({
+        id: 'draft-1',
+        annexTitle: 'Annex C – Validation Form',
+      }),
     );
   });
 
@@ -48,7 +51,9 @@ describe('SyncService', () => {
       { id: 'p1', projectCode: 'P-001', title: 'Test Project', forms: [] },
     ];
     const saveProjectsFromUpstream = jest.fn();
-    const getSnapshot = jest.fn().mockResolvedValue({ projects, standaloneDrafts: [] });
+    const getSnapshot = jest
+      .fn()
+      .mockResolvedValue({ projects, standaloneDrafts: [] });
     const fetchProjectsFromAbemis = jest.fn().mockResolvedValue(projects);
 
     const service = new SyncService(

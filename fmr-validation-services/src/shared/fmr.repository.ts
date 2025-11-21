@@ -29,6 +29,8 @@ export interface CreateFormInput {
   abemisId?: string;
   qrReference?: string;
   status?: FormStatus;
+  createdBy?: string;
+  region?: string;
   data?: Partial<ValidationForm>;
 }
 
@@ -38,6 +40,8 @@ export interface UpdateFormInput {
   abemisId?: string;
   qrReference?: string;
   linkedProjectId?: string;
+  createdBy?: string;
+  region?: string;
   data?: Partial<ValidationForm>;
 }
 
@@ -109,6 +113,12 @@ export class FmrRepository {
       status: payload.status ?? 'Draft',
       abemisId: payload.abemisId,
       qrReference: payload.qrReference,
+      createdBy: payload.createdBy ?? payload.data?.preparedByName ?? null,
+      region:
+        payload.region ??
+        payload.data?.locationProvince ??
+        project?.province ??
+        null,
       project: project ?? null,
       data: {
         id: formId,
@@ -146,6 +156,8 @@ export class FmrRepository {
     if (payload.abemisId !== undefined) existing.abemisId = payload.abemisId;
     if (payload.qrReference !== undefined)
       existing.qrReference = payload.qrReference;
+    if (payload.createdBy !== undefined) existing.createdBy = payload.createdBy;
+    if (payload.region !== undefined) existing.region = payload.region;
     if (payload.data) {
       existing.data = {
         ...existing.data,
@@ -155,6 +167,13 @@ export class FmrRepository {
     }
     const saved = await this.formsRepo.save(existing);
     return this.toFlattenedForm(saved);
+  }
+
+  async deleteForm(formId: string): Promise<boolean> {
+    const existing = await this.formsRepo.findOne({ where: { id: formId } });
+    if (!existing) return false;
+    await this.formsRepo.remove(existing);
+    return true;
   }
 
   async attachForm(
@@ -371,9 +390,11 @@ export class FmrRepository {
       annexTitle: form.annexTitle,
       status: form.status as FormStatus,
       updatedAt: form.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+      createdBy: form.createdBy ?? undefined,
       abemisId: form.abemisId ?? undefined,
       qrReference: form.qrReference ?? undefined,
       linkedProjectId: form.projectId ?? form.project?.id ?? undefined,
+      region: form.region ?? form.project?.region ?? undefined,
       data: form.data,
     };
   }
@@ -416,6 +437,7 @@ export class FmrRepository {
       locationMunicipality:
         form.project?.municipality ?? form.data.locationMunicipality,
       locationProvince: form.project?.province ?? form.data.locationProvince,
+      region: form.region ?? form.project?.region ?? undefined,
       zone: form.project?.zone ?? undefined,
     };
   }

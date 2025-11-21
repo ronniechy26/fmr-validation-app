@@ -9,7 +9,7 @@ import {
   replaceSnapshot,
   upsertFormRecord,
 } from '@/storage/offline-store';
-import { attachFormWithPayload, fetchSnapshotFromServer, HttpError, syncFormsFromClient } from '@/lib/api';
+import { attachFormWithPayload, deleteForm, fetchSnapshotFromServer, HttpError, syncFormsFromClient } from '@/lib/api';
 import { FormStatus } from '@/types/theme';
 import { useAuth } from './AuthProvider';
 
@@ -137,8 +137,10 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
               data: result.record.data,
             },
           ]);
-          await refresh({ silent: true });
           synced = true;
+          refresh({ silent: true }).catch((error) =>
+            console.warn('[OfflineDataProvider] Background refresh after save failed:', error),
+          );
         } catch (error) {
           console.warn('[OfflineDataProvider] Failed to sync draft with server, keeping offline copy:', error);
         }
@@ -149,12 +151,24 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
     [token, refresh],
   );
 
-  const deleteDraft = useCallback(async (formId: string) => {
-    const result = await deleteStandaloneDraft(formId);
-    if (!result) return false;
-    setSnapshot(result.snapshot);
-    return true;
-  }, []);
+  const deleteDraft = useCallback(
+    async (formId: string) => {
+      if (token) {
+        try {
+          await deleteForm(formId);
+          await refresh({ silent: true });
+          return true;
+        } catch (error) {
+          console.warn('[OfflineDataProvider] Remote delete failed, falling back to offline cache:', error);
+        }
+      }
+      const result = await deleteStandaloneDraft(formId);
+      if (!result) return false;
+      setSnapshot(result.snapshot);
+      return true;
+    },
+    [token, refresh],
+  );
 
   const findProjectByCode = (code: string) => {
     if (!snapshot) return undefined;

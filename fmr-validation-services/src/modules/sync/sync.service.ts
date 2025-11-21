@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { FormRecord } from '../../common/types/forms';
@@ -35,7 +40,11 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
   }
 
   onModuleInit() {
-    if (!this.syncEnabled || !this.refreshIntervalMs || this.refreshIntervalMs < 1000) {
+    if (
+      !this.syncEnabled ||
+      !this.refreshIntervalMs ||
+      this.refreshIntervalMs < 1000
+    ) {
       this.logger.log('ABEMIS scheduled sync disabled');
       return;
     }

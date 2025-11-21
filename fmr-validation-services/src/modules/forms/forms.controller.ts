@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -50,5 +51,10 @@ export class FormsController {
   @Patch(':id/attach')
   attach(@Param('id') id: string, @Body() body: AttachFormInput) {
     return this.formsService.attach(id, body);
+  }
+
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.formsService.delete(id);
   }
 }

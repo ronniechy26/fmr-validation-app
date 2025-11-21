@@ -50,6 +50,7 @@ export function FormListScreen() {
   const { loading, projects: cachedProjects, standaloneDrafts, deleteDraft } = useOfflineData();
   const insets = useSafeAreaInsets();
   const [deleteTarget, setDeleteTarget] = useState<FormRecord | null>(null);
+  const [deleteInFlight, setDeleteInFlight] = useState(false);
   const filterSnapPoints = useMemo(() => ['50%', '70%', '90%'], []);
   const PAGE_SIZE = 20;
 
@@ -601,7 +602,9 @@ export function FormListScreen() {
                 <View style={styles.standaloneHeader}>
                   <View style={styles.standaloneBadge}>
                     <Ionicons name="document-text-outline" size={16} color={colors.primary} />
-                    <Text style={[styles.standaloneBadgeText, { color: colors.primary }]}>Standalone</Text>
+                    <Text style={[styles.standaloneBadgeText, { color: colors.primary }]}>
+                      {item.annexTitle || 'Standalone draft'}
+                    </Text>
                   </View>
                   <View style={styles.standaloneActions}>
                     <TouchableOpacity onPress={() => setDeleteTarget(item)} hitSlop={8}>
@@ -615,6 +618,12 @@ export function FormListScreen() {
                   <Text style={[styles.standaloneTitle, { color: colors.textPrimary }]} numberOfLines={2}>
                     {item.data.nameOfProject || 'Untitled validation'}
                   </Text>
+                  <View style={styles.standaloneInfoRow}>
+                    <Ionicons name="person-outline" size={14} color={colors.textMuted} />
+                    <Text style={[styles.standaloneNote, { color: colors.textMuted }]} numberOfLines={1}>
+                      {item.createdBy || 'Unknown creator'}
+                    </Text>
+                  </View>
                   <View style={styles.standaloneMetaRow}>
                     <Ionicons name="pin-outline" size={14} color={colors.textMuted} />
                     <Text style={[styles.standaloneMeta, { color: colors.textMuted }]} numberOfLines={1}>
@@ -662,9 +671,12 @@ export function FormListScreen() {
         cancelLabel="Cancel"
         confirmLabel="Delete"
         onCancel={() => setDeleteTarget(null)}
+        loading={deleteInFlight}
         onConfirm={async () => {
-          if (!deleteTarget) return;
+          if (!deleteTarget || deleteInFlight) return;
+          setDeleteInFlight(true);
           await deleteDraft(deleteTarget.id);
+          setDeleteInFlight(false);
           setDeleteTarget(null);
         }}
       />
