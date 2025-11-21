@@ -10,8 +10,8 @@ import { FormStatus } from '@/types/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
-import { useMemo, useRef, useState, useEffect } from 'react';
-import { Animated, Easing, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
+import { Alert, Animated, Easing, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FlashList } from '@shopify/flash-list';
@@ -47,10 +47,11 @@ export function FormListScreen() {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const { colors, mode } = useThemeMode();
-  const { loading, projects: cachedProjects, standaloneDrafts, deleteDraft } = useOfflineData();
+  const { loading, projects: cachedProjects, standaloneDrafts, deleteDraft, syncDrafts, refresh } = useOfflineData();
   const insets = useSafeAreaInsets();
   const [deleteTarget, setDeleteTarget] = useState<FormRecord | null>(null);
   const [deleteInFlight, setDeleteInFlight] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const filterSnapPoints = useMemo(() => ['50%', '70%', '90%'], []);
   const PAGE_SIZE = 20;
 
@@ -111,6 +112,16 @@ export function FormListScreen() {
   useEffect(() => {
     setPage(1);
   }, [activeFilter, searchQuery, cachedProjects, keyFilter, regionFilter, activeTab]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    const syncResult = await syncDrafts();
+    if (!syncResult.ok && syncResult.message) {
+      Alert.alert('Sync drafts', syncResult.message);
+    }
+    await refresh({ silent: true });
+    setRefreshing(false);
+  }, [refresh, syncDrafts]);
 
   useEffect(() => {
     if (!loading) {
@@ -473,7 +484,6 @@ export function FormListScreen() {
         {activeTab === 'projects' ? (
           <FlashList
             data={projects}
-            estimatedItemSize={260}
             keyExtractor={(item) => item.id}
             contentContainerStyle={[styles.listContent, { paddingBottom: (insets.bottom || spacing.md) + 40 }]}
             ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
@@ -481,6 +491,8 @@ export function FormListScreen() {
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListFooterComponent={<View style={{ height: spacing.md }} />}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
             renderItem={({ item }) => {
               const normalizedItem = normalizeProjectForDisplay(item);
               const primaryForm = normalizedItem.forms[0] ?? buildFallbackForm(normalizedItem);
@@ -570,7 +582,6 @@ export function FormListScreen() {
         ) : (
           <FlashList
             data={filteredStandaloneDrafts}
-            estimatedItemSize={160}
             keyExtractor={(item) => item.id}
             contentContainerStyle={[
               styles.listContent,
@@ -578,6 +589,8 @@ export function FormListScreen() {
             ]}
             ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
             showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
             ListEmptyComponent={
               <View style={[styles.emptyStandalone, { borderColor: colors.border }]}>
                 <Ionicons name="document-outline" size={18} color={colors.textMuted} />

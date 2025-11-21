@@ -1,4 +1,5 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 import { AttachmentPayload, AttachmentResult, FormRecord, ProjectRecord, ValidationForm } from '@/types/forms';
 import { OfflineSnapshot } from '@/types/offline';
 import {
@@ -19,6 +20,7 @@ type OfflineDataContextValue = {
   standaloneDrafts: FormRecord[];
   refresh: (options?: { silent?: boolean }) => Promise<OfflineSnapshot | null>;
   attachDraft: (formId: string, payload: AttachmentPayload) => Promise<AttachmentResult>;
+  syncDrafts: () => Promise<{ ok: boolean; message?: string }>;
   deleteDraft: (formId: string) => Promise<boolean>;
   saveDraft: (
     form: ValidationForm,
@@ -165,10 +167,51 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
       const result = await deleteStandaloneDraft(formId);
       if (!result) return false;
       setSnapshot(result.snapshot);
-      return true;
-    },
+    return true;
+  },
     [token, refresh],
   );
+
+  const syncDrafts = useCallback(async () => {
+    const state = await NetInfo.fetch();
+    if (!state.isConnected || !state.isInternetReachable) {
+      return { ok: false, message: 'You are offline. Connect to the internet to sync drafts.' };
+    }
+
+    if (!snapshot) {
+      await refresh({ silent: true });
+      return { ok: true };
+    }
+    if (!token) {
+      await refresh({ silent: true });
+      return { ok: false, message: 'Sign in to sync drafts with the server.' };
+    }
+    const drafts = snapshot.standaloneDrafts ?? [];
+    if (!drafts.length) {
+      await refresh({ silent: true });
+      return { ok: true };
+    }
+    try {
+      await syncFormsFromClient(
+        drafts.map((draft) => ({
+          id: draft.id,
+          annexTitle: draft.annexTitle,
+          status: draft.status,
+          linkedProjectId: draft.linkedProjectId,
+          abemisId: draft.abemisId,
+          qrReference: draft.qrReference,
+          data: draft.data,
+        })),
+      );
+      refresh({ silent: true }).catch((error) =>
+        console.warn('[OfflineDataProvider] Background refresh after sync failed:', error),
+      );
+      return { ok: true };
+    } catch (error) {
+      console.warn('[OfflineDataProvider] Failed to sync drafts with server:', error);
+      return { ok: false, message: 'Unable to sync drafts right now. Please try again later.' };
+    }
+  }, [snapshot, token, refresh]);
 
   const findProjectByCode = (code: string) => {
     if (!snapshot) return undefined;
@@ -187,11 +230,12 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
       standaloneDrafts: snapshot?.standaloneDrafts ?? [],
       refresh,
       attachDraft,
+      syncDrafts,
       deleteDraft,
       saveDraft,
       findProjectByCode,
     }),
-    [loading, snapshot, refresh, attachDraft, deleteDraft, saveDraft, findProjectByCode],
+    [loading, snapshot, refresh, attachDraft, syncDrafts, deleteDraft, saveDraft, findProjectByCode],
   );
 
   return <OfflineDataContext.Provider value={value}>{children}</OfflineDataContext.Provider>;
