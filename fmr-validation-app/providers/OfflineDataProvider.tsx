@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { AttachmentPayload, AttachmentResult, FormRecord, ProjectRecord, ValidationForm } from '@/types/forms';
 import { OfflineSnapshot } from '@/types/offline';
@@ -251,10 +251,19 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
     [token],
   );
 
+  const initialLoadRef = useRef(false);
+
   useEffect(() => {
-    if (!ready) return;
-    refresh();
-  }, [ready, refresh]);
+    if (!ready || initialLoadRef.current) return;
+    initialLoadRef.current = true;
+    // Defer initial refresh to prevent blocking login UI
+    // Use formsOnly to avoid heavy snapshot fetch on login
+    const timer = setTimeout(() => {
+      refresh({ silent: true, formsOnly: true });
+    }, 100);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   const findFormById = useCallback(
     (source: OfflineSnapshot | null, formId: string) => {

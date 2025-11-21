@@ -3,6 +3,7 @@ import { login, refreshSession, setAuthToken } from '@/lib/api';
 import { clearSession, loadSession, saveSession } from '@/storage/session';
 import { LoginResponse } from '@/types/auth';
 import { StoredSession } from '@/types/session';
+import { logger } from '@/lib/logger';
 
 type AuthContextValue = {
   isSignedIn: boolean;
@@ -74,8 +75,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persistSession]);
 
   const signIn = useCallback(async (email: string, password: string, options?: { remember?: boolean }) => {
-    const response = await login({ email, password });
-    await persistSession(response, options?.remember ?? true);
+    const startTime = Date.now();
+    console.log('🟢 AuthProvider signIn: Starting...', { email, remember: options?.remember });
+    logger.info('auth', 'signIn:start', { email });
+    try {
+      console.log('🟢 AuthProvider signIn: Calling login API...');
+      const response = await login({ email, password });
+      console.log('🟢 AuthProvider signIn: Login API success, persisting session...');
+      await persistSession(response, options?.remember ?? true);
+      console.log('🟢 AuthProvider signIn: Session persisted');
+      const duration = Date.now() - startTime;
+      logger.info('auth', 'signIn:success', { email, duration });
+      console.log('🟢 AuthProvider signIn: Complete!', { duration });
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      console.log('🔴 AuthProvider signIn: Error!', { error, duration });
+      logger.error('auth', 'signIn:failed', { email, duration, error: String(error) });
+      throw error;
+    }
   }, [persistSession]);
 
   const signOut = useCallback(async () => {
