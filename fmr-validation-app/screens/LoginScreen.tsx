@@ -36,27 +36,19 @@ export function LoginScreen() {
       setError('Enter your email and password.');
       return;
     }
-    console.log('🔵 Login: Starting...');
     setSubmitting(true);
     setError(null);
     try {
-      console.log('🔵 Login: Calling signIn...');
       await signIn(email.trim(), password, { remember: rememberMe });
-      console.log('🔵 Login: signIn completed');
       if (rememberMe) {
-        console.log('🔵 Login: Saving remember prefs...');
         await saveRememberPrefs({ email: email.trim(), remember: true });
       } else {
-        console.log('🔵 Login: Clearing remember prefs...');
         await clearRememberPrefs();
       }
-      console.log('🔵 Login: Success! Navigation should happen via useEffect');
       // Navigation is handled by useEffect when isSignedIn changes
     } catch (err) {
-      console.log('🔴 Login: Error:', err);
       setError((err as Error).message ?? 'Unable to sign in. Please try again.');
     } finally {
-      console.log('🔵 Login: Finally block - setting submitting to false');
       setSubmitting(false);
     }
   };
