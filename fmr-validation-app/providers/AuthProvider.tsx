@@ -33,6 +33,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthToken(response.accessToken);
     if (remember) {
       await saveSession(nextSession);
+    } else {
+      // Ensure old persisted sessions are removed when remember is off
+      await clearSession();
     }
   }, []);
 

@@ -6,6 +6,7 @@ import { fonts, spacing } from '@/theme';
 import { useAuth } from '@/providers/AuthProvider';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { loadRememberPrefs, saveRememberPrefs, clearRememberPrefs } from '@/storage/remember';
 
 export function LoginScreen() {
   const { colors } = useThemeMode();
@@ -16,6 +17,13 @@ export function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  useEffect(() => {
+    loadRememberPrefs().then((prefs) => {
+      if (prefs.email) setEmail(prefs.email);
+      if (typeof prefs.remember === 'boolean') setRememberMe(prefs.remember);
+    }).catch(() => null);
+  }, []);
 
   useEffect(() => {
     if (isSignedIn) {
@@ -32,6 +40,11 @@ export function LoginScreen() {
     setError(null);
     try {
       await signIn(email.trim(), password, { remember: rememberMe });
+      if (rememberMe) {
+        await saveRememberPrefs({ email: email.trim(), remember: true });
+      } else {
+        await clearRememberPrefs();
+      }
       router.replace('/');
     } catch (err) {
       setError((err as Error).message ?? 'Unable to sign in. Please try again.');
