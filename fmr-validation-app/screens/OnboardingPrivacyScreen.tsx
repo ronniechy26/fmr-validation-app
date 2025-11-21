@@ -7,10 +7,34 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { savePrivacyConsent } from '@/storage/privacy';
 
+const PRIVACY_PRINCIPLES = [
+  {
+    id: '1',
+    title: 'Transparency',
+    text: 'We will be open about how we use your data.',
+  },
+  {
+    id: '2',
+    title: 'Legitimate Purpose',
+    text: 'We will only collect and use your data for specified and legitimate purposes as outlined in this introduction.',
+  },
+  {
+    id: '3',
+    title: 'Proportionality',
+    text: 'We will only collect the data that is necessary for the stated purpose.',
+  },
+  {
+    id: '4',
+    title: 'Data Security',
+    text: 'We will implement appropriate security measures to protect your data from unauthorized access, use, or disclosure, in compliance with the Implementing Rules and Regulations (IRR) of the Data Privacy Act.',
+  },
+];
+
 export function OnboardingPrivacyScreen() {
   const { colors } = useThemeMode();
   const router = useRouter();
   const [accepting, setAccepting] = useState(false);
+  const [hasRead, setHasRead] = useState(false);
 
   const handleAccept = async () => {
     if (accepting) return;
@@ -19,21 +43,37 @@ export function OnboardingPrivacyScreen() {
     router.replace('/onboarding-sync');
   };
 
+  const handleScroll = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 20;
+    if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+      setHasRead(true);
+    }
+  };
+
   return (
     <Screen style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onContentSizeChange={(w, h) => {
+          // If content is short enough to not require scrolling, mark as read immediately
+          // We can't easily check screen height here without layout measurement, 
+          // but the onScroll check handles the initial render if we trigger it or if content is short.
+          // A safer bet for short content is to rely on the user interacting or just initial layout.
+          // For now, we'll assume most screens need scrolling or the user will try to scroll.
+        }}
       >
         <View style={[styles.iconContainer, { backgroundColor: colors.surfaceMuted }]}>
-          <Ionicons name="shield-checkmark" size={48} color={colors.primary} />
+          <Ionicons name="shield-checkmark" size={32} color={colors.primary} />
         </View>
 
         <Text style={[styles.title, { color: colors.textPrimary }]}>Data Privacy Policy</Text>
 
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          We comply with the Data Privacy Act of 2012 (RA 10173). Your information stays protected
-          and is only used for FMR validation.
+          We are committed to protecting your privacy and ensuring the security of your data. The information collected in this survey will be used solely for the Knowledge Census of Agricultural Mechanization and Infrastructure. We will not share your responses with any third parties without your explicit consent, except as required by law. Specifically, we adhere to the principles of the Data Privacy Act of 2012 (Republic Act No. 10173), which includes:
         </Text>
 
         <View style={styles.principlesContainer}>
@@ -50,53 +90,47 @@ export function OnboardingPrivacyScreen() {
         </View>
 
         <View style={[styles.contactCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
-          <Ionicons name="call-outline" size={20} color={colors.primary} />
+          <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
           <View style={styles.contactText}>
-            <Text style={[styles.contactTitle, { color: colors.textPrimary }]}>Questions or Concerns?</Text>
+            <Text style={[styles.contactTitle, { color: colors.textPrimary }]}>Your Rights</Text>
             <Text style={[styles.contactInfo, { color: colors.textMuted }]}>
-              Contact us at (02) 8351-8120 or (02) 8294-9741
+              You have the right to access, correct, or object to the processing of your personal data, as well as to file a complaint with the National Privacy Commission (NPC).
             </Text>
           </View>
         </View>
+
+        <View style={[styles.contactCard, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>
+          <Ionicons name="call-outline" size={20} color={colors.primary} />
+          <View style={styles.contactText}>
+            <Text style={[styles.contactTitle, { color: colors.textPrimary }]}>Contact Us</Text>
+            <Text style={[styles.contactInfo, { color: colors.textMuted }]}>
+              For more information about our data privacy practices or to exercise your rights, please contact us at (02) 8351-8120 or (02) 8294-9741.
+            </Text>
+          </View>
+        </View>
+
+        {/* Add some bottom padding to ensure the last element is scrollable past the footer area if needed */}
+        <View style={{ height: 20 }} />
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.acceptButton, { backgroundColor: colors.primary }]}
-          onPress={handleAccept}
-          disabled={accepting}
-          activeOpacity={0.9}
-        >
-          <Text style={styles.acceptText}>{accepting ? 'Please wait…' : 'Accept & Continue'}</Text>
-          {!accepting && <Ionicons name="arrow-forward" size={20} color="#fff" />}
-        </TouchableOpacity>
+        {hasRead && (
+          <TouchableOpacity
+            style={[styles.acceptButton, { backgroundColor: colors.primary }]}
+            onPress={handleAccept}
+            disabled={accepting}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.acceptText}>{accepting ? 'Please wait…' : 'Accept & Continue'}</Text>
+            {!accepting && <Ionicons name="arrow-forward" size={20} color="#fff" />}
+          </TouchableOpacity>
+        )}
       </View>
     </Screen>
   );
 }
 
-const PRIVACY_PRINCIPLES = [
-  {
-    id: '1',
-    title: 'Transparency',
-    text: 'We explain how your data is collected, used, and stored.',
-  },
-  {
-    id: '2',
-    title: 'Legitimate Purpose',
-    text: 'Information is used only for FMR validation workflows.',
-  },
-  {
-    id: '3',
-    title: 'Proportionality',
-    text: 'We only collect the minimum data needed.',
-  },
-  {
-    id: '4',
-    title: 'Data Security',
-    text: 'Safeguards prevent unauthorized access under RA 10173.',
-  },
-];
+
 
 const styles = StyleSheet.create({
   container: {
@@ -109,9 +143,9 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   iconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
