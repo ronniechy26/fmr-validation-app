@@ -11,6 +11,8 @@ import { useThemeColors } from '@/providers/ThemeProvider';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { Image } from 'expo-image';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export function FormDetailScreen() {
   const router = useRouter();
@@ -195,10 +197,16 @@ export function FormDetailScreen() {
     attachmentSheetRef.current?.dismiss();
     return { success: true, message: 'Draft attached.' };
   };
-  const detailRow = (label: string, value?: string) => (
+
+  const detailRow = (icon: string, label: string, value?: string) => (
     <View style={styles.detailRow}>
-      <Text style={[styles.detailLabel, { color: colors.textMuted }]}>{label}</Text>
-      <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{value || '—'}</Text>
+      <View style={styles.detailIconContainer}>
+        <Ionicons name={icon as any} size={16} color={colors.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.detailLabel, { color: colors.textMuted }]}>{label}</Text>
+        <Text style={[styles.detailValue, { color: colors.textPrimary }]}>{value || '—'}</Text>
+      </View>
     </View>
   );
 
@@ -230,7 +238,13 @@ export function FormDetailScreen() {
   if (!selection || !activeFormRecord) {
     return (
       <Screen>
-        <Text style={[styles.projectTitle, { color: colors.textPrimary }]}>No record selected.</Text>
+        <View style={styles.emptyState}>
+          <Ionicons name="document-outline" size={64} color={colors.textMuted} />
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No record selected</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+            Please select a form to view its details
+          </Text>
+        </View>
       </Screen>
     );
   }
@@ -238,52 +252,92 @@ export function FormDetailScreen() {
   if (!activeProject) {
     return (
       <Screen scroll applyTopInset={false}>
-        <View style={[styles.projectHeader, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <View style={{ gap: spacing.xs, flex: 1 }}>
-            <Text style={[styles.projectTitle, { color: colors.textPrimary }]}>
-              {activeFormRecord.data.nameOfProject || 'Standalone Draft'}
-            </Text>
-            <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
-              {activeFormRecord.data.locationBarangay || '—'},{' '}
-              {activeFormRecord.data.locationMunicipality || '—'}
-            </Text>
-            <View style={styles.badgeRow}>
-              <StatusBadge status={activeFormRecord.status} />
-              <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                Last updated {new Date(activeFormRecord.updatedAt).toLocaleString()}
+        {/* Premium Gradient Header */}
+        <LinearGradient
+          colors={[colors.primary, colors.primary + 'DD']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientHeader}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.headerIconContainer}>
+              <Ionicons name="document-text" size={28} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerTitle} numberOfLines={2}>
+                {activeFormRecord.data.nameOfProject || 'Standalone Draft'}
+              </Text>
+              <View style={styles.headerMetaRow}>
+                <Ionicons name="location-outline" size={14} color="#fff" />
+                <Text style={styles.headerMeta}>
+                  {activeFormRecord.data.locationBarangay || '—'}, {activeFormRecord.data.locationMunicipality || '—'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.headerBadgeRow}>
+            <StatusBadge status={activeFormRecord.status} />
+            <View style={styles.timestampPill}>
+              <Ionicons name="time-outline" size={12} color="#fff" />
+              <Text style={styles.timestampText}>
+                {new Date(activeFormRecord.updatedAt).toLocaleDateString()}
               </Text>
             </View>
-            <Text style={[styles.annexTag, { color: colors.textPrimary }]}>{annexTitle || 'Standalone Draft'}</Text>
+          </View>
+        </LinearGradient>
+
+        {/* Annex Tag */}
+        <View style={[styles.annexBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="bookmark" size={16} color={colors.primary} />
+          <Text style={[styles.annexBannerText, { color: colors.textPrimary }]}>{annexTitle || 'Standalone Draft'}</Text>
+        </View>
+
+        {/* Draft Details Card */}
+        <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Draft Details</Text>
+          </View>
+          <View style={styles.cardContent}>
+            {detailRow('document-text-outline', 'Annex', annexTitle || '—')}
+            {detailRow('flag-outline', 'Status', activeFormRecord.status)}
+            {detailRow('navigate-outline', 'Barangay', activeFormRecord.data.locationBarangay)}
+            {detailRow('business-outline', 'Municipality', activeFormRecord.data.locationMunicipality)}
+            {detailRow('map-outline', 'Province', activeFormRecord.data.locationProvince)}
           </View>
         </View>
 
-        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Draft Details</Text>
-          {detailRow('Annex', annexTitle || '—')}
-          {detailRow('Status', activeFormRecord.status)}
-          {detailRow('Barangay', activeFormRecord.data.locationBarangay)}
-          {detailRow('Municipality', activeFormRecord.data.locationMunicipality)}
-          {detailRow('Province', activeFormRecord.data.locationProvince)}
-        </View>
-
+        {/* View Form Button */}
         <TouchableOpacity
-          style={[styles.viewFormButton, { borderColor: colors.primary, marginTop: spacing.sm }]}
+          style={[styles.primaryButton, { backgroundColor: colors.primary }]}
           onPress={() => openFormData(activeFormRecord)}
         >
-          <Text style={[styles.viewFormText, { color: colors.primary }]}>View Form Data</Text>
+          <Ionicons name="eye-outline" size={20} color="#fff" />
+          <Text style={styles.primaryButtonText}>View Form Data</Text>
         </TouchableOpacity>
 
-        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Attach to FMR</Text>
-          <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
-            Link this standalone draft using a QR scan or ABEMIS ID.
-          </Text>
-          <TouchableOpacity
-            style={[styles.attachmentButton, { borderColor: colors.primary, marginTop: spacing.sm }]}
-            onPress={openAttachmentSheet}
-          >
-            <Text style={[styles.attachmentButtonText, { color: colors.primary }]}>Open attachment sheet</Text>
-          </TouchableOpacity>
+        {/* Attachment Card */}
+        <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="link" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Attach to FMR Project</Text>
+          </View>
+          <View style={styles.cardContent}>
+            <View style={[styles.infoBanner, { backgroundColor: colors.surfaceMuted }]}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+              <Text style={[styles.infoBannerText, { color: colors.textMuted }]}>
+                Link this standalone draft using a QR scan or ABEMIS ID to connect it with an existing project.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.secondaryButton, { borderColor: colors.primary }]}
+              onPress={openAttachmentSheet}
+            >
+              <Ionicons name="qr-code-outline" size={18} color={colors.primary} />
+              <Text style={[styles.secondaryButtonText, { color: colors.primary }]}>Scan QR or Enter ABEMIS ID</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <AttachmentSheet
@@ -297,114 +351,160 @@ export function FormDetailScreen() {
 
   return (
     <Screen scroll applyTopInset={false}>
-      <View style={[styles.projectHeader, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-        <View style={{ gap: spacing.xs, flex: 1 }}>
-            <Text style={[styles.projectTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+      {/* Premium Gradient Header */}
+      <LinearGradient
+        colors={[colors.primary, colors.primary + 'DD']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientHeader}
+      >
+        <View style={styles.headerContent}>
+          <View style={styles.headerIconContainer}>
+            <Ionicons name="folder-open" size={28} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle} numberOfLines={2}>
               {activeProject?.title ?? 'Standalone Draft'}
             </Text>
-          {activeProject ? (
-            <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
-              {activeProject.barangay ?? '—'}, {activeProject.municipality ?? '—'}, {activeProject.province ?? '—'}
-            </Text>
-          ) : (
-            <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
-              Draft not yet linked to a project
-            </Text>
+            {activeProject ? (
+              <View style={styles.headerMetaRow}>
+                <Ionicons name="location-outline" size={14} color="#fff" />
+                <Text style={styles.headerMeta}>
+                  {activeProject.barangay ?? '—'}, {activeProject.municipality ?? '—'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.headerMeta}>Draft not yet linked to a project</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.headerBadgeRow}>
+          <StatusBadge status={activeFormRecord.status} />
+          {activeProject?.zone && (
+            <View style={styles.zonePill}>
+              <Text style={styles.zonePillText}>{activeProject.zone}</Text>
+            </View>
           )}
-          <View style={styles.badgeRow}>
-            <StatusBadge status={activeFormRecord.status} />
-            <Text style={[styles.metaText, { color: colors.textMuted }]}>
-              Last updated {new Date(activeFormRecord.updatedAt).toLocaleString()}
+          <View style={styles.timestampPill}>
+            <Ionicons name="time-outline" size={12} color="#fff" />
+            <Text style={styles.timestampText}>
+              {new Date(activeFormRecord.updatedAt).toLocaleDateString()}
             </Text>
           </View>
-          <Text style={[styles.annexTag, { color: colors.textPrimary }]}>{annexTitle}</Text>
         </View>
+      </LinearGradient>
+
+      {/* Annex Tag */}
+      <View style={[styles.annexBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Ionicons name="bookmark" size={16} color={colors.primary} />
+        <Text style={[styles.annexBannerText, { color: colors.textPrimary }]}>{annexTitle}</Text>
       </View>
 
+      {/* Project Details Card */}
       {activeProject && (
-      <View style={[styles.projectCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-        <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Project Details</Text>
-        <View style={styles.projectGrid}>
-          <SectionDivider label="Overview" />
-          {detailRow('Project Code', activeProject.projectCode)}
-            {detailRow('Type', activeProject.projectType)}
-            {detailRow('Stage', activeProject.stage)}
-            {detailRow('Status', activeProject.status)}
-            {detailRow('Operating Unit', activeProject.operatingUnit)}
-            {detailRow('Banner Program', activeProject.bannerProgram)}
-            {detailRow('PREXC Program', activeProject.prexcProgram)}
-            {detailRow('Sub Program', activeProject.subProgram)}
-            {detailRow('Recipient Type', activeProject.recipientType)}
-            {detailRow('Budget Process', activeProject.budgetProcess)}
+        <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="briefcase" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Project Details</Text>
+          </View>
+          <View style={styles.cardContent}>
+            <SectionDivider label="Overview" />
+            {detailRow('code-slash-outline', 'Project Code', activeProject.projectCode)}
+            {detailRow('layers-outline', 'Type', activeProject.projectType)}
+            {detailRow('trending-up-outline', 'Stage', activeProject.stage)}
+            {detailRow('checkmark-circle-outline', 'Status', activeProject.status)}
+            {detailRow('business-outline', 'Operating Unit', activeProject.operatingUnit)}
+            {detailRow('ribbon-outline', 'Banner Program', activeProject.bannerProgram)}
+            {detailRow('apps-outline', 'PREXC Program', activeProject.prexcProgram)}
+            {detailRow('git-branch-outline', 'Sub Program', activeProject.subProgram)}
+            {detailRow('people-outline', 'Recipient Type', activeProject.recipientType)}
+            {detailRow('calculator-outline', 'Budget Process', activeProject.budgetProcess)}
 
             <SectionDivider label="Funding" />
-            {detailRow('Year Funded', activeProject.yearFunded?.toString())}
-            {detailRow('Allocated Amount', activeProject.allocatedAmount)}
-            {detailRow('Beneficiary', activeProject.beneficiary ?? undefined)}
+            {detailRow('calendar-outline', 'Year Funded', activeProject.yearFunded?.toString())}
+            {detailRow('cash-outline', 'Allocated Amount', activeProject.allocatedAmount)}
+            {detailRow('person-outline', 'Beneficiary', activeProject.beneficiary ?? undefined)}
 
             <SectionDivider label="Location" />
-            {detailRow('Region', activeProject.region)}
-            {detailRow('Province', activeProject.province)}
-            {detailRow('Municipality', activeProject.municipality)}
-            {detailRow('Barangay', activeProject.barangay)}
-            {detailRow('Latitude', activeProject.latitude)}
-            {detailRow('Longitude', activeProject.longitude)}
+            {detailRow('globe-outline', 'Region', activeProject.region)}
+            {detailRow('map-outline', 'Province', activeProject.province)}
+            {detailRow('business-outline', 'Municipality', activeProject.municipality)}
+            {detailRow('navigate-outline', 'Barangay', activeProject.barangay)}
+            {detailRow('compass-outline', 'Latitude', activeProject.latitude)}
+            {detailRow('compass-outline', 'Longitude', activeProject.longitude)}
           </View>
         </View>
       )}
 
-      {geotagImages.length ? (
-        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Geotag Photos</Text>
+      {/* Geotag Photos */}
+      {geotagImages.length > 0 && (
+        <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="images" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Geotag Photos</Text>
+            <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.countBadgeText}>{geotagImages.length}</Text>
+            </View>
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            snapToInterval={260 + spacing.sm}
+            snapToInterval={280 + spacing.sm}
             decelerationRate="fast"
-            contentContainerStyle={{ gap: spacing.sm }}
+            contentContainerStyle={{ gap: spacing.sm, paddingVertical: spacing.xs }}
           >
             {geotagImages.map((item) => (
-              <View key={item.id} style={[styles.carouselItem, { borderColor: colors.border }]}>
+              <View key={item.id} style={[styles.geotagCard, { borderColor: colors.border }]}>
                 <Image
                   style={styles.geotagImage}
                   source={{ uri: item.url }}
                   contentFit="cover"
                   transition={200}
                 />
-                <View style={[styles.carouselMeta, { backgroundColor: colors.surfaceMuted }]}>
-                  <Text style={[styles.listTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.7)']}
+                  style={styles.geotagOverlay}
+                >
+                  <Text style={styles.geotagTitle} numberOfLines={1}>
                     {item.photoName || 'Geotag'}
                   </Text>
-                  <Text style={[styles.listSubtitle, { color: colors.textMuted }]} numberOfLines={1}>
-                    {item.url}
-                  </Text>
-                </View>
+                </LinearGradient>
               </View>
             ))}
           </ScrollView>
         </View>
-      ) : null}
+      )}
 
+      {/* Proposal Documents */}
       {activeProject?.proposalDocuments?.length ? (
-        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Proposal Documents</Text>
-          <View style={{ gap: spacing.sm }}>
+        <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="documents" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Proposal Documents</Text>
+            <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.countBadgeText}>{activeProject.proposalDocuments.length}</Text>
+            </View>
+          </View>
+          <View style={styles.cardContent}>
             {activeProject.proposalDocuments.map((doc) => (
-              <View key={doc.id} style={[styles.listRow, { borderColor: colors.border }]}>
+              <View key={doc.id} style={[styles.documentRow, { borderColor: colors.border }]}>
+                <View style={[styles.documentIcon, { backgroundColor: colors.surfaceMuted }]}>
+                  <Ionicons name="document-text" size={20} color={colors.primary} />
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.listTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+                  <Text style={[styles.documentTitle, { color: colors.textPrimary }]} numberOfLines={2}>
                     {doc.fileName}
                   </Text>
-                  <Text style={[styles.listSubtitle, { color: colors.textMuted }]}>
+                  <Text style={[styles.documentCategory, { color: colors.textMuted }]}>
                     {doc.category || 'Document'}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.linkPill, { borderColor: colors.primary }]}
-                  onPress={() => router.push({ pathname: '/form-data', params: { record: JSON.stringify({}) } })}
+                  style={[styles.iconButton, { backgroundColor: colors.surfaceMuted }]}
                   disabled
                 >
-                  <Text style={[styles.linkPillText, { color: colors.primary }]}>Open</Text>
+                  <Ionicons name="download-outline" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -412,47 +512,43 @@ export function FormDetailScreen() {
         </View>
       ) : null}
 
+      {/* Attached Forms */}
       {activeProject && projectForms.length > 0 && (
-        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Attached Forms</Text>
-          <View style={{ gap: spacing.sm }}>
+        <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="list" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Attached Forms</Text>
+            <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.countBadgeText}>{projectForms.length}</Text>
+            </View>
+          </View>
+          <View style={styles.cardContent}>
             {projectForms.map((entry) => (
               <TouchableOpacity
                 key={entry.id}
                 style={[
-                  styles.formChip,
+                  styles.formCard,
                   {
-                    borderColor: colors.border,
+                    borderColor: entry.id === activeFormRecord.id ? colors.primary : colors.border,
                     backgroundColor: entry.id === activeFormRecord.id ? colors.surfaceMuted : colors.surface,
                   },
                 ]}
                 onPress={() => openFormData(entry)}
               >
+                <View style={[styles.formIconContainer, { backgroundColor: colors.primary + '20' }]}>
+                  <Ionicons name="document-text" size={20} color={colors.primary} />
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.formChipTitle, { color: colors.textPrimary }]}>{entry.annexTitle}</Text>
-                  <Text style={[styles.formChipMeta, { color: colors.textMuted }]}>
+                  <Text style={[styles.formCardTitle, { color: colors.textPrimary }]}>{entry.annexTitle}</Text>
+                  <Text style={[styles.formCardMeta, { color: colors.textMuted }]} numberOfLines={1}>
                     {entry.data.nameOfProject || 'Untitled form'}
                   </Text>
                 </View>
                 <StatusBadge status={entry.status} />
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             ))}
           </View>
-        </View>
-      )}
-
-      {!activeProject && (
-        <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Text style={[styles.cardLabel, { color: colors.textMuted }]}>Draft</Text>
-          <Text style={[styles.projectMeta, { color: colors.textMuted }]}>
-            This standalone draft is not yet linked to an ABEMIS project.
-          </Text>
-          <TouchableOpacity
-            style={[styles.viewFormButton, { borderColor: colors.primary, marginTop: spacing.sm }]}
-            onPress={() => openFormData(activeFormRecord)}
-          >
-            <Text style={[styles.viewFormText, { color: colors.primary }]}>View Form Data</Text>
-          </TouchableOpacity>
         </View>
       )}
     </Screen>
@@ -460,154 +556,290 @@ export function FormDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  statusRow: {
-    gap: spacing.xs,
-  },
-  projectHeader: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: spacing.md,
-    flexDirection: 'row',
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.xxl * 2,
     gap: spacing.md,
-    alignItems: 'center',
-    marginBottom: spacing.md,
   },
-  badgeRow: {
+  emptyTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 20,
+  },
+  emptySubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  gradientHeader: {
+    borderRadius: 20,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    gap: spacing.md,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
   },
-  metaText: {
-    fontFamily: fonts.regular,
-  },
-  annexTag: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-  },
-  projectCard: {
-    borderWidth: 1,
+  headerIconContainer: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
-    padding: spacing.md,
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  projectTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 18,
+  headerTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 20,
+    color: '#fff',
+    lineHeight: 26,
   },
-  projectMeta: {
+  headerMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  headerMeta: {
     fontFamily: fonts.regular,
     fontSize: 13,
+    color: '#fff',
+    opacity: 0.9,
   },
-  projectGrid: {
-    gap: spacing.sm,
-  },
-  viewFormButton: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  viewFormText: {
-    fontFamily: fonts.semibold,
-  },
-  attachmentButton: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-  },
-  attachmentButtonText: {
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-  },
-  detailRow: {
-    gap: spacing.xs,
-  },
-  detailLabel: {
-    ...typography.label,
-  },
-  detailValue: {
-    fontSize: 15,
-    fontFamily: fonts.regular,
-  },
-  sectionCard: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  listRow: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: spacing.md,
+  headerBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  zonePill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+  },
+  zonePillText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    color: '#fff',
+  },
+  timestampPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+  },
+  timestampText: {
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    color: '#fff',
+  },
+  annexBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+  },
+  annexBannerText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+  },
+  premiumCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  cardTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 16,
+    flex: 1,
+  },
+  countBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  countBadgeText: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    color: '#fff',
+  },
+  cardContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
     gap: spacing.md,
   },
-  listTitle: {
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  detailIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  detailLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  detailValue: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: 16,
+    marginBottom: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonText: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+    color: '#fff',
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: 16,
+    borderWidth: 2,
+  },
+  secondaryButtonText: {
     fontFamily: fonts.semibold,
     fontSize: 14,
   },
-  listSubtitle: {
+  infoBanner: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 12,
+  },
+  infoBannerText: {
     fontFamily: fonts.regular,
-    fontSize: 12,
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
   },
-  linkPill: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  linkPillText: {
-    fontFamily: fonts.semibold,
-  },
-  carouselItem: {
+  geotagCard: {
+    width: 280,
+    height: 200,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   geotagImage: {
     width: '100%',
-    height: 210,
+    height: '100%',
   },
-  carouselMeta: {
-    padding: spacing.sm,
-    backgroundColor: '#f8fafc',
-    gap: 4,
-  },
-  cardLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    letterSpacing: 0.2,
-  },
-  formChip: {
-    borderWidth: 1,
-    borderRadius: 12,
+  geotagOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     padding: spacing.md,
+  },
+  geotagTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    color: '#fff',
+  },
+  documentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  formChipTitle: {
+  documentIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  documentTitle: {
     fontFamily: fonts.semibold,
     fontSize: 14,
+    marginBottom: 2,
   },
-  formChipMeta: {
+  documentCategory: {
     fontFamily: fonts.regular,
     fontSize: 12,
   },
-  editButton: {
-    borderRadius: 999,
-    paddingVertical: spacing.md,
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.xxl,
   },
-  editText: {
-    color: '#fff',
+  formCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: 16,
+    borderWidth: 2,
+  },
+  formIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  formCardTitle: {
     fontFamily: fonts.semibold,
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  formCardMeta: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
   },
 });
