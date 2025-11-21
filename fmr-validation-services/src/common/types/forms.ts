@@ -42,6 +42,7 @@ export interface FormRecord {
   annexTitle: string;
   status: FormStatus;
   updatedAt: string;
+  lastTouch: string;
   createdBy?: string;
   abemisId?: string;
   qrReference?: string;

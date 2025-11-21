@@ -42,6 +42,7 @@ export interface FormRecord {
   annexTitle: string;
   status: FormStatus;
   updatedAt: string;
+  lastTouch: string;
   createdBy?: string;
   abemisId?: string;
   qrReference?: string;
@@ -101,7 +102,7 @@ export interface ProjectRecord {
   forms: FormRecord[];
 }
 
-export interface StandaloneDraft extends FormRecord {}
+export interface StandaloneDraft extends FormRecord { }
 
 export interface FormRouteMeta {
   id: string;
@@ -131,6 +132,7 @@ export type ClientFormPayload = {
   linkedProjectId?: string;
   abemisId?: string;
   qrReference?: string;
+  lastTouch?: string;
   data: ValidationForm;
 };
 

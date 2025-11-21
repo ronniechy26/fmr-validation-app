@@ -17,6 +17,7 @@ export interface UpsertFormDto {
   linkedProjectId?: string;
   abemisId?: string;
   qrReference?: string;
+  lastTouch?: string;
   data: FormRecord['data'];
 }
 
@@ -84,6 +85,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
           annexTitle: form.annexTitle,
           status: form.status,
           updatedAt: new Date().toISOString(),
+          lastTouch: form.lastTouch ?? new Date().toISOString(),
           linkedProjectId: form.linkedProjectId,
           abemisId: form.abemisId,
           qrReference: form.qrReference,
@@ -111,13 +113,13 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     const updatedForms = [
       ...snapshot.projects.flatMap((p) =>
         p.forms.filter((form) => {
-          const updatedAt = new Date(form.updatedAt);
-          return updatedAt > sinceDate;
+          const lastTouch = form.lastTouch ? new Date(form.lastTouch) : new Date(form.updatedAt);
+          return lastTouch > sinceDate;
         }),
       ),
       ...snapshot.standaloneDrafts.filter((draft) => {
-        const updatedAt = new Date(draft.updatedAt);
-        return updatedAt > sinceDate;
+        const lastTouch = draft.lastTouch ? new Date(draft.lastTouch) : new Date(draft.updatedAt);
+        return lastTouch > sinceDate;
       }),
     ];
 

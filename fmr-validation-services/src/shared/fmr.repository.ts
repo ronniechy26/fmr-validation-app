@@ -107,6 +107,7 @@ export class FmrRepository {
       ? await this.projectsRepo.findOne({ where: { id: payload.projectId } })
       : undefined;
     const formId = payload.data?.id ?? `form-${Date.now()}`;
+    const now = new Date();
     const record = this.formsRepo.create({
       id: formId,
       annexTitle: payload.annexTitle,
@@ -120,10 +121,11 @@ export class FmrRepository {
         project?.province ??
         null,
       project: project ?? null,
+      lastTouch: now,
       data: {
         id: formId,
         status: payload.status ?? 'Draft',
-        updatedAt: new Date().toISOString(),
+        updatedAt: now.toISOString(),
         ...payload.data,
       } as ValidationForm,
     });
@@ -158,6 +160,10 @@ export class FmrRepository {
       existing.qrReference = payload.qrReference;
     if (payload.createdBy !== undefined) existing.createdBy = payload.createdBy;
     if (payload.region !== undefined) existing.region = payload.region;
+
+    // Always update lastTouch on any modification
+    existing.lastTouch = new Date();
+
     if (payload.data) {
       existing.data = {
         ...existing.data,
@@ -188,6 +194,7 @@ export class FmrRepository {
     form.project = project;
     form.abemisId = attachment.abemisId ?? project.abemisId ?? null;
     form.qrReference = attachment.qrReference ?? project.qrReference ?? null;
+    form.lastTouch = new Date();
     const saved = await this.formsRepo.save(form);
     return this.toFlattenedForm(saved);
   }
@@ -214,6 +221,15 @@ export class FmrRepository {
         where: { id: record.linkedProjectId },
       })
       : null;
+    const existing = await this.formsRepo.findOne({ where: { id: record.id } });
+    const incomingLastTouch = record.lastTouch ? new Date(record.lastTouch) : new Date();
+
+    // Conflict Resolution: Last Write Wins
+    // If server has a newer version, ignore this update (or we could merge, but LWW is safer for now)
+    if (existing && existing.lastTouch > incomingLastTouch) {
+      return this.toFlattenedForm(existing);
+    }
+
     const entity = this.formsRepo.create({
       id: record.id,
       annexTitle: record.annexTitle,
@@ -222,6 +238,7 @@ export class FmrRepository {
       qrReference: record.qrReference ?? null,
       project,
       data: record.data,
+      lastTouch: incomingLastTouch,
     });
     const saved = await this.formsRepo.save(entity);
     const withProject = await this.formsRepo.findOne({
@@ -388,6 +405,7 @@ export class FmrRepository {
       annexTitle: form.annexTitle,
       status: form.status as FormStatus,
       updatedAt: form.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+      lastTouch: form.lastTouch?.toISOString?.() ?? new Date().toISOString(),
       createdBy: form.createdBy ?? undefined,
       abemisId: form.abemisId ?? undefined,
       qrReference: form.qrReference ?? undefined,

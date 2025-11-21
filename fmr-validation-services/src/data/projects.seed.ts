@@ -102,6 +102,7 @@ export const seedProjects: ProjectRecord[] = [
         annexTitle: 'Annex C – Validation Form',
         status: 'Pending Sync',
         updatedAt: '2024-10-06T09:23:00Z',
+        lastTouch: '2024-10-06T09:23:00Z',
         data: createValidationForm({
           id: 'annexC-001',
           validationDate: '2024-10-05',
@@ -178,6 +179,7 @@ export const seedProjects: ProjectRecord[] = [
         annexTitle: 'Annex C – Validation Form',
         status: 'Draft',
         updatedAt: '2024-11-08T08:10:00Z',
+        lastTouch: '2024-11-08T08:10:00Z',
         data: createValidationForm({
           id: 'annexC-010',
           validationDate: '2024-11-05',
@@ -224,6 +226,7 @@ export const standaloneDrafts: FormRecord[] = [
     annexTitle: 'Annex C – Validation Form',
     status: 'Draft',
     updatedAt: '2024-10-10T10:00:00Z',
+    lastTouch: '2024-10-10T10:00:00Z',
     data: createValidationForm({
       id: 'draft-unlinked-001',
       nameOfProject: 'Standalone Validation – Sitio Banat',
@@ -242,6 +245,7 @@ export const standaloneDrafts: FormRecord[] = [
     annexTitle: 'Annex C – Validation Form',
     status: 'Pending Sync',
     updatedAt: '2024-10-12T08:45:00Z',
+    lastTouch: '2024-10-12T08:45:00Z',
     qrReference: 'QR-STANDALONE-002',
     data: createValidationForm({
       id: 'draft-unlinked-002',

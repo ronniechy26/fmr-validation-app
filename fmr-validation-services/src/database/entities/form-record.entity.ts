@@ -52,4 +52,7 @@ export class FormRecordEntity {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column('timestamp with time zone', { default: () => 'now()' })
+  lastTouch: Date;
 }

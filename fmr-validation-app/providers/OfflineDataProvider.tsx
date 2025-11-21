@@ -361,9 +361,27 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
           linkedProjectId: draft.linkedProjectId,
           abemisId: draft.abemisId,
           qrReference: draft.qrReference,
+          lastTouch: draft.lastTouch,
           data: draft.data,
         })),
       );
+      // Mark as synced locally for immediate UI feedback
+      const syncedAt = new Date().toISOString();
+      const syncedDrafts = drafts.map((draft) => ({
+        ...draft,
+        status: 'Synced' as FormStatus,
+        updatedAt: syncedAt,
+        lastTouch: syncedAt,
+        data: { ...draft.data, status: 'Synced' as FormStatus, updatedAt: syncedAt },
+      }));
+      const snapshotWithSyncedDrafts: OfflineSnapshot = {
+        projects: snapshot.projects,
+        standaloneDrafts: syncedDrafts,
+      };
+      await replaceSnapshot(snapshotWithSyncedDrafts);
+      setSnapshot(snapshotWithSyncedDrafts);
+      await setLastSyncTimestamp(Date.now());
+
       refresh({ silent: true }).catch((error) =>
         logger.warn('offline', 'syncDrafts:refresh-failed', { error: String(error) }),
       );

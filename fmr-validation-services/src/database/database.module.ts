@@ -8,6 +8,7 @@ import { Init1700000000000 } from './migrations/1700000000000-init';
 import { AddLatLong1700000000001 } from './migrations/1700000000001-add-lat-long';
 import { AddFormMeta1729550000000 } from './migrations/1729550000000-add-form-meta';
 import { AddFormIndexes1732176449000 } from './migrations/1732176449000-add-form-indexes';
+import { AddLastTouch1732176850000 } from './migrations/1732176850000-add-last-touch';
 import { AbemisService } from '../shared/abemis.service';
 
 @Module({
@@ -27,6 +28,7 @@ import { AbemisService } from '../shared/abemis.service';
           AddLatLong1700000000001,
           AddFormMeta1729550000000,
           AddFormIndexes1732176449000,
+          AddLastTouch1732176850000,
         ],
       }),
     }),

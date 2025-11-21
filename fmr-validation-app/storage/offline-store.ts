@@ -155,6 +155,7 @@ export async function attachDraftLocally(formId: string, payload: AttachmentPayl
     abemisId: payload.abemisId ?? project.abemisId,
     qrReference: payload.qrReference ?? draft.qrReference ?? project.qrReference,
     updatedAt: new Date().toISOString(),
+    lastTouch: new Date().toISOString(),
   };
 
   snapshot.standaloneDrafts.splice(draftIndex, 1);
@@ -181,6 +182,7 @@ export async function upsertFormRecord(
     annexTitle: options.annexTitle ?? 'Annex C – Validation Form',
     status,
     updatedAt: timestamp,
+    lastTouch: timestamp,
     linkedProjectId: options.linkedProjectId,
     abemisId: form.id && form.id.startsWith('ABEMIS') ? form.id : undefined,
     qrReference: undefined,
