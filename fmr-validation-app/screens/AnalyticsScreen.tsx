@@ -127,6 +127,68 @@ export function AnalyticsScreen() {
   const heroBackground = mode === 'dark' ? '#0f172a' : colors.primary;
   const heroSubtitleColor = mode === 'dark' ? '#94a3b8' : '#e0e7ff';
 
+  const projectAggregates = useMemo(() => {
+    let totalProjects = 0;
+    let totalAmount = 0;
+    const byYear: Record<string, number> = {};
+    const byType: Record<string, number> = {};
+
+    for (const project of projects) {
+      totalProjects += 1;
+
+      // Parse amount
+      if (project.allocatedAmount) {
+        const amount = parseFloat(project.allocatedAmount.toString().replace(/[^0-9.-]+/g, ''));
+        if (!isNaN(amount)) {
+          totalAmount += amount;
+        }
+      }
+
+      // Year
+      if (project.yearFunded) {
+        byYear[project.yearFunded] = (byYear[project.yearFunded] || 0) + 1;
+      }
+
+      // Type
+      if (project.projectType) {
+        byType[project.projectType] = (byType[project.projectType] || 0) + 1;
+      }
+    }
+
+    return { totalProjects, totalAmount, byYear, byType };
+  }, [projects]);
+
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1_000_000_000) {
+      return `₱${(amount / 1_000_000_000).toFixed(1)}B`;
+    }
+    if (amount >= 1_000_000) {
+      return `₱${(amount / 1_000_000).toFixed(1)}M`;
+    }
+    return `₱${amount.toLocaleString()}`;
+  };
+
+  const projectStats = useMemo(() => [
+    {
+      label: 'Total Projects',
+      value: projectAggregates.totalProjects.toString(),
+      icon: 'briefcase-outline' as const,
+      color: colors.primary,
+    },
+    {
+      label: 'Total Budget',
+      value: formatCurrency(projectAggregates.totalAmount),
+      icon: 'wallet-outline' as const,
+      color: '#10b981', // Emerald
+    },
+  ], [projectAggregates, colors.primary]);
+
+  const yearsList = useMemo(() => {
+    return Object.entries(projectAggregates.byYear)
+      .sort((a, b) => Number(b[0]) - Number(a[0]))
+      .slice(0, 5);
+  }, [projectAggregates.byYear]);
+
   return (
     <Screen scroll contentContainerStyle={[styles.wrapper, { backgroundColor: colors.background }]}>
       <View style={[styles.hero, { backgroundColor: heroBackground }]}>
@@ -167,6 +229,55 @@ export function AnalyticsScreen() {
             </View>
           ))}
         </ScrollView>
+      </View>
+
+      {/* Project Insights Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Project Insights</Text>
+            <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>Overview of FMR projects</Text>
+          </View>
+        </View>
+
+        <View style={styles.projectGrid}>
+          {projectStats.map((stat) => (
+            <View key={stat.label} style={[styles.projectStatCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.projectIconContainer, { backgroundColor: `${stat.color}15` }]}>
+                <Ionicons name={stat.icon} size={20} color={stat.color} />
+              </View>
+              <View>
+                <Text style={[styles.projectStatValue, { color: colors.textPrimary }]}>{stat.value}</Text>
+                <Text style={[styles.projectStatLabel, { color: colors.textMuted }]}>{stat.label}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {yearsList.length > 0 && (
+          <View style={[styles.yearCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.cardHeaderTitle, { color: colors.textPrimary }]}>Projects by Year</Text>
+            <View style={styles.yearList}>
+              {yearsList.map(([year, count]) => (
+                <View key={year} style={styles.yearRow}>
+                  <Text style={[styles.yearLabel, { color: colors.textPrimary }]}>{year}</Text>
+                  <View style={styles.yearBarContainer}>
+                    <View
+                      style={[
+                        styles.yearBar,
+                        {
+                          width: `${(count / Math.max(...Object.values(projectAggregates.byYear))) * 100}%`,
+                          backgroundColor: colors.primary
+                        }
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.yearCount, { color: colors.textMuted }]}>{count}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -480,5 +591,74 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 12,
     textTransform: 'capitalize',
+  },
+  projectGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  projectStatCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: spacing.md,
+  },
+  projectIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  projectStatValue: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+  },
+  projectStatLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+  },
+  yearCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  cardHeaderTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 15,
+  },
+  yearList: {
+    gap: spacing.sm,
+  },
+  yearRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  yearLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    width: 40,
+  },
+  yearBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  yearBar: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  yearCount: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    width: 30,
+    textAlign: 'right',
   },
 });

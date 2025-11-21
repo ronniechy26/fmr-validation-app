@@ -173,17 +173,23 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
   ) => {
     const stringOptions = options.filter((opt): opt is string => Boolean(opt));
     const currentLabel = selected || 'Any';
+    const hasSelection = Boolean(selected);
+
     if (Platform.OS === 'android') {
       return (
         <View style={styles.dropdownWrapper}>
-          <Text style={[styles.locationLabel, { color: colors.textMuted }]}>
+          <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
             {label}
           </Text>
 
           <View
             style={[
               styles.pickerContainer,
-              { borderColor: colors.border, backgroundColor: colors.surface },
+              {
+                borderColor: hasSelection ? colors.primary : colors.border,
+                backgroundColor: hasSelection ? (mode === 'dark' ? 'rgba(59, 130, 246, 0.1)' : '#eff6ff') : colors.surface,
+                borderWidth: hasSelection ? 1.5 : 1,
+              },
             ]}
           >
             <Picker
@@ -203,36 +209,53 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
       );
     }
     return (
-      <TouchableOpacity
-        style={[
-          styles.iosPicker,
-          { borderColor: colors.border, backgroundColor: colors.surface },
-        ]}
-        onPress={() =>
-          ActionSheetIOS.showActionSheetWithOptions(
+      <View style={styles.dropdownWrapper}>
+        <Text style={[styles.inputLabel, { color: colors.textMuted }]}>{label}</Text>
+        <TouchableOpacity
+          style={[
+            styles.iosPicker,
             {
-              options: ['Any', ...stringOptions, 'Cancel'],
-              cancelButtonIndex: stringOptions.length + 1,
+              borderColor: hasSelection ? colors.primary : colors.border,
+              backgroundColor: hasSelection ? (mode === 'dark' ? 'rgba(59, 130, 246, 0.1)' : '#eff6ff') : colors.surface,
+              borderWidth: hasSelection ? 1.5 : 1,
             },
-            (index) => {
-              if (index === 0) {
-                onSelect?.(undefined);
-              } else if (index > 0 && index <= stringOptions.length) {
-                const choice = stringOptions[index - 1];
-                onSelect?.(choice);
+          ]}
+          onPress={() =>
+            ActionSheetIOS.showActionSheetWithOptions(
+              {
+                options: ['Any', ...stringOptions, 'Cancel'],
+                cancelButtonIndex: stringOptions.length + 1,
+              },
+              (index) => {
+                if (index === 0) {
+                  onSelect?.(undefined);
+                } else if (index > 0 && index <= stringOptions.length) {
+                  const choice = stringOptions[index - 1];
+                  onSelect?.(choice);
+                }
+              },
+            )
+          }
+        >
+          <Text
+            style={[
+              styles.iosPickerText,
+              {
+                color: hasSelection ? colors.primary : colors.textPrimary,
+                fontFamily: hasSelection ? fonts.semibold : fonts.regular
               }
-            },
-          )
-        }
-      >
-        <View>
-          <Text style={[styles.locationLabel, { color: colors.textMuted }]}>{label}</Text>
-          <Text style={[styles.iosPickerText, { color: colors.textPrimary }]}>
-            {currentLabel || 'Any'}
+            ]}
+            numberOfLines={1}
+          >
+            {currentLabel}
           </Text>
-        </View>
-        <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-      </TouchableOpacity>
+          <Ionicons
+            name="chevron-down"
+            size={18}
+            color={hasSelection ? colors.primary : colors.textMuted}
+          />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -244,26 +267,26 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
       backdropComponent={SheetBackdrop}
       enablePanDownToClose
       backgroundStyle={{ backgroundColor: colors.surface }}
-      handleIndicatorStyle={{ backgroundColor: colors.border }}
+      handleIndicatorStyle={{ backgroundColor: colors.border, width: 40 }}
     >
-      <BottomSheetScrollView contentContainerStyle={styles.content}>
+      <BottomSheetScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={[styles.iconContainer, { backgroundColor: heroTint }]}>
-              <Ionicons name="funnel" size={20} color={accent} />
+              <Ionicons name="options" size={22} color={accent} />
             </View>
             <View style={styles.headerText}>
-              <Text style={[styles.title, { color: colors.textPrimary }]}>Filters</Text>
+              <Text style={[styles.title, { color: colors.textPrimary }]}>Filter & Sort</Text>
               <Text style={[styles.subtitle, { color: colors.textMuted }]}>{statusHint}</Text>
             </View>
           </View>
           <TouchableOpacity
-            style={styles.closeButton}
+            style={[styles.closeButton, { backgroundColor: colors.surfaceMuted }]}
             onPress={close}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="close" size={22} color={colors.textMuted} />
+            <Ionicons name="close" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
@@ -272,7 +295,10 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
 
         {/* Filter Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>STATUS</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="flag-outline" size={16} color={colors.textMuted} />
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>FORM STATUS</Text>
+          </View>
           <View style={styles.chipContainer}>
             {statusFilters.map((filter) => (
               <FilterChip key={filter} label={filter} active={filter === selectedFilter} onPress={() => handleSelect(filter)} />
@@ -281,7 +307,10 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>PROJECTS</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="layers-outline" size={16} color={colors.textMuted} />
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>PROJECT ATTRIBUTES</Text>
+          </View>
           <View style={styles.keyFilterList}>
             {keyFilters.map((filter) => {
               const active = filter.value === selectedKeyFilter;
@@ -292,7 +321,7 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
                     styles.keyFilterPill,
                     {
                       borderColor: active ? colors.primary : colors.border,
-                      backgroundColor: active ? colors.surfaceMuted : colors.surface,
+                      backgroundColor: active ? colors.primary : 'transparent',
                     },
                   ]}
                   onPress={() => setSelectedKeyFilter(filter.value)}
@@ -300,7 +329,7 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
                   <Text
                     style={[
                       styles.keyFilterText,
-                      { color: active ? colors.primary : colors.textPrimary },
+                      { color: active ? '#fff' : colors.textPrimary },
                     ]}
                   >
                     {filter.label}
@@ -312,39 +341,58 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>LOCATION</Text>
-          {renderDropdown('Region', [undefined, ...regionOptions], selectedRegion.region, (val) =>
-            handleRegionSelect('region', val),
-          )}
-          {renderDropdown('Province', [undefined, ...provinceOptions], selectedRegion.province, (val) =>
-            handleRegionSelect('province', val),
-          )}
-          {renderDropdown(
-            'Municipality',
-            [undefined, ...municipalityOptions],
-            selectedRegion.municipality,
-            (val) => handleRegionSelect('municipality', val),
-          )}
+          <View style={styles.sectionHeader}>
+            <Ionicons name="location-outline" size={16} color={colors.textMuted} />
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>LOCATION</Text>
+          </View>
+          <View style={styles.locationInputs}>
+            {renderDropdown('Region', [undefined, ...regionOptions], selectedRegion.region, (val) =>
+              handleRegionSelect('region', val),
+            )}
+            <View style={styles.rowInputs}>
+              <View style={{ flex: 1 }}>
+                {renderDropdown('Province', [undefined, ...provinceOptions], selectedRegion.province, (val) =>
+                  handleRegionSelect('province', val),
+                )}
+              </View>
+              <View style={{ width: spacing.md }} />
+              <View style={{ flex: 1 }}>
+                {renderDropdown(
+                  'Municipality',
+                  [undefined, ...municipalityOptions],
+                  selectedRegion.municipality,
+                  (val) => handleRegionSelect('municipality', val),
+                )}
+              </View>
+            </View>
+          </View>
         </View>
 
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.clearButton, { borderColor: colors.border }]}
             onPress={handleClear}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
           >
-            <Text style={[styles.clearButtonText, { color: colors.textPrimary }]}>Clear</Text>
+            <Text style={[styles.clearButtonText, { color: colors.textPrimary }]}>Reset</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.applyButton, { backgroundColor: colors.primary, opacity: isLoading ? 0.8 : 1 }]}
+            style={[
+              styles.applyButton,
+              {
+                backgroundColor: colors.primary,
+                opacity: isLoading ? 0.8 : 1,
+                shadowColor: colors.primary,
+              }
+            ]}
             onPress={handleApply}
-            activeOpacity={0.8}
+            activeOpacity={0.9}
             disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.applyText}>Apply Filters</Text>
+              <Text style={styles.applyText}>Show Results</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -355,15 +403,15 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl + 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -372,46 +420,52 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerText: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   title: {
     fontFamily: fonts.bold,
-    fontSize: 20,
-    lineHeight: 24,
+    fontSize: 22,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontFamily: fonts.regular,
+    fontFamily: fonts.medium,
     fontSize: 13,
-    lineHeight: 18,
   },
   closeButton: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
+    borderRadius: 18,
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
-    marginBottom: spacing.lg,
+    height: 1,
+    marginBottom: spacing.xl,
+    opacity: 0.5,
   },
   section: {
     gap: spacing.md,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.xxl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
   sectionLabel: {
-    fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontFamily: fonts.bold,
+    fontSize: 12,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1,
   },
   chipContainer: {
     flexDirection: 'row',
@@ -421,101 +475,86 @@ const styles = StyleSheet.create({
   keyFilterList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   keyFilterPill: {
     borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    borderRadius: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
   },
   keyFilterText: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
+    fontFamily: fonts.medium,
+    fontSize: 13,
   },
-  locationRow: {
+  locationInputs: {
+    gap: spacing.md,
+  },
+  rowInputs: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
   },
-  locationLabel: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-    marginRight: spacing.xs,
+  inputLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    marginBottom: 6,
+    marginLeft: 2,
   },
-  locationPill: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  locationPillText: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-  },
-  dropdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+  dropdownWrapper: {
+    marginBottom: 0,
   },
   pickerContainer: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   picker: {
     width: '100%',
-    height: 48,
+    height: 52,
   },
   iosPicker: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginTop: spacing.xs,
+    height: 52,
   },
   iosPickerText: {
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-  },
-  applyButton: {
-    borderRadius: 12,
-    paddingVertical: spacing.md + 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontSize: 15,
     flex: 1,
-  },
-  applyText: {
-    color: '#fff',
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  dropdownWrapper: {
-    marginBottom: 12,
+    marginRight: spacing.sm,
   },
   footer: {
     flexDirection: 'row',
     gap: spacing.md,
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
   },
   clearButton: {
-    borderRadius: 12,
-    paddingVertical: spacing.md + 2,
+    borderRadius: 16,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     flex: 1,
   },
   clearButtonText: {
-    fontFamily: fonts.semibold,
+    fontFamily: fonts.bold,
     fontSize: 16,
-    lineHeight: 20,
+  },
+  applyButton: {
+    borderRadius: 16,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  applyText: {
+    color: '#fff',
+    fontFamily: fonts.bold,
+    fontSize: 16,
   },
 });
