@@ -1,15 +1,18 @@
 import { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { fonts, spacing } from '@/theme';
+import { fonts } from '@/theme';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
 import { TouchableOpacity, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
   const { colors } = useThemeMode();
   const { isSignedIn, loading: authLoading } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, 12);
   const AddButton = () => (
     <TouchableOpacity
       style={styles.addButtonWrapper}
@@ -37,15 +40,9 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          paddingBottom: 20,
-          paddingTop: 10,
-          height: 70,
-          position: 'absolute',
-          left: spacing.lg,
-          right: spacing.lg,
-          bottom: 20,
-          elevation: 10,
-          borderRadius: 28,
+          paddingBottom: bottomInset,
+          paddingTop: 8,
+          height: 56 + bottomInset,
         },
         tabBarLabelStyle: {
           fontFamily: fonts.medium,

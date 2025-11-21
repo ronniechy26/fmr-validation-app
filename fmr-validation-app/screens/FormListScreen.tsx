@@ -11,8 +11,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { Animated, Easing, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { FlashList } from '@shopify/flash-list';
 
 const filters: ('All' | FormStatus)[] = ['All', 'Draft', 'Pending Sync', 'Synced', 'Error'];
 
@@ -45,8 +47,9 @@ export function FormListScreen() {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const { colors, mode } = useThemeMode();
-  const { loading, projects: cachedProjects, standaloneDrafts } = useOfflineData();
+  const { loading, projects: cachedProjects, standaloneDrafts, deleteDraft } = useOfflineData();
   const insets = useSafeAreaInsets();
+  const [deleteTarget, setDeleteTarget] = useState<FormRecord | null>(null);
   const filterSnapPoints = useMemo(() => ['50%', '70%', '90%'], []);
   const PAGE_SIZE = 20;
 
@@ -467,9 +470,9 @@ export function FormListScreen() {
         </View>
 
         {activeTab === 'projects' ? (
-          <FlatList
-            style={styles.list}
+          <FlashList
             data={projects}
+            estimatedItemSize={260}
             keyExtractor={(item) => item.id}
             contentContainerStyle={[styles.listContent, { paddingBottom: (insets.bottom || spacing.md) + 40 }]}
             ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
@@ -564,9 +567,9 @@ export function FormListScreen() {
             }}
           />
         ) : (
-          <FlatList
-            style={styles.list}
+          <FlashList
             data={filteredStandaloneDrafts}
+            estimatedItemSize={160}
             keyExtractor={(item) => item.id}
             contentContainerStyle={[
               styles.listContent,
@@ -600,7 +603,12 @@ export function FormListScreen() {
                     <Ionicons name="document-text-outline" size={16} color={colors.primary} />
                     <Text style={[styles.standaloneBadgeText, { color: colors.primary }]}>Standalone</Text>
                   </View>
-                  <StatusBadge status={item.status} />
+                  <View style={styles.standaloneActions}>
+                    <TouchableOpacity onPress={() => setDeleteTarget(item)} hitSlop={8}>
+                      <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                    </TouchableOpacity>
+                    <StatusBadge status={item.status} />
+                  </View>
                 </View>
 
                 <View style={{ flex: 1, gap: spacing.xs }}>
@@ -644,6 +652,20 @@ export function FormListScreen() {
           setActiveFilter(status);
           setKeyFilter(key);
           setRegionFilter(region);
+        }}
+      />
+
+      <ConfirmDialog
+        visible={Boolean(deleteTarget)}
+        title="Delete draft?"
+        subtitle="This will remove the standalone draft from your offline cache."
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          await deleteDraft(deleteTarget.id);
+          setDeleteTarget(null);
         }}
       />
     </>
@@ -907,6 +929,11 @@ const styles = StyleSheet.create({
   standaloneBadgeText: {
     fontFamily: fonts.semibold,
     fontSize: 12,
+  },
+  standaloneActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   standaloneMetaRow: {
     flexDirection: 'row',

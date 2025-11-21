@@ -1,7 +1,14 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AttachmentPayload, AttachmentResult, FormRecord, ProjectRecord, ValidationForm } from '@/types/forms';
 import { OfflineSnapshot } from '@/types/offline';
-import { attachDraftLocally, findProjectByAttachment, loadSnapshot, replaceSnapshot, upsertFormRecord } from '@/storage/offline-store';
+import {
+  attachDraftLocally,
+  deleteStandaloneDraft,
+  findProjectByAttachment,
+  loadSnapshot,
+  replaceSnapshot,
+  upsertFormRecord,
+} from '@/storage/offline-store';
 import { attachFormWithPayload, fetchSnapshotFromServer, HttpError, syncFormsFromClient } from '@/lib/api';
 import { FormStatus } from '@/types/theme';
 import { useAuth } from './AuthProvider';
@@ -12,6 +19,7 @@ type OfflineDataContextValue = {
   standaloneDrafts: FormRecord[];
   refresh: (options?: { silent?: boolean }) => Promise<OfflineSnapshot | null>;
   attachDraft: (formId: string, payload: AttachmentPayload) => Promise<AttachmentResult>;
+  deleteDraft: (formId: string) => Promise<boolean>;
   saveDraft: (
     form: ValidationForm,
     options?: { annexTitle?: string; status?: FormStatus; linkedProjectId?: string },
@@ -141,6 +149,13 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
     [token, refresh],
   );
 
+  const deleteDraft = useCallback(async (formId: string) => {
+    const result = await deleteStandaloneDraft(formId);
+    if (!result) return false;
+    setSnapshot(result.snapshot);
+    return true;
+  }, []);
+
   const findProjectByCode = (code: string) => {
     if (!snapshot) return undefined;
     return findProjectByAttachment(snapshot.projects, {
@@ -158,10 +173,11 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
       standaloneDrafts: snapshot?.standaloneDrafts ?? [],
       refresh,
       attachDraft,
+      deleteDraft,
       saveDraft,
       findProjectByCode,
     }),
-    [loading, snapshot, refresh, attachDraft, saveDraft, findProjectByCode],
+    [loading, snapshot, refresh, attachDraft, deleteDraft, saveDraft, findProjectByCode],
   );
 
   return <OfflineDataContext.Provider value={value}>{children}</OfflineDataContext.Provider>;

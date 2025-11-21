@@ -65,6 +65,17 @@ export async function replaceSnapshot(snapshot: OfflineSnapshot): Promise<Offlin
   return normalizeSnapshot(snapshot);
 }
 
+export async function deleteStandaloneDraft(formId: string) {
+  const snapshot = await readSnapshot();
+  const index = snapshot.standaloneDrafts.findIndex((draft) => draft.id === formId);
+  if (index === -1) {
+    return undefined;
+  }
+  snapshot.standaloneDrafts.splice(index, 1);
+  await writeSnapshot(snapshot);
+  return { snapshot: normalizeSnapshot(snapshot) };
+}
+
 export async function attachDraftLocally(formId: string, payload: AttachmentPayload) {
   const snapshot = await readSnapshot();
   const draftIndex = snapshot.standaloneDrafts.findIndex((draft) => draft.id === formId);
