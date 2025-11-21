@@ -73,7 +73,7 @@ export function SettingsScreen() {
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.linkRow}>
+        <TouchableOpacity style={styles.linkRow} onPress={() => router.push('/data-privacy')} activeOpacity={0.85}>
           <View style={[styles.linkIcon, { backgroundColor: colors.surfaceMuted }]}>
             <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
           </View>
@@ -109,6 +109,7 @@ export function SettingsScreen() {
         <Ionicons name="log-out-outline" size={18} color={colors.danger} />
         <Text style={[styles.logoutText, { color: colors.danger }]}>Log Out</Text>
       </TouchableOpacity>
+
     </Screen>
   );
 }
