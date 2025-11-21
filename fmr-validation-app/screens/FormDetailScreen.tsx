@@ -1,11 +1,11 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { SectionDivider } from '@/components/SectionDivider';
 import { AttachmentSheet } from '@/components/AttachmentSheet';
 import { fonts, spacing, typography } from '@/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AttachmentPayload, FormRecord, FormRoutePayload, ProjectRecord, ValidationForm } from '@/types/forms';
 import { useThemeColors } from '@/providers/ThemeProvider';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
@@ -13,12 +13,20 @@ import { Image } from 'expo-image';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Carousel, { Pagination, type ICarouselInstance } from 'react-native-reanimated-carousel';
+import { useSharedValue } from 'react-native-reanimated';
+import { ImageLightbox } from '@/components/ImageLightbox';
 
 export function FormDetailScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const { projects, standaloneDrafts, attachDraft, findProjectByCode } = useOfflineData();
   const attachmentSheetRef = useRef<BottomSheetModal>(null);
+  const { width: screenWidth } = useWindowDimensions();
+  const carouselRef = useRef<ICarouselInstance>(null);
+  const geotagProgress = useSharedValue(0);
+  const [lightboxVisible, setLightboxVisible] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ uri?: string; title?: string } | null>(null);
   const params = useLocalSearchParams<{
     form?: string;
     annex?: string;
@@ -166,13 +174,26 @@ export function FormDetailScreen() {
   const annexTitle = meta.annexTitle ?? '';
   const projectForms = useMemo(() => activeProject?.forms ?? [], [activeProject]);
   const geotagImages = useMemo(() => activeProject?.geotags ?? [], [activeProject]);
-  const handleSelectForm = (formId: string) => {
-    const next = projectForms.find((f) => f.id === formId);
-    if (next) {
-      if (!activeProject) return;
-      setSelection({ formRecord: next, project: activeProject as ProjectRecord });
-    }
+  const geotagCardWidth = Math.min(screenWidth - spacing.lg * 2, 420);
+  const geotagCardHeight = 250;
+  const showPagination = geotagImages.length > 0;
+  const onPressPagination = (index: number) => {
+    carouselRef.current?.scrollTo({
+      count: index - geotagProgress.value,
+      animated: true,
+    });
   };
+
+  const openLightbox = (uri?: string, title?: string) => {
+    setLightboxImage({ uri, title });
+    setLightboxVisible(true);
+  };
+
+  const closeLightbox = () => {
+    setLightboxVisible(false);
+    setLightboxImage(null);
+  };
+
   const openAttachmentSheet = () => {
     attachmentSheetRef.current?.present();
   };
@@ -447,32 +468,57 @@ export function FormDetailScreen() {
               <Text style={styles.countBadgeText}>{geotagImages.length}</Text>
             </View>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={280 + spacing.sm}
-            decelerationRate="fast"
-            contentContainerStyle={{ gap: spacing.sm, paddingVertical: spacing.xs }}
-          >
-            {geotagImages.map((item) => (
-              <View key={item.id} style={[styles.geotagCard, { borderColor: colors.border }]}>
-                <Image
-                  style={styles.geotagImage}
-                  source={{ uri: item.url }}
-                  contentFit="cover"
-                  transition={200}
-                />
-                <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.7)']}
-                  style={styles.geotagOverlay}
+          <View style={styles.carouselWrapper}>
+            <Carousel
+              ref={carouselRef}
+              data={geotagImages}
+              renderItem={({ item }) => (
+                <View
+                  style={[
+                    styles.geotagCard,
+                    {
+                      width: geotagCardWidth,
+                      height: geotagCardHeight,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onTouchEnd={() => openLightbox(item.url, item.photoName)}
                 >
-                  <Text style={styles.geotagTitle} numberOfLines={1}>
-                    {item.photoName || 'Geotag'}
-                  </Text>
-                </LinearGradient>
-              </View>
-            ))}
-          </ScrollView>
+                  <Image
+                    style={[styles.geotagImage, { height: geotagCardHeight }]}
+                    source={{ uri: item.url }}
+                    contentFit="cover"
+                    transition={200}
+                  />
+                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.geotagOverlay}>
+                    <Text style={styles.geotagTitle} numberOfLines={1}>
+                      {item.photoName || 'Geotag'}
+                    </Text>
+                    <Text style={styles.geotagSubtitle} numberOfLines={1}>
+                      {item.url}
+                    </Text>
+                  </LinearGradient>
+                </View>
+              )}
+              width={geotagCardWidth}
+              height={geotagCardHeight}
+              loop={geotagImages.length > 1}
+              pagingEnabled
+              snapEnabled
+              autoPlay={geotagImages.length > 1}
+              autoPlayInterval={3200}
+              mode="parallax"
+              modeConfig={{
+                parallaxScrollingScale: 0.92,
+                parallaxAdjacentItemScale: 0.82,
+                parallaxScrollingOffset: 50,
+              }}
+              onProgressChange={(_offset, absoluteProgress) => {
+                geotagProgress.value = absoluteProgress;
+              }}
+              style={{ alignSelf: 'center' }}
+            />
+          </View>
         </View>
       )}
 
@@ -551,6 +597,14 @@ export function FormDetailScreen() {
           </View>
         </View>
       )}
+
+      <ImageLightbox
+        visible={lightboxVisible}
+        uri={lightboxImage?.uri}
+        alt={lightboxImage?.title}
+        onClose={closeLightbox}
+        placeholder="https://dummyimage.com/800x600/334155/ffffff&text=No+photo+available"
+      />
     </Screen>
   );
 }
@@ -765,15 +819,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   geotagCard: {
-    width: 280,
-    height: 200,
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
   },
   geotagImage: {
     width: '100%',
-    height: '100%',
   },
   geotagOverlay: {
     position: 'absolute',
@@ -781,11 +832,61 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: spacing.md,
+    gap: spacing.xs / 2,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   geotagTitle: {
     fontFamily: fonts.semibold,
     fontSize: 14,
     color: '#fff',
+  },
+  geotagSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: '#e2e8f0',
+  },
+  carouselWrapper: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  carouselDots: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  pagerContainer: {
+    gap: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
+  pagerDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  pagerDotActive: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#ffffff55',
+  },
+  pagerBar: {
+    width: 28,
+    height: 6,
+    borderRadius: 999,
+  },
+  pagerBarActive: {
+    width: 32,
+    height: 8,
+    borderRadius: 999,
   },
   documentRow: {
     flexDirection: 'row',
