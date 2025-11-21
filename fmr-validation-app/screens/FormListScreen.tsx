@@ -347,7 +347,7 @@ export function FormListScreen() {
 
   return (
     <>
-      <Screen>
+      <Screen noBottomPadding>
         {loading && (
           <View style={[styles.loadingCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
             <Text style={[styles.loadingText, { color: colors.textMuted }]}>Preparing offline dataset…</Text>
@@ -426,13 +426,13 @@ export function FormListScreen() {
           style={styles.list}
           data={projects}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: (insets.bottom || spacing.md) + 90 }]}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
           showsVerticalScrollIndicator={false}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
-            <View style={{ paddingTop: spacing.xl, paddingBottom: listBottomSpacer }}>
+            <View style={{ paddingTop: spacing.xl }}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Standalone drafts</Text>
               <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>Drafts waiting for QR or ABEMIS attachment.</Text>
               <View style={{ marginTop: spacing.md, gap: spacing.sm }}>

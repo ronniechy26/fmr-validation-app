@@ -10,9 +10,17 @@ interface ScreenProps {
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
   applyTopInset?: boolean;
+  noBottomPadding?: boolean;
 }
 
-export function Screen({ children, scroll = false, style, contentContainerStyle, applyTopInset = true }: ScreenProps) {
+export function Screen({
+  children,
+  scroll = false,
+  style,
+  contentContainerStyle,
+  applyTopInset = true,
+  noBottomPadding = false,
+}: ScreenProps) {
   const { colors, mode } = useThemeMode();
   const insets = useSafeAreaInsets();
   const statusStyle = mode === 'dark' ? 'light-content' : 'dark-content';
@@ -26,7 +34,13 @@ export function Screen({ children, scroll = false, style, contentContainerStyle,
         edges={['left', 'right', 'bottom']}
         style={[styles.safeArea, { backgroundColor: colors.secondary, paddingTop: topPadding }, style]}
       >
-        <StatusBar barStyle={statusStyle} />
+        <StatusBar
+          barStyle={statusStyle}
+          backgroundColor={colors.secondary}
+          translucent={false}
+          hidden={false}
+          animated
+        />
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }, contentContainerStyle]}
@@ -43,11 +57,18 @@ export function Screen({ children, scroll = false, style, contentContainerStyle,
       style={[
         styles.safeArea,
         styles.content,
-        { backgroundColor: colors.secondary, paddingTop: topPadding, paddingBottom: bottomPadding },
+        { backgroundColor: colors.secondary, paddingTop: topPadding },
+        !noBottomPadding && { paddingBottom: bottomPadding },
         style,
       ]}
     >
-      <StatusBar barStyle={statusStyle} />
+      <StatusBar
+        barStyle={statusStyle}
+        backgroundColor={colors.secondary}
+        translucent={false}
+        hidden={false}
+        animated
+      />
       {children}
     </SafeAreaView>
   );

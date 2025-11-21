@@ -37,13 +37,14 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          paddingBottom: 10,
+          paddingBottom: 20,
           paddingTop: 10,
           height: 70,
           position: 'absolute',
           left: spacing.lg,
           right: spacing.lg,
-          bottom: 12,
+          bottom: 20,
+          elevation: 10,
           borderRadius: 28,
         },
         tabBarLabelStyle: {

@@ -6,7 +6,15 @@ import { FormStatus } from '@/types/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, useEffect, useMemo, useState } from 'react';
-import { ActionSheetIOS, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActionSheetIOS,
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 
 type StatusFilter = 'All' | FormStatus;
@@ -40,7 +48,7 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
     onApply,
     snapPoints,
     locationOptions = [],
-    index=1,
+    index = 1,
   }: FilterBottomSheetProps,
   ref: ForwardedRef<BottomSheetModal>,
 ) {
@@ -49,6 +57,7 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
   const heroTint = mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(31,75,143,0.08)';
   const [selectedFilter, setSelectedFilter] = useState<StatusFilter>(activeFilter);
   const [selectedKeyFilter, setSelectedKeyFilter] = useState<KeyFilter>(activeKeyFilter);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<RegionFilter>({
     ...(activeRegionFilter ?? {}),
   });
@@ -66,9 +75,9 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
   const provinceOptions = useMemo(() => {
     const source = selectedRegion.region
       ? locationOptions.filter(
-          (item) =>
-            item.region?.toLowerCase() === selectedRegion.region?.toLowerCase(),
-        )
+        (item) =>
+          item.region?.toLowerCase() === selectedRegion.region?.toLowerCase(),
+      )
       : locationOptions;
     return Array.from(
       new Set(
@@ -81,10 +90,10 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
   const municipalityOptions = useMemo(() => {
     const source = selectedRegion.province
       ? locationOptions.filter(
-          (item) =>
-            item.province?.toLowerCase() ===
-            selectedRegion.province?.toLowerCase(),
-        )
+        (item) =>
+          item.province?.toLowerCase() ===
+          selectedRegion.province?.toLowerCase(),
+      )
       : locationOptions;
     return Array.from(
       new Set(
@@ -122,7 +131,16 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
   };
 
   const handleApply = () => {
-    onApply(selectedFilter, selectedKeyFilter, selectedRegion);
+    setIsLoading(true);
+    setTimeout(() => {
+      onApply(selectedFilter, selectedKeyFilter, selectedRegion);
+      setIsLoading(false);
+      close();
+    }, 500);
+  };
+
+  const handleClear = () => {
+    onApply('All', 'all', {});
     close();
   };
 
@@ -157,9 +175,17 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
     const currentLabel = selected || 'Any';
     if (Platform.OS === 'android') {
       return (
-        <View style={styles.dropdownRow}>
-          <Text style={[styles.locationLabel, { color: colors.textMuted }]}>{label}</Text>
-          <View style={[styles.pickerContainer, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+        <View style={styles.dropdownWrapper}>
+          <Text style={[styles.locationLabel, { color: colors.textMuted }]}>
+            {label}
+          </Text>
+
+          <View
+            style={[
+              styles.pickerContainer,
+              { borderColor: colors.border, backgroundColor: colors.surface },
+            ]}
+          >
             <Picker
               selectedValue={selected ?? ''}
               onValueChange={(value) => onSelect?.(value || undefined)}
@@ -301,13 +327,27 @@ export const FilterBottomSheet = forwardRef(function FilterSheet(
           )}
         </View>
 
-        <TouchableOpacity
-          style={[styles.applyButton, { backgroundColor: colors.primary }]}
-          onPress={handleApply}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.applyText}>Apply Filters</Text>
-        </TouchableOpacity>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.clearButton, { borderColor: colors.border }]}
+            onPress={handleClear}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.clearButtonText, { color: colors.textPrimary }]}>Clear</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.applyButton, { backgroundColor: colors.primary, opacity: isLoading ? 0.8 : 1 }]}
+            onPress={handleApply}
+            activeOpacity={0.8}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.applyText}>Apply Filters</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </BottomSheetScrollView>
     </BottomSheetModal>
   );
@@ -449,9 +489,31 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md + 2,
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
   },
   applyText: {
     color: '#fff',
+    fontFamily: fonts.semibold,
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  dropdownWrapper: {
+    marginBottom: 12,
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  clearButton: {
+    borderRadius: 12,
+    paddingVertical: spacing.md + 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    flex: 1,
+  },
+  clearButtonText: {
     fontFamily: fonts.semibold,
     fontSize: 16,
     lineHeight: 20,
