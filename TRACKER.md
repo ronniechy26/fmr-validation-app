@@ -15,17 +15,13 @@
 - Migration hardening: idempotent baseline migration to tolerate existing FK/table names when rerunning.
 
 ### Task Board
-- **Mobile**
-  - [x] Wire auth flow to handle JWT expiry/refresh once the BFF issues real tokens; update token storage/hooks.
-  - [x] Consume DB-backed forms endpoints when persistence lands; verify offline sync and attachment flows stay consistent.
-  - [x] Keep client types in sync with server DTOs; document any new env vars in `fmr-validation-app/README.md`.
-  - [x] Add basic automated checks when ready (lint stays required; consider light UI/integration smoke tests).
-- **Backend**
-  - [x] Replace seed repository access with ABEMIS integrations (HttpModule clients + mapping layer), keeping tokens server-only.
-  - [x] Add Postgres persistence with migrations; align `/forms`, `/forms/:id/attach`, and `/sync/*` to the database.
-  - [x] Issue and validate JWTs (guards/interceptors); expose token metadata needed by the app.
-  - [x] Expand Jest coverage for auth, forms, and sync flows; keep `pnpm run lint` green.
-  - [x] Maintain contract hygiene: update shared types in `src/common/types` alongside app types; document new env vars in `fmr-validation-services/README.md`.
+- **Mobile (next)**
+  - [x] Replace the simulated QR attach with a real scanner flow (expo-barcode-scanner), hitting `/forms/:id/attach` with `qrReference`/`abemisId` and surfacing inline errors for missing/invalid references.
+  - [ ] Align the offline cache/types with any new ABEMIS fields coming from `/sync/snapshot`; update mocks and `fmr-validation-app/README.md` if new env toggles are needed.
+- **Backend (next)**
+  - [ ] Harden ABEMIS sync robustness (retry/backoff + partial updates) and map any new fields to DTOs/shared types so the app stays in lockstep.
+  - [ ] Add Postgres-backed integration tests around `/forms/:id/attach` and `/sync/snapshot`, documenting status/error codes the mobile client should surface.
+  - [ ] Prepare migrations for the next schema tweaks (attachments/annex updates) and keep `.env.example` in sync with new config keys.
 
 ### Runbook (quick)
 - App: `cd fmr-validation-app && npm install && EXPO_PUBLIC_API_URL=http://localhost:3000 npm run start` (or keep default IP).

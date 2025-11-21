@@ -138,3 +138,15 @@ export interface AttachmentPayload {
   abemisId?: string;
   qrReference?: string;
 }
+
+export interface AttachmentResult {
+  record?: FormRecord;
+  synced: boolean;
+  error?: string;
+}
+
+export interface AttachmentSubmitResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}

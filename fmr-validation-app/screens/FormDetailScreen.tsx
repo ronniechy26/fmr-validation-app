@@ -218,8 +218,10 @@ export function FormDetailScreen() {
   const handleAttachment = async (payload: AttachmentPayload) => {
     const result = await attachDraft(meta.id, payload);
     if (!result.record) {
-      Alert.alert('Not found', 'No FMR project matches that ABEMIS ID or QR reference.');
-      return;
+      return {
+        success: false,
+        error: result.error ?? 'No FMR project matches that ABEMIS ID or QR reference.',
+      };
     }
     const updated = result.record;
     const lookupCode = updated.qrReference ?? updated.abemisId ?? updated.linkedProjectId ?? '';
@@ -230,14 +232,16 @@ export function FormDetailScreen() {
       project: normalizedProject,
     });
     attachmentSheetRef.current?.dismiss();
+    const message = result.synced
+      ? project
+        ? `Draft linked to ${project.title}.`
+        : 'Draft updated and synced.'
+      : 'Draft linked locally. It will sync once you are online and signed in.';
     Alert.alert(
       result.synced ? 'Attached' : 'Attached offline',
-      result.synced
-        ? project
-          ? `Draft linked to ${project.title}.`
-          : 'Draft updated and synced.'
-        : 'Draft linked locally. It will sync once you are online and signed in.',
+      message,
     );
+    return { success: true, message };
   };
 
   const attachmentCtaLabel = meta.linkedProjectId ? 'Reattach' : 'Attach to FMR';
@@ -386,20 +390,24 @@ export function FormDetailScreen() {
         </View>
       ) : null}
 
-      <View style={[styles.attachmentCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-        <View style={{ flex: 1, gap: spacing.xs }}>
-          <Text style={[styles.attachmentTitle, { color: colors.textPrimary }]}>Attachment</Text>
-          <Text style={[styles.attachmentDescription, { color: colors.textMuted }]}>{attachmentDescription}</Text>
-          {!!meta.barangay && !!meta.municipality && (
-            <Text style={[styles.attachmentLocation, { color: colors.textMuted }]}>
-              {meta.barangay}, {meta.municipality}
+      {!activeProject && (
+        <View style={[styles.attachmentCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <View style={{ flex: 1, gap: spacing.xs }}>
+            <Text style={[styles.attachmentTitle, { color: colors.textPrimary }]}>Attach to an FMR</Text>
+            <Text style={[styles.attachmentDescription, { color: colors.textMuted }]}>
+              {attachmentDescription}
             </Text>
-          )}
+            {!!meta.barangay && !!meta.municipality && (
+              <Text style={[styles.attachmentLocation, { color: colors.textMuted }]}>
+                {meta.barangay}, {meta.municipality}
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity style={[styles.attachmentButton, { borderColor: colors.primary }]} onPress={openAttachmentSheet}>
+            <Text style={[styles.attachmentButtonText, { color: colors.primary }]}>{attachmentCtaLabel}</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={[styles.attachmentButton, { borderColor: colors.primary }]} onPress={openAttachmentSheet}>
-          <Text style={[styles.attachmentButtonText, { color: colors.primary }]}>{attachmentCtaLabel}</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       {activeProject && projectForms.length > 0 && (
         <View style={[styles.sectionCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>

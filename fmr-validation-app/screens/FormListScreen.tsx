@@ -36,6 +36,7 @@ function normalizeProjectForDisplay(project: ProjectRecord): ProjectRecord {
 
 export function FormListScreen() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'projects' | 'drafts'>('projects');
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -54,6 +55,11 @@ export function FormListScreen() {
   };
 
   const normalizedProjects = useMemo(() => cachedProjects.map(normalizeProjectForDisplay), [cachedProjects]);
+
+  const searchPlaceholder =
+    activeTab === 'projects'
+      ? 'Search by project, ABEMIS ID, code, or location'
+      : 'Search standalone drafts by name or location';
 
   const searchableFields = (project: ProjectRecord) =>
     [
@@ -100,7 +106,7 @@ export function FormListScreen() {
 
   useEffect(() => {
     setPage(1);
-  }, [activeFilter, searchQuery, cachedProjects, keyFilter, regionFilter]);
+  }, [activeFilter, searchQuery, cachedProjects, keyFilter, regionFilter, activeTab]);
 
   useEffect(() => {
     if (!loading) {
@@ -260,7 +266,7 @@ export function FormListScreen() {
       const matchesQuery = !query || haystack.includes(query);
       return matchesStatus && matchesQuery;
     });
-  }, [activeFilter, searchQuery]);
+  }, [activeFilter, searchQuery, standaloneDrafts]);
 
   const handleNavigate = (entry: FormRecord | undefined, project?: ProjectRecord) => {
     const normalizedProject = project ? normalizeProjectForDisplay(project) : undefined;
@@ -339,7 +345,9 @@ export function FormListScreen() {
   };
 
   const listBottomSpacer = (insets.bottom || spacing.lg) + spacing.xxl;
+  const filterDisabled = activeTab === 'drafts';
   const loadMore = () => {
+    if (activeTab !== 'projects') return;
     if (projects.length < filteredProjects.length) {
       setPage((prev) => prev + 1);
     }
@@ -404,10 +412,10 @@ export function FormListScreen() {
               },
             ]}
           >
-            <Ionicons name="search" size={16} color={colors.textMuted} />
+              <Ionicons name="search" size={16} color={colors.textMuted} />
             <TextInput
               style={[styles.searchInput, { color: colors.textPrimary }]}
-              placeholder="Search by project, ABEMIS ID, code, or location"
+              placeholder={searchPlaceholder}
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -415,141 +423,213 @@ export function FormListScreen() {
             />
           </View>
           <TouchableOpacity
-            style={[styles.filterToggle, { borderColor: colors.border, backgroundColor: colors.surface }]}
-            onPress={openFilters}
+            style={[
+              styles.filterToggle,
+              { borderColor: colors.border, backgroundColor: colors.surface },
+              filterDisabled ? { opacity: 0.5 } : null,
+            ]}
+            onPress={filterDisabled ? undefined : openFilters}
+            disabled={filterDisabled}
           >
             <Ionicons name="options" size={18} color={colors.primary} />
           </TouchableOpacity>
         </View>
 
-        <FlatList
-          style={styles.list}
-          data={projects}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.listContent, { paddingBottom: (insets.bottom || spacing.md) + 90 }]}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-          showsVerticalScrollIndicator={false}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            <View style={{ paddingTop: spacing.xl }}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Standalone drafts</Text>
-              <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>Drafts waiting for QR or ABEMIS attachment.</Text>
-              <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
-                {filteredStandaloneDrafts.length === 0 ? (
-                  <View style={[styles.emptyStandalone, { borderColor: colors.border }]}>
-                    <Ionicons name="document-outline" size={18} color={colors.textMuted} />
-                    <Text style={[styles.emptyStandaloneText, { color: colors.textMuted }]}>No standalone drafts match the filter.</Text>
-                  </View>
-                ) : (
-                  filteredStandaloneDrafts.map((draft) => (
-                    <TouchableOpacity
-                      key={draft.id}
-                      style={[styles.standaloneCard, { borderColor: colors.border, backgroundColor: colors.surface }]}
-                      onPress={() => handleNavigate(draft)}
-                    >
-                      <View style={{ flex: 1, gap: spacing.xs }}>
-                        <Text style={[styles.standaloneTitle, { color: colors.textPrimary }]}>{draft.data.nameOfProject}</Text>
-                        <Text style={[styles.standaloneMeta, { color: colors.textMuted }]}>
-                          {draft.data.locationBarangay}, {draft.data.locationMunicipality}
-                        </Text>
-                        <Text style={[styles.standaloneNote, { color: colors.textMuted }]}>
-                          Updated {new Date(draft.updatedAt).toLocaleDateString()}
-                        </Text>
-                      </View>
-                      <StatusBadge status={draft.status} />
-                    </TouchableOpacity>
-                  ))
-                )}
-              </View>
-            </View>
-          }
-          renderItem={({ item }) => {
-            const normalizedItem = normalizeProjectForDisplay(item);
-            const primaryForm = normalizedItem.forms[0] ?? buildFallbackForm(normalizedItem);
+        <View style={[styles.tabRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          {[
+            { key: 'projects', label: 'FMR Projects' },
+            { key: 'drafts', label: 'Standalone Drafts' },
+          ].map((tab) => {
+            const isActive = activeTab === tab.key;
             return (
               <TouchableOpacity
+                key={tab.key}
                 style={[
-                  styles.card,
+                  styles.tabButton,
                   {
-                    backgroundColor: colors.surface,
+                    backgroundColor: isActive ? colors.primary : colors.surface,
                     borderColor: colors.border,
-                    shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
                   },
                 ]}
-                onPress={() => handleNavigate(primaryForm, normalizedItem)}
+                onPress={() => setActiveTab(tab.key as typeof activeTab)}
               >
-                <View style={styles.cardHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
-                      {normalizedItem.title || 'Untitled FMR'}
-                    </Text>
-                    <View style={styles.locationRow}>
-                      <Ionicons name="pin" size={14} color={colors.textMuted} />
-                      <Text style={[styles.locationText, { color: colors.textMuted }]}>
-                        {normalizedItem.barangay ?? '—'}, {normalizedItem.municipality ?? '—'}
+                <Text
+                  style={[
+                    styles.tabButtonText,
+                    { color: isActive ? '#fff' : colors.textPrimary },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {activeTab === 'projects' ? (
+          <FlatList
+            style={styles.list}
+            data={projects}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={[styles.listContent, { paddingBottom: (insets.bottom || spacing.md) + 40 }]}
+            ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+            showsVerticalScrollIndicator={false}
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={<View style={{ height: spacing.md }} />}
+            renderItem={({ item }) => {
+              const normalizedItem = normalizeProjectForDisplay(item);
+              const primaryForm = normalizedItem.forms[0] ?? buildFallbackForm(normalizedItem);
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
+                    },
+                  ]}
+                  onPress={() => handleNavigate(primaryForm, normalizedItem)}
+                >
+                  <View style={styles.cardHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+                        {normalizedItem.title || 'Untitled FMR'}
+                      </Text>
+                      <View style={styles.locationRow}>
+                        <Ionicons name="pin" size={14} color={colors.textMuted} />
+                        <Text style={[styles.locationText, { color: colors.textMuted }]}>
+                          {normalizedItem.barangay ?? '—'}, {normalizedItem.municipality ?? '—'}
+                        </Text>
+                      </View>
+                    </View>
+                    <StatusBadge status={primaryForm.status} />
+                  </View>
+
+                  <View style={styles.cardMetaRow}>
+                    <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
+                      <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
+                      <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>
+                        {normalizedItem.barangay ?? '—'}
+                      </Text>
+                    </View>
+                    <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
+                      <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
+                      <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>
+                        {normalizedItem.municipality ?? '—'}
                       </Text>
                     </View>
                   </View>
-                  <StatusBadge status={primaryForm.status} />
-                </View>
 
-                <View style={styles.cardMetaRow}>
-                  <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
-                    <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Barangay</Text>
-                    <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>
-                      {normalizedItem.barangay ?? '—'}
+                  <View style={styles.cardFooter}>
+                    <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                      Last form updated {new Date(primaryForm.updatedAt).toLocaleDateString()}
                     </Text>
                   </View>
-                  <View style={[styles.metaPill, { backgroundColor: colors.surfaceMuted }]}>
-                    <Text style={[styles.metaPillLabel, { color: colors.textMuted }]}>Municipality</Text>
-                    <Text style={[styles.metaPillValue, { color: colors.textPrimary }]}>
-                      {normalizedItem.municipality ?? '—'}
-                    </Text>
-                  </View>
-                </View>
 
-                <View style={styles.cardFooter}>
-                  <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                    Last form updated {new Date(primaryForm.updatedAt).toLocaleDateString()}
-                  </Text>
-                </View>
-
-                <View style={styles.formsRow}>
-                  <Text style={[styles.formsLabel, { color: colors.textMuted }]}>Forms</Text>
-                  <View style={styles.formsList}>
-                    {annexForms.map((annex) => {
-                      const instances = item.forms.filter((form) => form.annexTitle === annex.title);
-                      if (!instances.length) {
+                  <View style={styles.formsRow}>
+                    <Text style={[styles.formsLabel, { color: colors.textMuted }]}>Forms</Text>
+                    <View style={styles.formsList}>
+                      {annexForms.map((annex) => {
+                        const instances = item.forms.filter((form) => form.annexTitle === annex.title);
+                        if (!instances.length) {
+                          return (
+                            <View key={annex.id} style={[styles.formButton, { backgroundColor: colors.surfaceMuted }]}>
+                              <Text style={[styles.formButtonText, { color: colors.textMuted }]}>{annex.title}</Text>
+                            </View>
+                          );
+                        }
                         return (
-                          <View key={annex.id} style={[styles.formButton, { backgroundColor: colors.surfaceMuted }]}>
-                            <Text style={[styles.formButtonText, { color: colors.textMuted }]}>{annex.title}</Text>
+                          <View key={annex.id} style={styles.formGroup}>
+                            <Text style={[styles.formGroupLabel, { color: colors.textMuted }]}>{annex.title}</Text>
+                            <View style={styles.formInstances}>
+                              {instances.map((instance, index) => (
+                                <TouchableOpacity
+                                  key={instance.id}
+                                  style={[styles.formButton, { backgroundColor: colors.primary }]}
+                                  onPress={() => handleNavigate(instance, item)}
+                                >
+                                  <Text style={[styles.formButtonText, { color: '#fff' }]}>Form #{index + 1}</Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
                           </View>
                         );
-                      }
-                      return (
-                        <View key={annex.id} style={styles.formGroup}>
-                          <Text style={[styles.formGroupLabel, { color: colors.textMuted }]}>{annex.title}</Text>
-                          <View style={styles.formInstances}>
-                            {instances.map((instance, index) => (
-                              <TouchableOpacity
-                                key={instance.id}
-                                style={[styles.formButton, { backgroundColor: colors.primary }]}
-                                onPress={() => handleNavigate(instance, item)}
-                              >
-                                <Text style={[styles.formButtonText, { color: '#fff' }]}>Form #{index + 1}</Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        </View>
-                      );
-                    })}
+                      })}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        ) : (
+          <FlatList
+            style={styles.list}
+            data={filteredStandaloneDrafts}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: listBottomSpacer, gap: spacing.sm },
+            ]}
+            ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={[styles.emptyStandalone, { borderColor: colors.border }]}>
+                <Ionicons name="document-outline" size={18} color={colors.textMuted} />
+                <Text style={[styles.emptyStandaloneText, { color: colors.textMuted }]}>
+                  No standalone drafts match the filter.
+                </Text>
+              </View>
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[
+                  styles.standaloneCard,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surface,
+                    shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
+                  },
+                ]}
+                onPress={() => handleNavigate(item)}
+              >
+                <View style={styles.standaloneHeader}>
+                  <View style={styles.standaloneBadge}>
+                    <Ionicons name="document-text-outline" size={16} color={colors.primary} />
+                    <Text style={[styles.standaloneBadgeText, { color: colors.primary }]}>Standalone</Text>
+                  </View>
+                  <StatusBadge status={item.status} />
+                </View>
+
+                <View style={{ flex: 1, gap: spacing.xs }}>
+                  <Text style={[styles.standaloneTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+                    {item.data.nameOfProject || 'Untitled validation'}
+                  </Text>
+                  <View style={styles.standaloneMetaRow}>
+                    <Ionicons name="pin-outline" size={14} color={colors.textMuted} />
+                    <Text style={[styles.standaloneMeta, { color: colors.textMuted }]} numberOfLines={1}>
+                      {item.data.locationBarangay || '—'}, {item.data.locationMunicipality || '—'}
+                    </Text>
+                  </View>
+                  <View style={styles.standaloneInfoRow}>
+                    <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+                    <Text style={[styles.standaloneNote, { color: colors.textMuted }]}>
+                      Updated {new Date(item.updatedAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={styles.standaloneInfoRow}>
+                    <Ionicons name="qr-code-outline" size={14} color={colors.textMuted} />
+                    <Text style={[styles.standaloneNote, { color: colors.textMuted }]}>
+                      {item.qrReference || item.abemisId || 'Not attached'}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
-            );
-          }}
-        />
+            )}
+          />
+        )}
 
       </Screen>
       <FilterBottomSheet
@@ -647,6 +727,27 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tabRow: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: spacing.xs,
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  tabButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabButtonText: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
   },
   list: {
     flex: 1,
@@ -771,9 +872,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 18,
     padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
   },
   standaloneTitle: {
     fontFamily: fonts.semibold,
@@ -786,6 +889,34 @@ const styles = StyleSheet.create({
   standaloneNote: {
     fontFamily: fonts.regular,
     fontSize: 12,
+  },
+  standaloneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  standaloneBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    backgroundColor: '#eef2fb',
+  },
+  standaloneBadgeText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+  },
+  standaloneMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  standaloneInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   emptyStandalone: {
     borderWidth: 1,

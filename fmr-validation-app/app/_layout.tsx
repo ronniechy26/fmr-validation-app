@@ -17,16 +17,18 @@ import 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 // eslint-disable-next-line import/no-duplicates
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [assetsLoaded] = useFonts({
     Nunito_400Regular,
     Nunito_500Medium,
     Nunito_600SemiBold,
     Nunito_700Bold,
+    ...Ionicons.font,
   });
 
-  if (!fontsLoaded) {
+  if (!assetsLoaded) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator color="#1f4b8f" />
@@ -39,7 +41,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
-            <OfflineDataProvider>
+            <OfflineDataProvider ready={assetsLoaded}>
               <BottomSheetModalProvider>
                 <RootStack />
               </BottomSheetModalProvider>

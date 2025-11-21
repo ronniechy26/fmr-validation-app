@@ -7,25 +7,68 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FormRecord } from '@/types/forms';
 
+type FormAggregates = {
+  total: number;
+  drafts: number;
+  pending: number;
+  synced: number;
+  annexCounts: Record<string, number>;
+};
+
 export function AnalyticsScreen() {
   const { colors, mode } = useThemeMode();
   const { projects, standaloneDrafts } = useOfflineData();
-  const allForms = useMemo<FormRecord[]>(
-    () => [...projects.flatMap((project) => project.forms ?? []), ...standaloneDrafts],
-    [projects, standaloneDrafts],
-  );
+  const allForms = useMemo<FormRecord[]>(() => {
+    if (!projects.length && !standaloneDrafts.length) return [];
+    return [...projects.flatMap((project) => project.forms ?? []), ...standaloneDrafts];
+  }, [projects, standaloneDrafts]);
+
+  const aggregates = useMemo(() => {
+    const annexCounts: Record<string, number> = {};
+    let total = 0;
+    let drafts = 0;
+    let pending = 0;
+    let synced = 0;
+
+    for (const form of allForms) {
+      total += 1;
+      if (form.status === 'Draft') drafts += 1;
+      if (form.status === 'Pending Sync') pending += 1;
+      if (form.status === 'Synced') synced += 1;
+      if (form.annexTitle) {
+        annexCounts[form.annexTitle] = (annexCounts[form.annexTitle] || 0) + 1;
+      }
+    }
+
+    return { total, drafts, pending, synced, annexCounts };
+  }, [allForms]);
 
   const projectsWithCounts = useMemo(
     () =>
-      projects.map((project) => ({
-        ...project,
-        totalForms: project.forms.length,
-        pending: project.forms.filter((form) => form.status === 'Pending Sync').length,
-      })),
+      projects.map((project) => {
+        const pendingCount = project.forms.reduce(
+          (sum, form) => (form.status === 'Pending Sync' ? sum + 1 : sum),
+          0,
+        );
+        return {
+          ...project,
+          totalForms: project.forms.length,
+          pending: pendingCount,
+        };
+      }),
     [projects],
   );
 
-  const stats = heroStats(allForms);
+  const stats = useMemo(() => heroStats(aggregates), [aggregates]);
+  const annexDistribution = useMemo(
+    () =>
+      annexForms.map((annex) => ({
+        id: annex.id,
+        title: annex.title,
+        count: aggregates.annexCounts[annex.title] || 0,
+      })),
+    [aggregates.annexCounts],
+  );
   const heroBackground = mode === 'dark' ? '#0f172a' : colors.primary;
   const heroSubtitleColor = mode === 'dark' ? '#94a3b8' : '#e0e7ff';
 
@@ -66,15 +109,12 @@ export function AnalyticsScreen() {
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Annex Distribution</Text>
         <View style={{ marginTop: spacing.sm, gap: spacing.sm }}>
-          {annexForms.map((annex) => {
-            const count = allForms.filter((form) => form.annexTitle === annex.title).length;
-            return (
-              <View key={annex.id} style={styles.listRow}>
-                <Text style={[styles.listLabel, { color: colors.textPrimary }]}>{annex.title}</Text>
-                <Text style={[styles.listValue, { color: colors.textPrimary }]}>{count}</Text>
-              </View>
-            );
-          })}
+          {annexDistribution.map((annex) => (
+            <View key={annex.id} style={styles.listRow}>
+              <Text style={[styles.listLabel, { color: colors.textPrimary }]}>{annex.title}</Text>
+              <Text style={[styles.listValue, { color: colors.textPrimary }]}>{annex.count}</Text>
+            </View>
+          ))}
         </View>
       </View>
 
@@ -106,18 +146,17 @@ export function AnalyticsScreen() {
   );
 }
 
-const heroStats = (forms: FormRecord[]) => {
-  const drafts = forms.filter((form) => form.status === 'Draft').length;
-  const pending = forms.filter((form) => form.status === 'Pending Sync').length;
-  const synced = forms.filter((form) => form.status === 'Synced').length;
+const heroStats = (forms: FormAggregates) => {
+  const { total, drafts, pending, synced } = forms;
+  const safeTotal = Math.max(total, 1);
   return [
     {
       label: 'Total Forms',
-      value: forms.length.toString(),
+      value: total.toString(),
       subLabel: '+2 created this week',
       background: '#ede9fe',
       accent: '#4338ca',
-      progress: `${Math.min(forms.length / (forms.length + 5), 1) * 100}%`,
+      progress: `${Math.min(total / (total + 5), 1) * 100}%`,
     },
     {
       label: 'Pending Sync',
@@ -125,7 +164,7 @@ const heroStats = (forms: FormRecord[]) => {
       subLabel: 'Requires upload',
       background: '#e0f2fe',
       accent: '#0369a1',
-      progress: `${Math.min(pending / Math.max(forms.length, 1), 1) * 100}%`,
+      progress: `${Math.min(pending / safeTotal, 1) * 100}%`,
     },
     {
       label: 'Drafts',
@@ -133,7 +172,7 @@ const heroStats = (forms: FormRecord[]) => {
       subLabel: 'Needs completion',
       background: '#fef3c7',
       accent: '#b45309',
-      progress: `${Math.min(drafts / Math.max(forms.length, 1), 1) * 100}%`,
+      progress: `${Math.min(drafts / safeTotal, 1) * 100}%`,
     },
     {
       label: 'Synced',
@@ -141,7 +180,7 @@ const heroStats = (forms: FormRecord[]) => {
       subLabel: 'Up to date',
       background: '#ecfdf5',
       accent: '#047857',
-      progress: `${Math.min(synced / Math.max(forms.length, 1), 1) * 100}%`,
+      progress: `${Math.min(synced / safeTotal, 1) * 100}%`,
     },
   ];
 };

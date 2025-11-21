@@ -1,8 +1,8 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { AttachmentPayload, FormRecord, ProjectRecord, ValidationForm } from '@/types/forms';
+import { AttachmentPayload, AttachmentResult, FormRecord, ProjectRecord, ValidationForm } from '@/types/forms';
 import { OfflineSnapshot } from '@/types/offline';
 import { attachDraftLocally, findProjectByAttachment, loadSnapshot, replaceSnapshot, upsertFormRecord } from '@/storage/offline-store';
-import { attachFormWithPayload, fetchSnapshotFromServer, syncFormsFromClient } from '@/lib/api';
+import { attachFormWithPayload, fetchSnapshotFromServer, HttpError, syncFormsFromClient } from '@/lib/api';
 import { FormStatus } from '@/types/theme';
 import { useAuth } from './AuthProvider';
 
@@ -11,7 +11,7 @@ type OfflineDataContextValue = {
   projects: ProjectRecord[];
   standaloneDrafts: FormRecord[];
   refresh: (options?: { silent?: boolean }) => Promise<OfflineSnapshot | null>;
-  attachDraft: (formId: string, payload: AttachmentPayload) => Promise<{ record?: FormRecord; synced: boolean }>;
+  attachDraft: (formId: string, payload: AttachmentPayload) => Promise<AttachmentResult>;
   saveDraft: (
     form: ValidationForm,
     options?: { annexTitle?: string; status?: FormStatus; linkedProjectId?: string },
@@ -21,10 +21,10 @@ type OfflineDataContextValue = {
 
 const OfflineDataContext = createContext<OfflineDataContextValue | null>(null);
 
-export function OfflineDataProvider({ children }: { children: ReactNode }) {
+export function OfflineDataProvider({ children, ready = true }: { children: ReactNode; ready?: boolean }) {
   const { token } = useAuth();
   const [snapshot, setSnapshot] = useState<OfflineSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(ready));
 
   const refresh = useCallback(
     async (options?: { silent?: boolean }) => {
@@ -57,8 +57,9 @@ export function OfflineDataProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    if (!ready) return;
     refresh();
-  }, [refresh]);
+  }, [ready, refresh]);
 
   const findFormById = useCallback(
     (source: OfflineSnapshot | null, formId: string) => {
@@ -81,12 +82,21 @@ export function OfflineDataProvider({ children }: { children: ReactNode }) {
           const updated = findFormById(refreshed ?? snapshot, formId);
           return { record: updated, synced: true };
         } catch (error) {
+          if (error instanceof HttpError && error.status >= 400 && error.status < 500) {
+            return { record: undefined, synced: false, error: error.message };
+          }
           console.warn('[OfflineDataProvider] Remote attach failed, falling back to offline cache:', error);
         }
       }
 
       const result = await attachDraftLocally(formId, payload);
-      if (!result) return { record: undefined, synced: false };
+      if (!result) {
+        return {
+          record: undefined,
+          synced: false,
+          error: 'No FMR project matches that ABEMIS ID or QR reference.',
+        };
+      }
       setSnapshot(result.snapshot);
       return { record: result.attached, synced: false };
     },
@@ -151,7 +161,7 @@ export function OfflineDataProvider({ children }: { children: ReactNode }) {
       saveDraft,
       findProjectByCode,
     }),
-    [loading, snapshot, refresh, attachDraft, saveDraft],
+    [loading, snapshot, refresh, attachDraft, saveDraft, findProjectByCode],
   );
 
   return <OfflineDataContext.Provider value={value}>{children}</OfflineDataContext.Provider>;
