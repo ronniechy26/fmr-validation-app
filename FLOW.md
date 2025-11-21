@@ -36,8 +36,35 @@ flowchart TD
 ```
 
 ## Syncing Mechanics
-- Mobile keeps an offline snapshot in SQLite (`storage/offline-store.ts`), hydrated by `/sync/snapshot` when signed in or by cached data when offline.
-- Pull-to-refresh (Forms tab) calls `syncDrafts` to push standalone drafts; if offline, shows an alert and skips the push. Afterward, it silently refreshes the snapshot.
-- Saves/attachments: when signed in, `saveDraft` pushes the draft via `/sync/forms` and `attachDraft` calls `/forms/:id/attach`, then refreshes the snapshot in the background. Offline paths write to the cache and queue for later.
-- Deletes: standalone draft delete calls `/forms/:id` when signed in; otherwise it deletes locally. Snapshot refresh runs after server delete.
-- Sync depends on AuthProvider tokens; if not signed in or network fails, local cache remains the source until connectivity/auth is restored.
+
+**Dual-sync strategy for optimal performance:**
+
+### Projects Sync (Daily)
+- Mobile keeps projects in SQLite (`storage/offline-store.ts`), refreshed once every 24 hours via `/sync/snapshot` or `/sync/projects`
+- Projects contain thousands of FMR records, so daily sync reduces bandwidth and improves performance
+- Timestamp tracked separately via `last-projects-sync-at` key
+- Manual refresh available via pull-to-refresh (forces immediate sync)
+
+### Forms Sync (Seamless/Real-time)
+- Forms sync happens automatically every 30 seconds when app is active and online
+- Uses incremental sync via `/sync/forms?since=<timestamp>` to fetch only updated forms
+- Optimistic updates: changes are saved locally immediately, then synced in background
+- Failed operations are queued in `storage/sync-queue.ts` and retried automatically
+- Network state monitoring triggers sync when connectivity is restored
+- Timestamp tracked via `last-forms-sync-at` key
+
+### Offline Queue
+- All create/update/attach/delete operations work offline with optimistic updates
+- Operations are queued and automatically synced when online
+- Max 3 retry attempts per operation before manual intervention needed
+- Queue is processed on app foreground, network reconnect, and every 30s when active
+
+### Sync Flow
+1. **Saves/attachments**: When online, immediately sync via `/sync/forms` or `/forms/:id/attach`, then refresh forms incrementally. When offline, save locally and add to queue.
+2. **Deletes**: When online, call `/forms/:id` then refresh. When offline, delete locally and queue for later.
+3. **Pull-to-refresh**: Syncs projects if >24h old, always syncs forms incrementally.
+4. **Background sync**: Processes queue and fetches incremental form updates every 30s.
+5. **App foreground**: Triggers immediate sync check.
+6. **Network reconnect**: Automatically processes pending queue.
+
+All sync operations depend on AuthProvider tokens; if not signed in or network fails, local cache remains the source until connectivity/auth is restored.

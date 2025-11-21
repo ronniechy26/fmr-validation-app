@@ -25,7 +25,11 @@ Every repository call now flows through TypeORM (`src/shared/fmr.repository.ts`)
 
 To force a reseed (drop + reimport projects/forms) on next start, set `ABEMIS_SEED_RESET=true` in `.env` before launching.
 
-Background sync: the service now polls ABEMIS on a timer (default every 900,000 ms / 15 minutes) and upserts projects. Configure `ABEMIS_SYNC_INTERVAL_MS` to change the cadence or `0` to disable. Sync is skipped when `ABEMIS_SEED_MODE=seed`.
+**Background sync strategy:**
+- **Projects sync**: Polls ABEMIS once daily (default 86400000 ms / 24 hours) to refresh the entire project dataset. This reduces load when dealing with thousands of FMR records.
+- **Forms sync**: Provides incremental sync via `/sync/forms?since=<timestamp>` for seamless real-time updates without re-downloading all projects.
+- Configure `ABEMIS_SYNC_INTERVAL_MS` to change the project sync cadence or set to `0` to disable background sync entirely.
+- Sync is skipped when `ABEMIS_SEED_MODE=seed`.
 
 ### Available Scripts
 
@@ -54,7 +58,9 @@ Background sync: the service now polls ABEMIS on a timer (default every 900,000 
 | `GET` | `/analytics/summary` | Aggregated stats used by the Analytics tab |
 | `GET` | `/locator/highlights` | Location cards for the Locator tab, filterable via `?zone=North|Central|South` |
 | `GET` | `/sync/snapshot` | Combined payload of projects + standalone drafts for seeding SQLite/JSON caches (refreshes from ABEMIS first) |
-| `POST` | `/sync/forms` | Mock endpoint to upsert offline drafts coming from the mobile cache |
+| `GET` | `/sync/projects` | Projects-only sync endpoint (for daily full refresh of large datasets) |
+| `GET` | `/sync/forms?since=<timestamp>` | Incremental forms sync - returns only forms updated after the given timestamp (ms) |
+| `POST` | `/sync/forms` | Upsert offline drafts coming from the mobile cache |
 
 The payloads mirror the `ValidationForm` structure used in the mobile app. Data is currently backed by in-memory seed files (`src/data/*.ts`) so we can swap in real ABEMIS calls later without changing the client contract.
 

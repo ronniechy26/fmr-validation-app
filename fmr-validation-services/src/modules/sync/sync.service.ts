@@ -33,7 +33,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
   ) {
     this.refreshIntervalMs = Number(
-      this.config.get<number>('ABEMIS_SYNC_INTERVAL_MS', 15 * 60 * 1000),
+      this.config.get<number>('ABEMIS_SYNC_INTERVAL_MS', 24 * 60 * 60 * 1000), // 24 hours default
     );
     this.syncEnabled =
       this.config.get<string>('ABEMIS_SEED_MODE', 'abemis') !== 'seed';
@@ -48,15 +48,13 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
       this.logger.log('ABEMIS scheduled sync disabled');
       return;
     }
-    const interval = setInterval(
-      () =>
-        this.refreshFromAbemis('interval').catch((error) => {
-          const message =
-            error instanceof Error ? error.message : JSON.stringify(error);
-          this.logger.warn(`Scheduled ABEMIS refresh failed: ${message}`);
-        }),
-      this.refreshIntervalMs,
-    );
+    const interval = setInterval(() => {
+      void this.refreshFromAbemis('interval').catch((error) => {
+        const message =
+          error instanceof Error ? error.message : JSON.stringify(error);
+        this.logger.warn(`Scheduled ABEMIS refresh failed: ${message}`);
+      });
+    }, this.refreshIntervalMs);
     this.schedulerRegistry.addInterval('abemis-refresh', interval);
     this.logger.log(
       `ABEMIS scheduled sync initialized (every ${Math.round(
@@ -93,6 +91,41 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
         }),
       ),
     );
+  }
+
+  async getIncrementalForms(sinceTimestamp?: number) {
+    const snapshot = await this.repository.getSnapshot();
+
+    if (!sinceTimestamp) {
+      // Return all forms if no timestamp provided
+      const allForms = [
+        ...snapshot.projects.flatMap((p) => p.forms),
+        ...snapshot.standaloneDrafts,
+      ];
+      return { forms: allForms };
+    }
+
+    const sinceDate = new Date(sinceTimestamp);
+
+    // Filter forms updated after the given timestamp
+    const updatedForms = [
+      ...snapshot.projects.flatMap((p) =>
+        p.forms.filter((form) => {
+          const updatedAt = new Date(form.updatedAt);
+          return updatedAt > sinceDate;
+        }),
+      ),
+      ...snapshot.standaloneDrafts.filter((draft) => {
+        const updatedAt = new Date(draft.updatedAt);
+        return updatedAt > sinceDate;
+      }),
+    ];
+
+    this.logger.log(
+      `Incremental forms sync: ${updatedForms.length} forms updated since ${sinceDate.toISOString()}`,
+    );
+
+    return { forms: updatedForms };
   }
 
   private async refreshFromAbemis(reason: string) {

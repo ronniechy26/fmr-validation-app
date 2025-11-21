@@ -7,6 +7,7 @@ import { SeedService } from './seed.service';
 import { Init1700000000000 } from './migrations/1700000000000-init';
 import { AddLatLong1700000000001 } from './migrations/1700000000001-add-lat-long';
 import { AddFormMeta1729550000000 } from './migrations/1729550000000-add-form-meta';
+import { AddFormIndexes1732176449000 } from './migrations/1732176449000-add-form-indexes';
 import { AbemisService } from '../shared/abemis.service';
 
 @Module({
@@ -21,7 +22,12 @@ import { AbemisService } from '../shared/abemis.service';
         entities: [ProjectEntity, FormRecordEntity],
         synchronize: false,
         migrationsRun: true,
-        migrations: [Init1700000000000, AddLatLong1700000000001, AddFormMeta1729550000000],
+        migrations: [
+          Init1700000000000,
+          AddLatLong1700000000001,
+          AddFormMeta1729550000000,
+          AddFormIndexes1732176449000,
+        ],
       }),
     }),
     TypeOrmModule.forFeature([ProjectEntity, FormRecordEntity]),
@@ -29,4 +35,4 @@ import { AbemisService } from '../shared/abemis.service';
   providers: [SeedService, AbemisService],
   exports: [TypeOrmModule],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }

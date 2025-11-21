@@ -4,8 +4,12 @@ import { OfflineSnapshot } from '@/types/offline';
 import { FormStatus } from '@/types/theme';
 
 const SNAPSHOT_KEY = 'snapshot';
+const PROJECTS_KEY = 'projects';
+const FORMS_KEY = 'forms';
 const storage = new SQLiteStorage('fmr-offline');
 const LAST_SYNC_KEY = 'last-sync-at';
+const LAST_PROJECTS_SYNC_KEY = 'last-projects-sync-at';
+const LAST_FORMS_SYNC_KEY = 'last-forms-sync-at';
 
 const cloneForm = (form: FormRecord): FormRecord => ({
   ...form,
@@ -77,15 +81,60 @@ export async function setLastSyncTimestamp(timestamp: number) {
   await storage.setItemAsync(LAST_SYNC_KEY, `${timestamp}`);
 }
 
+export async function getLastProjectsSyncTimestamp(): Promise<number | null> {
+  const value = await storage.getItemAsync(LAST_PROJECTS_SYNC_KEY);
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export async function setLastProjectsSyncTimestamp(timestamp: number) {
+  await storage.setItemAsync(LAST_PROJECTS_SYNC_KEY, `${timestamp}`);
+}
+
+export async function getLastFormsSyncTimestamp(): Promise<number | null> {
+  const value = await storage.getItemAsync(LAST_FORMS_SYNC_KEY);
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export async function setLastFormsSyncTimestamp(timestamp: number) {
+  await storage.setItemAsync(LAST_FORMS_SYNC_KEY, `${timestamp}`);
+}
+
+
 export async function deleteStandaloneDraft(formId: string) {
   const snapshot = await readSnapshot();
-  const index = snapshot.standaloneDrafts.findIndex((draft) => draft.id === formId);
-  if (index === -1) {
-    return undefined;
+
+  // Try to delete from standalone drafts first
+  const draftIndex = snapshot.standaloneDrafts.findIndex((draft) => draft.id === formId);
+  if (draftIndex !== -1) {
+    snapshot.standaloneDrafts.splice(draftIndex, 1);
+    await writeSnapshot(snapshot);
+    return { snapshot: normalizeSnapshot(snapshot) };
   }
-  snapshot.standaloneDrafts.splice(index, 1);
-  await writeSnapshot(snapshot);
-  return { snapshot: normalizeSnapshot(snapshot) };
+
+  // If not found in standalone drafts, try to delete from project forms
+  let found = false;
+  snapshot.projects = snapshot.projects.map((project) => {
+    const formIndex = project.forms.findIndex((form) => form.id === formId);
+    if (formIndex !== -1) {
+      found = true;
+      const updatedForms = [...project.forms];
+      updatedForms.splice(formIndex, 1);
+      return { ...project, forms: updatedForms };
+    }
+    return project;
+  });
+
+  if (found) {
+    await writeSnapshot(snapshot);
+    return { snapshot: normalizeSnapshot(snapshot) };
+  }
+
+  // Form not found
+  return undefined;
 }
 
 export async function attachDraftLocally(formId: string, payload: AttachmentPayload) {

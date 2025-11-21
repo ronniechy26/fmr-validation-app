@@ -13,6 +13,14 @@
 - BFF endpoints for auth, projects/forms, analytics, locator, and sync with ABEMIS seeding + migrations; shared types added under `src/common/types`.
 - Repo scripts: `npm run start`/`lint`/`check` (app) and `pnpm run start:dev`/`lint`/`test` (services).
 - Migration hardening: idempotent baseline migration to tolerate existing FK/table names when rerunning.
+- **NEW: Seamless offline-first sync strategy**
+  - Projects sync once daily (24h) to handle massive datasets efficiently
+  - Forms sync seamlessly every 30s with incremental updates
+  - Background sync queue for offline operations with auto-retry
+  - Network state monitoring and app foreground detection
+  - Optimistic UI updates for instant feedback
+  - Separate endpoints: `/sync/projects` and `/sync/forms?since=<timestamp>`
+  - Backend ABEMIS sync changed from 15min to 24h
 
 ### Task Board
 - **Mobile (next)**

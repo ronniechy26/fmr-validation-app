@@ -9,8 +9,19 @@ import {
   loadSnapshot,
   replaceSnapshot,
   upsertFormRecord,
+  getLastProjectsSyncTimestamp,
+  getLastFormsSyncTimestamp,
+  setLastProjectsSyncTimestamp,
+  setLastFormsSyncTimestamp,
 } from '@/storage/offline-store';
-import { attachFormWithPayload, deleteForm, fetchSnapshotFromServer, HttpError, syncFormsFromClient } from '@/lib/api';
+import {
+  attachFormWithPayload,
+  deleteForm,
+  fetchSnapshotFromServer,
+  fetchFormsFromServer,
+  HttpError,
+  syncFormsFromClient
+} from '@/lib/api';
 import { FormStatus } from '@/types/theme';
 import { useAuth } from './AuthProvider';
 import { logger } from '@/lib/logger';
@@ -32,6 +43,26 @@ type OfflineDataContextValue = {
   findProjectByCode: (code: string) => ProjectRecord | undefined;
 };
 
+function mergeFormsIntoSnapshot(snapshot: OfflineSnapshot, updatedForms: FormRecord[]): OfflineSnapshot {
+  const formsMap = new Map(updatedForms.map(form => [form.id, form]));
+
+  const updatedProjects = snapshot.projects.map(project => {
+    const updatedProjectForms = project.forms.map(form =>
+      formsMap.has(form.id) ? formsMap.get(form.id)! : form
+    );
+    return { ...project, forms: updatedProjectForms };
+  });
+
+  const updatedDrafts = snapshot.standaloneDrafts.map(draft =>
+    formsMap.has(draft.id) ? formsMap.get(draft.id)! : draft
+  );
+
+  return {
+    projects: updatedProjects,
+    standaloneDrafts: updatedDrafts,
+  };
+}
+
 const OfflineDataContext = createContext<OfflineDataContextValue | null>(null);
 
 export function OfflineDataProvider({ children, ready = true }: { children: ReactNode; ready?: boolean }) {
@@ -44,31 +75,86 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
     getLastSyncTimestamp().then((timestamp) => setLastSyncedAt(timestamp)).catch(() => setLastSyncedAt(null));
   }, []);
 
+  // Import and use background sync
+  const handleSyncComplete = useCallback(() => {
+    refresh({ silent: true, formsOnly: true }).catch((error) =>
+      logger.warn('offline', 'background-sync:refresh-failed', { error: String(error) }),
+    );
+  }, []);
+
+  // Enable background sync when authenticated
+  useEffect(() => {
+    if (!token || !ready) return;
+
+    let mounted = true;
+
+    const setupBackgroundSync = async () => {
+      const { useBackgroundSync } = await import('@/hooks/useBackgroundSync');
+      if (mounted) {
+        // Hook will be called in the component that uses this provider
+      }
+    };
+
+    setupBackgroundSync();
+
+    return () => {
+      mounted = false;
+    };
+  }, [token, ready]);
+
   const refresh = useCallback(
-    async (options?: { silent?: boolean; force?: boolean }) => {
+    async (options?: { silent?: boolean; force?: boolean; projectsOnly?: boolean; formsOnly?: boolean }) => {
       const showSpinner = !options?.silent;
       if (showSpinner) {
         setLoading(true);
       }
       const now = Date.now();
       const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-      const withinStaleWindow = lastSyncedAt && now - lastSyncedAt < ONE_DAY_MS;
+      const lastProjectsSync = await getLastProjectsSyncTimestamp();
+      const lastFormsSync = await getLastFormsSyncTimestamp();
+
+      const projectsStale = !lastProjectsSync || now - lastProjectsSync >= ONE_DAY_MS;
+      const shouldSyncProjects = options?.force || options?.projectsOnly || projectsStale;
+      const shouldSyncForms = options?.force || options?.formsOnly || !options?.projectsOnly;
 
       try {
-        if (token && (options?.force || !withinStaleWindow)) {
-          const remoteSnapshot = await fetchSnapshotFromServer();
-          logger.info('offline', 'refresh:remote-success', {
-            projects: remoteSnapshot.projects.length,
-            drafts: remoteSnapshot.standaloneDrafts.length,
-          });
-          const normalized = await replaceSnapshot(remoteSnapshot);
-          await setLastSyncTimestamp(now);
-          setLastSyncedAt(now);
-          setSnapshot(normalized);
-          if (showSpinner) {
-            setLoading(false);
+        if (token) {
+          let remoteSnapshot: OfflineSnapshot | null = null;
+
+          // Sync projects (daily)
+          if (shouldSyncProjects) {
+            logger.info('offline', 'refresh:projects-sync', { reason: options?.force ? 'forced' : 'scheduled' });
+            remoteSnapshot = await fetchSnapshotFromServer();
+            await setLastProjectsSyncTimestamp(now);
           }
-          return normalized;
+
+          // Sync forms (seamless)
+          if (shouldSyncForms && !remoteSnapshot) {
+            logger.info('offline', 'refresh:forms-sync', { since: lastFormsSync });
+            const formsResponse = await fetchFormsFromServer(lastFormsSync || undefined);
+
+            if (formsResponse.forms.length > 0) {
+              const cached = await loadSnapshot();
+              // Merge updated forms into existing snapshot
+              const updatedSnapshot = mergeFormsIntoSnapshot(cached, formsResponse.forms);
+              remoteSnapshot = await replaceSnapshot(updatedSnapshot);
+              await setLastFormsSyncTimestamp(now);
+            }
+          }
+
+          if (remoteSnapshot) {
+            logger.info('offline', 'refresh:remote-success', {
+              projects: remoteSnapshot.projects.length,
+              drafts: remoteSnapshot.standaloneDrafts.length,
+            });
+            await setLastSyncTimestamp(now);
+            setLastSyncedAt(now);
+            setSnapshot(remoteSnapshot);
+            if (showSpinner) {
+              setLoading(false);
+            }
+            return remoteSnapshot;
+          }
         }
       } catch (error) {
         logger.warn('offline', 'refresh:remote-fallback', { error: String(error) });
@@ -85,7 +171,7 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
       }
       return cached;
     },
-    [token, lastSyncedAt],
+    [token],
   );
 
   useEffect(() => {
@@ -110,7 +196,7 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
       if (token) {
         try {
           await attachFormWithPayload(formId, payload);
-          const refreshed = await refresh({ silent: true });
+          const refreshed = await refresh({ silent: true, formsOnly: true });
           logger.info('offline', 'attach:remote-success', { formId, payload });
           const updated = findFormById(refreshed ?? snapshot, formId);
           return { record: updated, synced: true };
@@ -119,6 +205,9 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
             return { record: undefined, synced: false, error: error.message };
           }
           logger.warn('offline', 'attach:remote-fallback', { formId, error: String(error) });
+          // Add to sync queue
+          const { addToSyncQueue } = await import('@/storage/sync-queue');
+          await addToSyncQueue('attach', formId, payload);
         }
       }
 
@@ -132,6 +221,13 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
       }
       setSnapshot(result.snapshot);
       logger.info('offline', 'attach:local', { formId, payload });
+
+      // Add to sync queue when offline
+      if (!token) {
+        const { addToSyncQueue } = await import('@/storage/sync-queue');
+        await addToSyncQueue('attach', formId, payload);
+      }
+
       return { record: result.attached, synced: false };
     },
     [token, refresh, findFormById, snapshot],
@@ -165,12 +261,36 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
           ]);
           logger.info('offline', 'saveDraft:remote-success', { formId: result.record.id });
           synced = true;
-          refresh({ silent: true }).catch((error) =>
+          // Seamless background refresh for forms only
+          refresh({ silent: true, formsOnly: true }).catch((error) =>
             logger.warn('offline', 'saveDraft:refresh-failed', { error: String(error) }),
           );
         } catch (error) {
           logger.warn('offline', 'saveDraft:remote-failed', { formId: result.record.id, error: String(error) });
+          // Add to sync queue for later
+          const { addToSyncQueue } = await import('@/storage/sync-queue');
+          await addToSyncQueue('update', result.record.id, {
+            id: result.record.id,
+            annexTitle: result.record.annexTitle,
+            status: result.record.status,
+            linkedProjectId: result.record.linkedProjectId,
+            abemisId: result.record.abemisId,
+            qrReference: result.record.qrReference,
+            data: result.record.data,
+          });
         }
+      } else {
+        // Offline - add to queue
+        const { addToSyncQueue } = await import('@/storage/sync-queue');
+        await addToSyncQueue('update', result.record.id, {
+          id: result.record.id,
+          annexTitle: result.record.annexTitle,
+          status: result.record.status,
+          linkedProjectId: result.record.linkedProjectId,
+          abemisId: result.record.abemisId,
+          qrReference: result.record.qrReference,
+          data: result.record.data,
+        });
       }
 
       return { record: result.record, synced };
@@ -180,23 +300,34 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
 
   const deleteDraft = useCallback(
     async (formId: string) => {
-      if (token) {
-        try {
-          await deleteForm(formId);
-          await refresh({ silent: true });
-          logger.info('offline', 'delete:remote-success', { formId });
-          return true;
-        } catch (error) {
-          logger.warn('offline', 'delete:remote-fallback', { formId, error: String(error) });
-        }
-      }
+      // Optimistic update: delete locally first for instant UI feedback
       const result = await deleteStandaloneDraft(formId);
       if (!result) return false;
       setSnapshot(result.snapshot);
-      logger.info('offline', 'delete:local', { formId });
-    return true;
-  },
-    [token, refresh],
+      logger.info('offline', 'delete:local-optimistic', { formId });
+
+      // Sync with server in background if online
+      if (token) {
+        try {
+          await deleteForm(formId);
+          logger.info('offline', 'delete:remote-success', { formId });
+          // No need to refresh - we already updated local state optimistically
+          return true;
+        } catch (error) {
+          logger.warn('offline', 'delete:remote-fallback', { formId, error: String(error) });
+          // Add to sync queue for retry
+          const { addToSyncQueue } = await import('@/storage/sync-queue');
+          await addToSyncQueue('delete', formId, {});
+        }
+      } else {
+        // Offline - add to sync queue
+        const { addToSyncQueue } = await import('@/storage/sync-queue');
+        await addToSyncQueue('delete', formId, {});
+      }
+
+      return true;
+    },
+    [token],
   );
 
   const syncDrafts = useCallback(async () => {

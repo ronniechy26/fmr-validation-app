@@ -84,6 +84,15 @@ export function fetchSnapshotFromServer(signal?: AbortSignal) {
   return request<OfflineSnapshot>('/sync/snapshot', { method: 'GET' as HttpMethod, signal });
 }
 
+export function fetchProjectsFromServer(signal?: AbortSignal) {
+  return request<{ projects: any[] }>('/sync/projects', { method: 'GET' as HttpMethod, signal });
+}
+
+export function fetchFormsFromServer(since?: number, signal?: AbortSignal) {
+  const params = since ? `?since=${since}` : '';
+  return request<{ forms: FormRecord[] }>(`/sync/forms${params}`, { method: 'GET' as HttpMethod, signal });
+}
+
 export function syncFormsFromClient(forms: ClientFormPayload[]) {
   return request<FormRecord[]>('/sync/forms', { method: 'POST', body: JSON.stringify({ forms }) });
 }
@@ -100,3 +109,4 @@ export function deleteForm(formId: string) {
     method: 'DELETE',
   });
 }
+

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { SyncService, UpsertFormDto } from './sync.service';
 
 @Controller('sync')
@@ -8,6 +8,18 @@ export class SyncController {
   @Get('snapshot')
   snapshot() {
     return this.syncService.getSnapshot();
+  }
+
+  @Get('projects')
+  async projects() {
+    const snapshot = await this.syncService.getSnapshot();
+    return { projects: snapshot.projects };
+  }
+
+  @Get('forms')
+  async forms(@Query('since') since?: string) {
+    const sinceTimestamp = since ? parseInt(since, 10) : undefined;
+    return this.syncService.getIncrementalForms(sinceTimestamp);
   }
 
   @Post('forms')
