@@ -26,3 +26,6 @@ Statuses are defined in `types/theme.ts` as `Draft`, `Pending Sync`, `Synced`, a
 
 ## Quick reference
 - Stuck on `Pending Sync` while already visible in the DB? Run a manual sync (pull-to-refresh drafts or Settings → Sync now) to flip the local copy to `Synced`. Attachment to an FMR is optional for the status change; only sync success matters. 
+
+## Last touch conflict handling
+- Each form keeps a `lastTouch` timestamp (also written to SQLite). When we receive forms from the backend or push local changes, the client compares `lastTouch` (falling back to `updatedAt`) between the local snapshot and server payloads. The version with the most recent timestamp wins, so your latest edits—whether local or from the server—prevail when snapshots merge. This applies to both full snapshot refreshes and incremental form syncs.

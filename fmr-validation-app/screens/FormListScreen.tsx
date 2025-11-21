@@ -170,51 +170,6 @@ export function FormListScreen() {
     return sorted.slice(0, page * PAGE_SIZE);
   }, [filteredProjects, page]);
 
-  const regionOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          normalizedProjects
-            .map((project) => project.region?.trim())
-            .filter((value): value is string => Boolean(value)),
-        ),
-      ).sort(),
-    [normalizedProjects],
-  );
-
-  const provinceOptions = useMemo(() => {
-    const source = regionFilter.region
-      ? normalizedProjects.filter(
-        (project) =>
-          project.region?.toLowerCase() === regionFilter.region?.toLowerCase(),
-      )
-      : normalizedProjects;
-    return Array.from(
-      new Set(
-        source
-          .map((project) => project.province?.trim())
-          .filter((value): value is string => Boolean(value)),
-      ),
-    ).sort();
-  }, [normalizedProjects, regionFilter.region]);
-
-  const municipalityOptions = useMemo(() => {
-    const source = regionFilter.province
-      ? normalizedProjects.filter(
-        (project) =>
-          project.province?.toLowerCase() ===
-          regionFilter.province?.toLowerCase(),
-      )
-      : normalizedProjects;
-    return Array.from(
-      new Set(
-        source
-          .map((project) => project.municipality?.trim())
-          .filter((value): value is string => Boolean(value)),
-      ),
-    ).sort();
-  }, [normalizedProjects, regionFilter.province]);
-
   const locationOptions = useMemo(
     () =>
       normalizedProjects.map((project) => ({

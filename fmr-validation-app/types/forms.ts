@@ -35,6 +35,7 @@ export interface ValidationForm {
   notedByName: string;
   status: FormStatus;
   updatedAt: string;
+  lastTouch?: string;
 }
 
 export interface FormRecord {
@@ -42,7 +43,7 @@ export interface FormRecord {
   annexTitle: string;
   status: FormStatus;
   updatedAt: string;
-  lastTouch: string;
+  lastTouch?: string;
   createdBy?: string;
   abemisId?: string;
   qrReference?: string;
@@ -118,6 +119,7 @@ export interface FormRouteMeta {
   barangay?: string;
   municipality?: string;
   zone?: string;
+  lastTouch?: string;
 }
 
 export interface FormRoutePayload {

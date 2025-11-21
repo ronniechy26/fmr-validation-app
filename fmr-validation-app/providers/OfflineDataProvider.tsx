@@ -43,24 +43,99 @@ type OfflineDataContextValue = {
   findProjectByCode: (code: string) => ProjectRecord | undefined;
 };
 
-function mergeFormsIntoSnapshot(snapshot: OfflineSnapshot, updatedForms: FormRecord[]): OfflineSnapshot {
-  const formsMap = new Map(updatedForms.map(form => [form.id, form]));
+function getLastTouchTimestamp(form?: FormRecord) {
+  const raw = form?.lastTouch ?? form?.updatedAt;
+  const ts = raw ? new Date(raw).getTime() : 0;
+  return Number.isFinite(ts) ? ts : 0;
+}
 
-  const updatedProjects = snapshot.projects.map(project => {
-    const updatedProjectForms = project.forms.map(form =>
-      formsMap.has(form.id) ? formsMap.get(form.id)! : form
-    );
-    return { ...project, forms: updatedProjectForms };
+function mergeSnapshotsByLastTouch(base: OfflineSnapshot, incoming: OfflineSnapshot): OfflineSnapshot {
+  const projectMap = new Map<string, ProjectRecord>();
+
+  const seedProject = (project: ProjectRecord) => {
+    const existing = projectMap.get(project.id);
+    projectMap.set(project.id, { ...(existing ?? project), ...project, forms: [] });
+  };
+
+  base.projects.forEach(seedProject);
+  incoming.projects.forEach(seedProject);
+
+  const formMap = new Map<string, FormRecord>();
+  const upsertForm = (form: FormRecord) => {
+    const candidate: FormRecord = { ...form, data: { ...form.data } };
+    const existing = formMap.get(candidate.id);
+    if (!existing || getLastTouchTimestamp(candidate) >= getLastTouchTimestamp(existing)) {
+      formMap.set(candidate.id, candidate);
+    }
+  };
+
+  base.projects.forEach((project) => project.forms.forEach(upsertForm));
+  base.standaloneDrafts.forEach(upsertForm);
+  incoming.projects.forEach((project) => project.forms.forEach(upsertForm));
+  incoming.standaloneDrafts.forEach(upsertForm);
+
+  const ensureProject = (projectId: string): ProjectRecord => {
+    const existing = projectMap.get(projectId);
+    if (existing) return existing;
+    const fallback: ProjectRecord = {
+      id: projectId,
+      projectCode: projectId,
+      title: 'Untitled FMR',
+      forms: [],
+    };
+    projectMap.set(projectId, fallback);
+    return fallback;
+  };
+
+  const standaloneDrafts: FormRecord[] = [];
+
+  formMap.forEach((form) => {
+    if (form.linkedProjectId) {
+      const targetProject = ensureProject(form.linkedProjectId);
+      targetProject.forms.push(form);
+    } else {
+      standaloneDrafts.push(form);
+    }
   });
 
-  const updatedDrafts = snapshot.standaloneDrafts.map(draft =>
-    formsMap.has(draft.id) ? formsMap.get(draft.id)! : draft
-  );
+  const projects = Array.from(projectMap.values()).map((project) => ({
+    ...project,
+    forms: (project.forms ?? [])
+      .map((entry) => ({ ...entry, data: { ...entry.data } }))
+      .sort((a, b) => getLastTouchTimestamp(b) - getLastTouchTimestamp(a)),
+  }));
 
-  return {
-    projects: updatedProjects,
-    standaloneDrafts: updatedDrafts,
+  standaloneDrafts.sort((a, b) => getLastTouchTimestamp(b) - getLastTouchTimestamp(a));
+
+  return { projects, standaloneDrafts };
+}
+
+function mergeFormsIntoSnapshot(snapshot: OfflineSnapshot, updatedForms: FormRecord[]): OfflineSnapshot {
+  const projectMap = new Map<string, ProjectRecord>();
+  const standaloneDrafts: FormRecord[] = [];
+
+  updatedForms.forEach((form) => {
+    if (form.linkedProjectId) {
+      if (!projectMap.has(form.linkedProjectId)) {
+        projectMap.set(form.linkedProjectId, {
+          id: form.linkedProjectId,
+          projectCode: form.linkedProjectId,
+          title: 'Untitled FMR',
+          forms: [],
+        });
+      }
+      projectMap.get(form.linkedProjectId)!.forms.push(form);
+    } else {
+      standaloneDrafts.push(form);
+    }
+  });
+
+  const incomingSnapshot: OfflineSnapshot = {
+    projects: Array.from(projectMap.values()),
+    standaloneDrafts,
   };
+
+  return mergeSnapshotsByLastTouch(snapshot, incomingSnapshot);
 }
 
 const OfflineDataContext = createContext<OfflineDataContextValue | null>(null);
@@ -117,6 +192,8 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
       const shouldSyncProjects = options?.force || options?.projectsOnly || projectsStale;
       const shouldSyncForms = options?.force || options?.formsOnly || !options?.projectsOnly;
 
+      let workingSnapshot = await loadSnapshot();
+
       try {
         if (token) {
           let remoteSnapshot: OfflineSnapshot | null = null;
@@ -125,6 +202,8 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
           if (shouldSyncProjects) {
             logger.info('offline', 'refresh:projects-sync', { reason: options?.force ? 'forced' : 'scheduled' });
             remoteSnapshot = await fetchSnapshotFromServer();
+            workingSnapshot = mergeSnapshotsByLastTouch(workingSnapshot, remoteSnapshot);
+            workingSnapshot = await replaceSnapshot(workingSnapshot);
             await setLastProjectsSyncTimestamp(now);
           }
 
@@ -134,11 +213,10 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
             const formsResponse = await fetchFormsFromServer(lastFormsSync || undefined);
 
             if (formsResponse.forms.length > 0) {
-              const cached = await loadSnapshot();
-              // Merge updated forms into existing snapshot
-              const updatedSnapshot = mergeFormsIntoSnapshot(cached, formsResponse.forms);
-              remoteSnapshot = await replaceSnapshot(updatedSnapshot);
+              workingSnapshot = mergeFormsIntoSnapshot(workingSnapshot, formsResponse.forms);
+              workingSnapshot = await replaceSnapshot(workingSnapshot);
               await setLastFormsSyncTimestamp(now);
+              remoteSnapshot = workingSnapshot;
             }
           }
 
@@ -160,16 +238,15 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
         logger.warn('offline', 'refresh:remote-fallback', { error: String(error) });
       }
 
-      const cached = await loadSnapshot();
       logger.info('offline', 'refresh:cache', {
-        projects: cached.projects.length,
-        drafts: cached.standaloneDrafts.length,
+        projects: workingSnapshot.projects.length,
+        drafts: workingSnapshot.standaloneDrafts.length,
       });
-      setSnapshot(cached);
+      setSnapshot(workingSnapshot);
       if (showSpinner) {
         setLoading(false);
       }
-      return cached;
+      return workingSnapshot;
     },
     [token],
   );
@@ -256,6 +333,7 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
               linkedProjectId: result.record.linkedProjectId,
               abemisId: result.record.abemisId,
               qrReference: result.record.qrReference,
+              lastTouch: result.record.lastTouch,
               data: result.record.data,
             },
           ]);
@@ -276,6 +354,7 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
             linkedProjectId: result.record.linkedProjectId,
             abemisId: result.record.abemisId,
             qrReference: result.record.qrReference,
+            lastTouch: result.record.lastTouch,
             data: result.record.data,
           });
         }
@@ -289,6 +368,7 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
           linkedProjectId: result.record.linkedProjectId,
           abemisId: result.record.abemisId,
           qrReference: result.record.qrReference,
+          lastTouch: result.record.lastTouch,
           data: result.record.data,
         });
       }
@@ -336,17 +416,14 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
       return { ok: false, message: 'You are offline. Connect to the internet to sync drafts.' };
     }
 
-    if (!snapshot) {
-      await refresh({ silent: true });
-      logger.info('offline', 'syncDrafts:noop', { reason: 'no_snapshot' });
-      return { ok: true };
-    }
+    const currentSnapshot = snapshot ?? (await loadSnapshot());
+
     if (!token) {
       await refresh({ silent: true });
       logger.warn('offline', 'syncDrafts:skipped', { reason: 'no_token' });
       return { ok: false, message: 'Sign in to sync drafts with the server.' };
     }
-    const drafts = snapshot.standaloneDrafts ?? [];
+    const drafts = currentSnapshot.standaloneDrafts ?? [];
     if (!drafts.length) {
       await refresh({ silent: true });
       logger.info('offline', 'syncDrafts:noop', { reason: 'no_drafts' });
@@ -372,12 +449,9 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
         status: 'Synced' as FormStatus,
         updatedAt: syncedAt,
         lastTouch: syncedAt,
-        data: { ...draft.data, status: 'Synced' as FormStatus, updatedAt: syncedAt },
+        data: { ...draft.data, status: 'Synced' as FormStatus, updatedAt: syncedAt, lastTouch: syncedAt },
       }));
-      const snapshotWithSyncedDrafts: OfflineSnapshot = {
-        projects: snapshot.projects,
-        standaloneDrafts: syncedDrafts,
-      };
+      const snapshotWithSyncedDrafts = mergeFormsIntoSnapshot(currentSnapshot, syncedDrafts);
       await replaceSnapshot(snapshotWithSyncedDrafts);
       setSnapshot(snapshotWithSyncedDrafts);
       await setLastSyncTimestamp(Date.now());

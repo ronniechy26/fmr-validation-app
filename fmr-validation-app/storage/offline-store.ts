@@ -13,6 +13,7 @@ const LAST_FORMS_SYNC_KEY = 'last-forms-sync-at';
 
 const cloneForm = (form: FormRecord): FormRecord => ({
   ...form,
+  lastTouch: form.lastTouch,
   data: { ...form.data },
 });
 
@@ -156,6 +157,11 @@ export async function attachDraftLocally(formId: string, payload: AttachmentPayl
     qrReference: payload.qrReference ?? draft.qrReference ?? project.qrReference,
     updatedAt: new Date().toISOString(),
     lastTouch: new Date().toISOString(),
+    data: {
+      ...draft.data,
+      lastTouch: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
   };
 
   snapshot.standaloneDrafts.splice(draftIndex, 1);
@@ -191,6 +197,7 @@ export async function upsertFormRecord(
       id: formId,
       status,
       updatedAt: timestamp,
+      lastTouch: timestamp,
     },
   };
 
