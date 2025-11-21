@@ -6,6 +6,9 @@ import { fonts, spacing } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { setOnboardingCompleted } from '@/storage/onboarding';
+import { replaceSnapshot, setLastProjectsSyncTimestamp, setLastFormsSyncTimestamp } from '@/storage/offline-store';
+import { OfflineSnapshot } from '@/types/offline';
+import { fetchSnapshotWithProgress } from '@/lib/api';
 
 type SyncStep = {
   id: string;
@@ -19,9 +22,9 @@ export function OnboardingSyncScreen() {
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
   const [steps, setSteps] = useState<SyncStep[]>([
-    { id: '1', label: 'Preparing your workspace', status: 'pending' },
-    { id: '2', label: 'Checking requirements', status: 'pending' },
-    { id: '3', label: 'Setting up local database', status: 'pending' },
+    { id: '1', label: 'Preparing workspace', status: 'pending' },
+    { id: '2', label: 'Downloading FMR data', status: 'pending' },
+    { id: '3', label: 'Saving to local database', status: 'pending' },
     { id: '4', label: 'Configuring application', status: 'pending' },
     { id: '5', label: 'Finalizing setup', status: 'pending' },
   ]);
@@ -42,45 +45,64 @@ export function OnboardingSyncScreen() {
       // Step 1: Preparing
       setCurrentStep(0);
       updateStep(0, 'loading');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       updateStep(0, 'complete');
       setProgress(20);
 
-      // Step 2: Checking requirements
+      // Step 2: Downloading data (Real sync)
       setCurrentStep(1);
       updateStep(1, 'loading');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      updateStep(1, 'complete');
-      setProgress(40);
+      console.log('[Sync] Starting snapshot download...');
 
-      // Step 3: Setting up database
+      const snapshot = await fetchSnapshotWithProgress((percent) => {
+        // Map download progress to 20-60% of total progress
+        setProgress(20 + Math.round(percent * 0.4));
+      });
+
+      console.log(`[Sync] Download complete. Size: ${JSON.stringify(snapshot).length} bytes`);
+
+      updateStep(1, 'complete');
+      setProgress(60);
+
+      // Step 3: Saving to SQLite
       setCurrentStep(2);
       updateStep(2, 'loading');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log('[Sync] Saving to SQLite database...');
+
+      const startTime = Date.now();
+      await replaceSnapshot(snapshot);
+      const duration = Date.now() - startTime;
+      console.log(`[Sync] SQLite write complete in ${duration}ms`);
+
+      const now = Date.now();
+      await setLastProjectsSyncTimestamp(now);
+      await setLastFormsSyncTimestamp(now);
+
       updateStep(2, 'complete');
-      setProgress(60);
+      setProgress(80);
 
       // Step 4: Configuring app
       setCurrentStep(3);
       updateStep(3, 'loading');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       updateStep(3, 'complete');
-      setProgress(80);
+      setProgress(90);
 
       // Step 5: Finalizing
       setCurrentStep(4);
       updateStep(4, 'loading');
       await setOnboardingCompleted(true);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
       updateStep(4, 'complete');
       setProgress(100);
 
-      // The app will automatically re-render when it detects onboarding is complete
-      // Just wait a moment for the user to see the success state
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Wait a moment then navigate
+      setTimeout(() => {
+        router.replace('/');
+      }, 1000);
     } catch (err) {
-      console.error('Setup error:', err);
-      setError((err as Error).message || 'Failed to complete setup. Please try again.');
+      console.error('Sync error:', err);
+      setError((err as Error).message || 'Failed to sync data. Please try again.');
       updateStep(currentStep, 'error');
     }
   };

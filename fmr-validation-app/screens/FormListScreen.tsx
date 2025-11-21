@@ -50,7 +50,6 @@ export function FormListScreen() {
   const [keyFilter, setKeyFilter] = useState<'all' | 'withForms' | 'withoutForms' | 'withGeotags' | 'withDocs'>('all');
   const [regionFilter, setRegionFilter] = useState<{ region?: string; province?: string; municipality?: string }>({});
   const bottomSheetRef = useRef<BottomSheetModal>(null);
-  const pulseAnim = useRef(new Animated.Value(0)).current;
   const { colors, mode } = useThemeMode();
   const { loading, projects: cachedProjects, standaloneDrafts, deleteDraft, syncDrafts, refresh } = useOfflineData();
   const insets = useSafeAreaInsets();
@@ -129,31 +128,7 @@ export function FormListScreen() {
     setRefreshing(false);
   }, [refresh, syncDrafts]);
 
-  useEffect(() => {
-    if (!loading) {
-      pulseAnim.stopAnimation();
-      pulseAnim.setValue(0);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0,
-          duration: 800,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [loading, pulseAnim]);
+
 
   const projects = useMemo<ProjectRecord[]>(() => {
     const sorted = [...filteredProjects].sort((a, b) => {
@@ -333,34 +308,7 @@ export function FormListScreen() {
   return (
     <>
       <Screen noBottomPadding>
-        {loading && (
-          <View style={[styles.loadingCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-            <Text style={[styles.loadingText, { color: colors.textMuted }]}>Preparing offline dataset…</Text>
-            <View style={styles.loadingRow}>
-              <Animated.View
-                style={[
-                  styles.pulseDot,
-                  {
-                    backgroundColor: colors.success ?? '#16a34a',
-                    transform: [
-                      {
-                        scale: pulseAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [1, 1.3],
-                        }),
-                      },
-                    ],
-                    opacity: pulseAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [1, 0.6],
-                    }),
-                  },
-                ]}
-              />
-              <Text style={[styles.pulseText, { color: colors.textPrimary }]}>Syncing data</Text>
-            </View>
-          </View>
-        )}
+
         <View style={styles.topBanner}>
           <View style={styles.heroBrand}>
             <View style={[styles.heroLogo, { backgroundColor: colors.secondary }]}>

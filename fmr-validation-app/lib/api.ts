@@ -110,3 +110,42 @@ export function deleteForm(formId: string) {
   });
 }
 
+export function fetchSnapshotWithProgress(
+  onProgress: (percent: number) => void
+): Promise<OfflineSnapshot> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', `${apiBaseUrl}/sync/snapshot`);
+
+    // Add auth header if token exists
+    if (authToken) {
+      xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+    }
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('Content-Type', 'application/json');
+
+    xhr.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data);
+        } catch (e) {
+          reject(new HttpError('Failed to parse server response', xhr.status));
+        }
+      } else {
+        reject(new HttpError(`Request failed with status ${xhr.status}`, xhr.status));
+      }
+    };
+
+    xhr.onerror = () => reject(new HttpError('Network request failed', 0));
+    xhr.send();
+  });
+}
+

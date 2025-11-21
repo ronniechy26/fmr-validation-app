@@ -1,10 +1,12 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { SyncService, UpsertFormDto } from './sync.service';
+import { Public } from '../auth/jwt-auth.guard';
 
 @Controller('sync')
 export class SyncController {
-  constructor(private readonly syncService: SyncService) {}
+  constructor(private readonly syncService: SyncService) { }
 
+  @Public()
   @Get('snapshot')
   snapshot() {
     return this.syncService.getSnapshot();

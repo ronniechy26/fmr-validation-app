@@ -73,7 +73,7 @@ export class SyncService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getSnapshot() {
-    await this.refreshFromAbemis('snapshot');
+    // Return cached snapshot directly - background job handles updates
     return this.repository.getSnapshot();
   }
 
