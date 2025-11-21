@@ -434,7 +434,7 @@ export function FormListScreen() {
               },
             ]}
           >
-              <Ionicons name="search" size={16} color={colors.textMuted} />
+            <Ionicons name="search" size={16} color={colors.textMuted} />
             <TextInput
               style={[styles.searchInput, { color: colors.textPrimary }]}
               placeholder={searchPlaceholder}
@@ -443,6 +443,14 @@ export function FormListScreen() {
               onChangeText={setSearchQuery}
               returnKeyType="search"
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
           <TouchableOpacity
             style={[
@@ -533,7 +541,7 @@ export function FormListScreen() {
                           Project Code: {normalizedItem.projectCode}
                         </Text>
                       ) : null}
-                  </View>
+                    </View>
                     {primaryForm.status === 'Synced' ? <StatusBadge status={primaryForm.status} /> : null}
                   </View>
 
