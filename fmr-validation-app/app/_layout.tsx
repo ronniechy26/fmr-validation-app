@@ -55,11 +55,7 @@ export default function RootLayout() {
           <AuthProvider>
             <OfflineDataProvider ready={onboardingComplete}>
               <BottomSheetModalProvider>
-                {onboardingComplete ? (
-                  <RootStack />
-                ) : (
-                  <OnboardingStack />
-                )}
+                <RootStack onboardingComplete={onboardingComplete} />
               </BottomSheetModalProvider>
             </OfflineDataProvider>
           </AuthProvider>
@@ -69,24 +65,7 @@ export default function RootLayout() {
   );
 }
 
-function OnboardingStack() {
-  const { colors } = useThemeMode();
-
-  return (
-    <Stack
-      initialRouteName="onboarding-welcome"
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name="onboarding-welcome" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding-privacy" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding-sync" options={{ headerShown: false }} />
-    </Stack>
-  );
-}
-
-function RootStack() {
+function RootStack({ onboardingComplete }: { onboardingComplete: boolean }) {
   const { colors } = useThemeMode();
   const { isSignedIn, loading: authLoading } = useAuth();
 
@@ -98,14 +77,29 @@ function RootStack() {
     );
   }
 
+  // Determine initial route based on onboarding status and auth status
+  const getInitialRoute = () => {
+    if (!onboardingComplete) return 'onboarding-welcome';
+    if (isSignedIn) return '(tabs)';
+    return 'login';
+  };
+
   return (
     <Stack
-      initialRouteName={isSignedIn ? '(tabs)' : 'login'}
+      initialRouteName={getInitialRoute()}
       screenOptions={{
         headerShown: false,
       }}
     >
+      {/* Onboarding Routes */}
+      <Stack.Screen name="onboarding-welcome" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding-privacy" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding-sync" options={{ headerShown: false }} />
+
+      {/* Auth Routes */}
       <Stack.Screen name="login" options={{ headerShown: false }} />
+
+      {/* Main App Routes */}
       <Stack.Screen name="(tabs)" />
       <Stack.Screen
         name="annex-select"
@@ -136,7 +130,14 @@ function RootStack() {
       <Stack.Screen
         name="form-detail"
         options={{
-          headerShown: false,
+          title: 'Project Details',
+          headerShown: true,
+          headerTintColor: '#fff',
+          headerStyle: { backgroundColor: colors.primary },
+          headerTitleAlign: 'center',
+          headerTitleStyle: { fontFamily: fonts.semibold },
+          headerBackTitleStyle: { fontFamily: fonts.regular },
+          headerBackTitle: 'Back',
         }}
       />
       <Stack.Screen

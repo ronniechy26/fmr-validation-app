@@ -58,7 +58,7 @@ export function OnboardingWelcomeScreen() {
         </TouchableOpacity>
 
         <Text style={[styles.footerText, { color: colors.textMuted }]}>
-          Powered by Department of Agriculture
+          Powered by BAFE - ISDD
         </Text>
       </View>
     </Screen>

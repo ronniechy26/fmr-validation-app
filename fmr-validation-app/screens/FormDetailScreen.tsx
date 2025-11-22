@@ -307,7 +307,7 @@ export function FormDetailScreen() {
   // If we have a project but no form, show project-only view
   if (!activeFormRecord && activeProject) {
     return (
-      <Screen scroll applyTopInset={false}>
+      <Screen scroll>
         {/* Premium Gradient Header */}
         <LinearGradient
           colors={[colors.primary, colors.primary + 'DD']}
@@ -315,14 +315,6 @@ export function FormDetailScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.gradientHeader}
         >
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
 
           <View style={styles.headerContent}>
             <View style={styles.headerIconContainer}>
@@ -533,7 +525,7 @@ export function FormDetailScreen() {
   // If we have no project, show standalone draft view
   if (!activeProject) {
     return (
-      <Screen scroll applyTopInset={false}>
+      <Screen scroll>
         {/* Premium Gradient Header */}
         <LinearGradient
           colors={[colors.primary, colors.primary + 'DD']}
@@ -541,14 +533,6 @@ export function FormDetailScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.gradientHeader}
         >
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
 
           <View style={styles.headerContent}>
             <View style={styles.headerIconContainer}>
@@ -643,7 +627,7 @@ export function FormDetailScreen() {
   }
 
   return (
-    <Screen scroll applyTopInset={false}>
+    <Screen scroll>
       {/* Premium Gradient Header */}
       <LinearGradient
         colors={[colors.primary, colors.primary + 'DD']}
@@ -651,14 +635,6 @@ export function FormDetailScreen() {
         end={{ x: 1, y: 1 }}
         style={styles.gradientHeader}
       >
-        {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
 
         <View style={styles.headerContent}>
           <View style={styles.headerIconContainer}>
