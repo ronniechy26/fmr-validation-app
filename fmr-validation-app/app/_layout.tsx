@@ -11,7 +11,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/nunito';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, SplashScreen } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 // eslint-disable-next-line import/no-duplicates
 import 'react-native-gesture-handler';
@@ -21,31 +21,31 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { isOnboardingCompleted } from '@/storage/onboarding';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
-  const [assetsLoaded] = useFonts({
+  const [loaded, error] = useFonts({
     Nunito_400Regular,
     Nunito_500Medium,
     Nunito_600SemiBold,
     Nunito_700Bold,
     ...Ionicons.font,
   });
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
 
-  const checkOnboarding = async () => {
-    const completed = await isOnboardingCompleted();
-    setOnboardingComplete(completed);
-  };
+  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
+  useEffect(() => {
+    if (error) throw error;
+  }, [error]);
 
   useEffect(() => {
-    checkOnboarding();
-  }, []);
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
 
-  if (!assetsLoaded || onboardingComplete === null) {
-    return (
-      <View style={styles.loader}>
-        <ActivityIndicator color="#1f4b8f" />
-      </View>
-    );
+  if (!loaded) {
+    return null;
   }
 
   return (
@@ -53,11 +53,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
-            <OfflineDataProvider ready={onboardingComplete}>
-              <BottomSheetModalProvider>
-                <RootStack onboardingComplete={onboardingComplete} />
-              </BottomSheetModalProvider>
-            </OfflineDataProvider>
+            <RootLayoutNav />
           </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>
@@ -65,14 +61,45 @@ export default function RootLayout() {
   );
 }
 
-function RootStack({ onboardingComplete }: { onboardingComplete: boolean }) {
+function RootLayoutNav() {
   const { colors } = useThemeMode();
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const { isSignedIn, loading: authLoading } = useAuth();
+  const router = useRouter();
 
-  if (authLoading) {
+  const checkOnboarding = async () => {
+    try {
+      const completed = await isOnboardingCompleted();
+      console.log('[OnboardingCheck] Status:', completed);
+      setOnboardingComplete(completed);
+    } catch (error) {
+      console.error('[OnboardingCheck] Error:', error);
+      setOnboardingComplete(false); // Default to false on error
+    }
+  };
+
+  useEffect(() => {
+    // Delay checking onboarding to avoid conflict with AuthProvider's initial DB check
+    const timer = setTimeout(() => {
+      checkOnboarding();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Force redirect if onboarding is not complete
+  useEffect(() => {
+    if (onboardingComplete === false && !authLoading) {
+      // We use a small timeout to ensure navigation is ready
+      setTimeout(() => {
+        router.replace('/onboarding-welcome');
+      }, 100);
+    }
+  }, [onboardingComplete, authLoading]);
+
+  if (onboardingComplete === null || authLoading) {
     return (
       <View style={styles.loader}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color="#1f4b8f" />
       </View>
     );
   }
@@ -85,101 +112,105 @@ function RootStack({ onboardingComplete }: { onboardingComplete: boolean }) {
   };
 
   return (
-    <Stack
-      initialRouteName={getInitialRoute()}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      {/* Onboarding Routes */}
-      <Stack.Screen name="onboarding-welcome" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding-privacy" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding-sync" options={{ headerShown: false }} />
+    <OfflineDataProvider ready={onboardingComplete}>
+      <BottomSheetModalProvider>
+        <Stack
+          initialRouteName={getInitialRoute()}
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          {/* Onboarding Routes */}
+          <Stack.Screen name="onboarding-welcome" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding-privacy" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding-sync" options={{ headerShown: false }} />
 
-      {/* Auth Routes */}
-      <Stack.Screen name="login" options={{ headerShown: false }} />
+          {/* Auth Routes */}
+          <Stack.Screen name="login" options={{ headerShown: false }} />
 
-      {/* Main App Routes */}
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen
-        name="annex-select"
-        options={{
-          title: 'Choose a Form',
-          headerShown: true,
-          headerTintColor: '#fff',
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleAlign: 'center',
-          headerTitleStyle: { fontFamily: fonts.semibold },
-          headerBackTitleStyle: { fontFamily: fonts.regular },
-          headerBackTitle: 'Back',
-        }}
-      />
-      <Stack.Screen
-        name="form-editor"
-        options={{
-          title: 'Form Editor',
-          headerShown: true,
-          headerTintColor: '#fff',
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleAlign: 'center',
-          headerTitleStyle: { fontFamily: fonts.semibold },
-          headerBackTitleStyle: { fontFamily: fonts.regular },
-          headerBackTitle: 'Back',
-        }}
-      />
-      <Stack.Screen
-        name="form-detail"
-        options={{
-          title: 'Project Details',
-          headerShown: true,
-          headerTintColor: '#fff',
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleAlign: 'center',
-          headerTitleStyle: { fontFamily: fonts.semibold },
-          headerBackTitleStyle: { fontFamily: fonts.regular },
-          headerBackTitle: 'Back',
-        }}
-      />
-      <Stack.Screen
-        name="standalone-detail"
-        options={{
-          title: 'Standalone Draft',
-          headerShown: true,
-          headerTintColor: '#fff',
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleAlign: 'center',
-          headerTitleStyle: { fontFamily: fonts.semibold },
-          headerBackTitleStyle: { fontFamily: fonts.regular },
-          headerBackTitle: 'Back',
-        }}
-      />
-      <Stack.Screen
-        name="form-data"
-        options={{
-          title: 'Form Details',
-          headerShown: true,
-          headerTintColor: '#fff',
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleAlign: 'center',
-          headerTitleStyle: { fontFamily: fonts.semibold },
-          headerBackTitleStyle: { fontFamily: fonts.regular },
-          headerBackTitle: 'Back',
-        }}
-      />
-      <Stack.Screen
-        name="data-privacy"
-        options={{
-          title: 'Data Privacy',
-          headerShown: true,
-          headerTintColor: '#fff',
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleAlign: 'center',
-          headerTitleStyle: { fontFamily: fonts.semibold },
-          headerBackTitleStyle: { fontFamily: fonts.regular },
-          headerBackTitle: 'Back',
-        }}
-      />
-    </Stack>
+          {/* Main App Routes */}
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="annex-select"
+            options={{
+              title: 'Choose a Form',
+              headerShown: true,
+              headerTintColor: '#fff',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTitleAlign: 'center',
+              headerTitleStyle: { fontFamily: fonts.semibold },
+              headerBackTitleStyle: { fontFamily: fonts.regular },
+              headerBackTitle: 'Back',
+            }}
+          />
+          <Stack.Screen
+            name="form-editor"
+            options={{
+              title: 'Form Editor',
+              headerShown: true,
+              headerTintColor: '#fff',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTitleAlign: 'center',
+              headerTitleStyle: { fontFamily: fonts.semibold },
+              headerBackTitleStyle: { fontFamily: fonts.regular },
+              headerBackTitle: 'Back',
+            }}
+          />
+          <Stack.Screen
+            name="form-detail"
+            options={{
+              title: 'Project Details',
+              headerShown: true,
+              headerTintColor: '#fff',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTitleAlign: 'center',
+              headerTitleStyle: { fontFamily: fonts.semibold },
+              headerBackTitleStyle: { fontFamily: fonts.regular },
+              headerBackTitle: 'Back',
+            }}
+          />
+          <Stack.Screen
+            name="standalone-detail"
+            options={{
+              title: 'Standalone Draft',
+              headerShown: true,
+              headerTintColor: '#fff',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTitleAlign: 'center',
+              headerTitleStyle: { fontFamily: fonts.semibold },
+              headerBackTitleStyle: { fontFamily: fonts.regular },
+              headerBackTitle: 'Back',
+            }}
+          />
+          <Stack.Screen
+            name="form-data"
+            options={{
+              title: 'Form Details',
+              headerShown: true,
+              headerTintColor: '#fff',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTitleAlign: 'center',
+              headerTitleStyle: { fontFamily: fonts.semibold },
+              headerBackTitleStyle: { fontFamily: fonts.regular },
+              headerBackTitle: 'Back',
+            }}
+          />
+          <Stack.Screen
+            name="data-privacy"
+            options={{
+              title: 'Data Privacy',
+              headerShown: true,
+              headerTintColor: '#fff',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTitleAlign: 'center',
+              headerTitleStyle: { fontFamily: fonts.semibold },
+              headerBackTitleStyle: { fontFamily: fonts.regular },
+              headerBackTitle: 'Back',
+            }}
+          />
+        </Stack>
+      </BottomSheetModalProvider>
+    </OfflineDataProvider>
   );
 }
 

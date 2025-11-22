@@ -129,6 +129,18 @@ export function LoginScreen() {
           <Text style={styles.submitText}>{submitting ? 'Signing in…' : 'Sign In'}</Text>
         </TouchableOpacity>
 
+        {/* Debug Button for Onboarding Reset */}
+        <TouchableOpacity
+          style={{ alignSelf: 'center', marginTop: spacing.lg }}
+          onPress={async () => {
+            const { clearOnboardingStatus } = await import('@/storage/onboarding');
+            await clearOnboardingStatus();
+            alert('Onboarding status cleared. Please restart the app to see the onboarding flow.');
+          }}
+        >
+          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Reset Onboarding (Debug)</Text>
+        </TouchableOpacity>
+
       </View>
     </Screen>
   );
