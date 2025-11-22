@@ -50,8 +50,8 @@ export function ImageLightbox({ visible, uri, alt, onClose, placeholder }: Image
   const pan = Gesture.Pan()
     .onUpdate((event) => {
       if (scale.value > 1) {
-        translateX.value = clamp(translateX.value + event.changeX, -250, 250);
-        translateY.value = clamp(translateY.value + event.changeY, -250, 250);
+        translateX.value = clamp(translateX.value + event.translationX, -250, 250);
+        translateY.value = clamp(translateY.value + event.translationY, -250, 250);
       }
     })
     .onEnd(() => {
@@ -98,8 +98,6 @@ export function ImageLightbox({ visible, uri, alt, onClose, placeholder }: Image
                   transition={200}
                   accessible
                   accessibilityLabel={alt || 'Photo'}
-                  tint={uri ? undefined : 'light'}
-                  recycleMemory
                 />
               </Animated.View>
             </GestureDetector>

@@ -66,9 +66,17 @@ export function FormDetailScreen() {
     if (!project) return null;
     const normalized = normalizeProjectForDisplay(project);
     const formId = params.formId as string | undefined;
-    const candidateForm = (formId && normalized.forms.find((f) => f.id === formId)) || normalized.forms[0];
-    if (!candidateForm) return null;
-    return { formRecord: candidateForm, project: normalized };
+
+    // Only select a form if formId is explicitly provided
+    if (formId) {
+      const candidateForm = normalized.forms.find((f) => f.id === formId);
+      if (candidateForm) {
+        return { formRecord: candidateForm, project: normalized };
+      }
+    }
+
+    // Return project without a selected form
+    return { formRecord: undefined, project: normalized };
   }, [findProjectByAnyId, normalizeProjectForDisplay, params.formId, params.projectId]);
 
   const resolveSelectionFromStandalone = useCallback(() => {
@@ -159,7 +167,7 @@ export function FormDetailScreen() {
   const meta = useMemo(() => {
     return {
       id: activeFormRecord?.id ?? '',
-      annexTitle: activeFormRecord?.annexTitle || params.annex,
+      annexTitle: activeFormRecord?.annexTitle,
       status: activeFormRecord?.status,
       linkedProjectId: activeProject?.id ?? activeFormRecord?.linkedProjectId,
       linkedProjectTitle: activeProject?.title,
@@ -171,7 +179,7 @@ export function FormDetailScreen() {
       province: activeProject?.province ?? activeFormRecord?.data.locationProvince,
       zone: activeProject?.zone,
     };
-  }, [activeFormRecord, activeProject, params.annex]);
+  }, [activeFormRecord, activeProject]);
 
   const annexTitle = meta.annexTitle ?? '';
   const projectForms = useMemo(() => activeProject?.forms ?? [], [activeProject]);
@@ -282,20 +290,247 @@ export function FormDetailScreen() {
     });
   };
 
-  if (!selection || !activeFormRecord) {
+  if (!selection) {
     return (
       <Screen>
         <View style={styles.emptyState}>
           <Ionicons name="document-outline" size={64} color={colors.textMuted} />
           <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No record selected</Text>
           <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-            Please select a form to view its details
+            Please select a project or form to view details
           </Text>
         </View>
       </Screen>
     );
   }
 
+  // If we have a project but no form, show project-only view
+  if (!activeFormRecord && activeProject) {
+    return (
+      <Screen scroll applyTopInset={false}>
+        {/* Premium Gradient Header */}
+        <LinearGradient
+          colors={[colors.primary, colors.primary + 'DD']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.gradientHeader}
+        >
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+
+          <View style={styles.headerContent}>
+            <View style={styles.headerIconContainer}>
+              <Ionicons name="folder-open" size={28} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerTitle} numberOfLines={2}>
+                {activeProject.title}
+              </Text>
+              <View style={styles.headerMetaRow}>
+                <Ionicons name="location-outline" size={14} color="#fff" />
+                <Text style={styles.headerMeta}>
+                  {activeProject.barangay ?? '—'}, {activeProject.municipality ?? '—'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.headerBadgeRow}>
+            {activeProject.zone && (
+              <View style={styles.zonePill}>
+                <Text style={styles.zonePillText}>{activeProject.zone}</Text>
+              </View>
+            )}
+          </View>
+        </LinearGradient>
+
+        {/* No forms attached message */}
+        <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Project Information</Text>
+          </View>
+          <View style={styles.cardContent}>
+            <View style={[styles.infoBanner, { backgroundColor: colors.surfaceMuted }]}>
+              <Ionicons name="document-outline" size={18} color={colors.textMuted} />
+              <Text style={[styles.infoBannerText, { color: colors.textMuted }]}>
+                This project has no validation forms attached yet. Create a new form to get started.
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Project Details Card */}
+        <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="briefcase" size={20} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Project Details</Text>
+          </View>
+          <View style={styles.cardContent}>
+            <SectionDivider label="Overview" />
+            {detailRow('code-slash-outline', 'Project Code', activeProject.projectCode)}
+            {detailRow('layers-outline', 'Type', activeProject.projectType)}
+            {detailRow('trending-up-outline', 'Stage', activeProject.stage)}
+            {detailRow('checkmark-circle-outline', 'Status', activeProject.status)}
+            {detailRow('business-outline', 'Operating Unit', activeProject.operatingUnit)}
+            {detailRow('ribbon-outline', 'Banner Program', activeProject.bannerProgram)}
+            {detailRow('apps-outline', 'PREXC Program', activeProject.prexcProgram)}
+            {detailRow('git-branch-outline', 'Sub Program', activeProject.subProgram)}
+            {detailRow('people-outline', 'Recipient Type', activeProject.recipientType)}
+            {detailRow('calculator-outline', 'Budget Process', activeProject.budgetProcess)}
+
+            <SectionDivider label="Funding" />
+            {detailRow('calendar-outline', 'Year Funded', activeProject.yearFunded?.toString())}
+            {detailRow('cash-outline', 'Allocated Amount', activeProject.allocatedAmount)}
+            {detailRow('person-outline', 'Beneficiary', activeProject.beneficiary ?? undefined)}
+
+            <SectionDivider label="Location" />
+            {detailRow('globe-outline', 'Region', activeProject.region)}
+            {detailRow('map-outline', 'Province', activeProject.province)}
+            {detailRow('business-outline', 'Municipality', activeProject.municipality)}
+            {detailRow('navigate-outline', 'Barangay', activeProject.barangay)}
+            {detailRow('compass-outline', 'Latitude', activeProject.latitude)}
+            {detailRow('compass-outline', 'Longitude', activeProject.longitude)}
+          </View>
+        </View>
+
+        {/* Geotag Photos */}
+        {geotagImages.length > 0 && (
+          <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="images" size={20} color={colors.primary} />
+              <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Geotag Photos</Text>
+              <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.countBadgeText}>{geotagImages.length}</Text>
+              </View>
+            </View>
+            <View style={styles.carouselWrapper}>
+              <Carousel
+                ref={carouselRef}
+                data={geotagImages}
+                renderItem={({ item }) => (
+                  <View
+                    style={[
+                      styles.geotagCard,
+                      {
+                        width: geotagCardWidth,
+                        height: geotagCardHeight,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                    onTouchEnd={() => openLightbox(item.url, item.photoName)}
+                  >
+                    <Image
+                      style={[styles.geotagImage, { height: geotagCardHeight }]}
+                      source={{ uri: item.url }}
+                      contentFit="cover"
+                      transition={200}
+                    />
+                    <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.geotagOverlay}>
+                      <Text style={styles.geotagTitle} numberOfLines={1}>
+                        {item.photoName || 'Geotag'}
+                      </Text>
+                      <Text style={styles.geotagSubtitle} numberOfLines={1}>
+                        {item.url}
+                      </Text>
+                    </LinearGradient>
+                  </View>
+                )}
+                width={geotagCardWidth}
+                height={geotagCardHeight}
+                loop={geotagImages.length > 1}
+                pagingEnabled
+                snapEnabled
+                autoPlay={geotagImages.length > 1}
+                autoPlayInterval={3200}
+                mode="parallax"
+                modeConfig={{
+                  parallaxScrollingScale: 0.92,
+                  parallaxAdjacentItemScale: 0.82,
+                  parallaxScrollingOffset: 50,
+                }}
+                onProgressChange={(_offset, absoluteProgress) => {
+                  geotagProgress.value = absoluteProgress;
+                }}
+                style={{ alignSelf: 'center' }}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Proposal Documents */}
+        {activeProject.proposalDocuments?.length ? (
+          <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.cardHeader}>
+              <Ionicons name="documents" size={20} color={colors.primary} />
+              <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Proposal Documents</Text>
+              <View style={[styles.countBadge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.countBadgeText}>{activeProject.proposalDocuments.length}</Text>
+              </View>
+            </View>
+            <View style={styles.cardContent}>
+              {activeProject.proposalDocuments.map((doc) => (
+                <View key={doc.id} style={[styles.documentRow, { borderColor: colors.border }]}>
+                  <View style={[styles.documentIcon, { backgroundColor: colors.surfaceMuted }]}>
+                    <Ionicons name="document-text" size={20} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.documentTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+                      {doc.fileName}
+                    </Text>
+                    <Text style={[styles.documentCategory, { color: colors.textMuted }]}>
+                      {doc.category || 'Document'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.iconButton, { backgroundColor: colors.surfaceMuted }]}
+                    onPress={() => handleOpenDocument(doc.url, doc.fileName)}
+                  >
+                    <Ionicons
+                      name={isImageUrl(doc.url) ? 'image-outline' : isPdfUrl(doc.url) ? 'document-outline' : 'open-outline'}
+                      size={18}
+                      color={colors.primary}
+                    />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        <ImageLightbox
+          visible={lightboxVisible}
+          uri={lightboxImage?.uri}
+          alt={lightboxImage?.title}
+          onClose={closeLightbox}
+          placeholder="https://dummyimage.com/800x600/334155/ffffff&text=No+photo+available"
+        />
+      </Screen>
+    );
+  }
+
+  // Guard: If we reach here, we must have an activeFormRecord
+  if (!activeFormRecord) {
+    return (
+      <Screen>
+        <View style={styles.emptyState}>
+          <Ionicons name="alert-circle-outline" size={64} color={colors.textMuted} />
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Invalid State</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+            Unable to load form data. Please go back and try again.
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  // If we have no project, show standalone draft view
   if (!activeProject) {
     return (
       <Screen scroll applyTopInset={false}>
@@ -306,6 +541,15 @@ export function FormDetailScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.gradientHeader}
         >
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+
           <View style={styles.headerContent}>
             <View style={styles.headerIconContainer}>
               <Ionicons name="document-text" size={28} color="#fff" />
@@ -334,11 +578,13 @@ export function FormDetailScreen() {
           </View>
         </LinearGradient>
 
-        {/* Annex Tag */}
-        <View style={[styles.annexBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="bookmark" size={16} color={colors.primary} />
-          <Text style={[styles.annexBannerText, { color: colors.textPrimary }]}>{annexTitle || 'Standalone Draft'}</Text>
-        </View>
+        {/* Annex Tag - Only show if there's an annex title */}
+        {annexTitle && (
+          <View style={[styles.annexBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Ionicons name="bookmark" size={16} color={colors.primary} />
+            <Text style={[styles.annexBannerText, { color: colors.textPrimary }]}>{annexTitle}</Text>
+          </View>
+        )}
 
         {/* Draft Details Card */}
         <View style={[styles.premiumCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -405,6 +651,15 @@ export function FormDetailScreen() {
         end={{ x: 1, y: 1 }}
         style={styles.gradientHeader}
       >
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+
         <View style={styles.headerContent}>
           <View style={styles.headerIconContainer}>
             <Ionicons name="folder-open" size={28} color="#fff" />
@@ -442,11 +697,13 @@ export function FormDetailScreen() {
         </View>
       </LinearGradient>
 
-      {/* Annex Tag */}
-      <View style={[styles.annexBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="bookmark" size={16} color={colors.primary} />
-        <Text style={[styles.annexBannerText, { color: colors.textPrimary }]}>{annexTitle}</Text>
-      </View>
+      {/* Annex Tag - Only show if there's an annex title */}
+      {annexTitle && (
+        <View style={[styles.annexBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="bookmark" size={16} color={colors.primary} />
+          <Text style={[styles.annexBannerText, { color: colors.textPrimary }]}>{annexTitle}</Text>
+        </View>
+      )}
 
       {/* Project Details Card */}
       {activeProject && (
@@ -661,6 +918,15 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.md,
     gap: spacing.md,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   headerContent: {
     flexDirection: 'row',

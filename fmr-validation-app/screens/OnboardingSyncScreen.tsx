@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { setOnboardingCompleted } from '@/storage/onboarding';
+import { isOnboardingCompleted, setOnboardingCompleted } from '@/storage/onboarding';
 import { replaceSnapshot, setLastProjectsSyncTimestamp, setLastFormsSyncTimestamp } from '@/storage/offline-store';
 import { OfflineSnapshot } from '@/types/offline';
 import { fetchSnapshotWithProgress } from '@/lib/api';
@@ -29,8 +29,12 @@ export function OnboardingSyncScreen() {
     { id: '5', label: 'Finalizing setup', status: 'pending' },
   ]);
   const [error, setError] = useState<string | null>(null);
+  const syncStartedRef = useRef(false);
 
   useEffect(() => {
+    // Prevent double execution in React Strict Mode
+    if (syncStartedRef.current) return;
+    syncStartedRef.current = true;
     performSync();
   }, []);
 
@@ -42,6 +46,14 @@ export function OnboardingSyncScreen() {
 
   const performSync = async () => {
     try {
+      // Check if onboarding is already completed (prevent double execution)
+      const alreadyCompleted = await isOnboardingCompleted();
+      if (alreadyCompleted) {
+        console.log('[Sync] Onboarding already completed, skipping...');
+        router.replace('/login');
+        return;
+      }
+
       // Step 1: Preparing
       setCurrentStep(0);
       updateStep(0, 'loading');
@@ -96,10 +108,10 @@ export function OnboardingSyncScreen() {
       updateStep(4, 'complete');
       setProgress(100);
 
-      // Wait a moment then navigate
+      // Navigate directly to login
       setTimeout(() => {
-        router.replace('/');
-      }, 1000);
+        router.replace('/login');
+      }, 800);
     } catch (err) {
       console.error('Sync error:', err);
       setError((err as Error).message || 'Failed to sync data. Please try again.');

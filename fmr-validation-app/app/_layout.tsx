@@ -12,7 +12,7 @@ import {
 } from '@expo-google-fonts/nunito';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View, AppState } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 // eslint-disable-next-line import/no-duplicates
 import 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -40,28 +40,6 @@ export default function RootLayout() {
     checkOnboarding();
   }, []);
 
-  // Poll onboarding status every second to detect completion
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkOnboarding();
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Re-check onboarding status when app comes to foreground
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        checkOnboarding();
-      }
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
   if (!assetsLoaded || onboardingComplete === null) {
     return (
       <View style={styles.loader}>
@@ -74,17 +52,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          {onboardingComplete ? (
-            <AuthProvider>
-              <OfflineDataProvider ready>
-                <BottomSheetModalProvider>
+          <AuthProvider>
+            <OfflineDataProvider ready={onboardingComplete}>
+              <BottomSheetModalProvider>
+                {onboardingComplete ? (
                   <RootStack />
-                </BottomSheetModalProvider>
-              </OfflineDataProvider>
-            </AuthProvider>
-          ) : (
-            <OnboardingStack />
-          )}
+                ) : (
+                  <OnboardingStack />
+                )}
+              </BottomSheetModalProvider>
+            </OfflineDataProvider>
+          </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -158,14 +136,7 @@ function RootStack() {
       <Stack.Screen
         name="form-detail"
         options={{
-          title: 'Project Details',
-          headerShown: true,
-          headerTintColor: '#fff',
-          headerStyle: { backgroundColor: colors.primary },
-          headerTitleAlign: 'center',
-          headerTitleStyle: { fontFamily: fonts.semibold },
-          headerBackTitleStyle: { fontFamily: fonts.regular },
-          headerBackTitle: 'Back',
+          headerShown: false,
         }}
       />
       <Stack.Screen

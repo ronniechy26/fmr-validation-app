@@ -254,16 +254,49 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
   const initialLoadRef = useRef(false);
 
   useEffect(() => {
-    if (!ready || initialLoadRef.current) return;
+    // Load data once when user is authenticated
+    if (!token || initialLoadRef.current) return;
+
     initialLoadRef.current = true;
+    setLoading(true);
+
     // Defer initial refresh to prevent blocking login UI
-    // Use formsOnly to avoid heavy snapshot fetch on login
-    const timer = setTimeout(() => {
-      refresh({ silent: true, formsOnly: true });
+    const timer = setTimeout(async () => {
+      try {
+        // Check if we have recent data (synced within last 5 minutes)
+        // This prevents double-sync after onboarding which already downloads data
+        const lastSync = await getLastProjectsSyncTimestamp();
+        const FIVE_MINUTES = 5 * 60 * 1000;
+        const isFresh = lastSync && (Date.now() - lastSync) < FIVE_MINUTES;
+
+        logger.info('offline', 'initial-load', {
+          isFresh,
+          lastSync,
+          timeSinceSync: lastSync ? Date.now() - lastSync : null
+        });
+
+        if (isFresh) {
+          // Load from cache only, no network sync needed
+          const cached = await loadSnapshot();
+          logger.info('offline', 'cache-loaded', {
+            projects: cached.projects.length,
+            drafts: cached.standaloneDrafts.length
+          });
+          setSnapshot(cached);
+          setLoading(false);
+        } else {
+          // Data is stale or missing, perform sync
+          logger.info('offline', 'performing-sync', { reason: 'stale-data' });
+          refresh({ silent: true, formsOnly: true });
+        }
+      } catch (error) {
+        logger.error('offline', 'initial-load-error', { error: String(error) });
+        setLoading(false);
+      }
     }, 100);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
+  }, [token]);
 
   const findFormById = useCallback(
     (source: OfflineSnapshot | null, formId: string) => {
