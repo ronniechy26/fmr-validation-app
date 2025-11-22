@@ -1,202 +1,313 @@
-import { useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Screen } from '@/components/Screen';
-import { Section } from '@/components/Section';
-import { FilterChip } from '@/components/FilterChip';
-import { StatusBadge } from '@/components/StatusBadge';
+/**
+ * LocatorScreen
+ *
+ * This screen displays all FMR project locations on an interactive map.
+ * Users can filter projects by location (Region, Province, Municipality) using a bottom sheet.
+ * The map renders all FMR points from SQLite with color-coded markers based on status.
+ */
+
+import { useMemo, useRef, useState, useEffect } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import MapView from 'react-native-maps';
+import * as Location from 'expo-location';
+import { LocationFilterBottomSheet } from '@/components/LocationFilterBottomSheet';
+import LocatorMap from '@/components/LocatorMap';
 import { fonts, spacing } from '@/theme';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeMode } from '@/providers/ThemeProvider';
+import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { FormStatus } from '@/types/theme';
 
 export function LocatorScreen() {
   const { colors, mode } = useThemeMode();
   const { projects, standaloneDrafts } = useOfflineData();
-  const zones = useMemo(() => {
-    const unique = Array.from(
-      new Set(
-        projects
-          .map((project) => project.zone?.trim())
-          .filter((zone): zone is string => Boolean(zone)),
-      ),
-    );
-    return ['All', ...unique];
-  }, [projects]);
-  const [selectedZone, setSelectedZone] = useState<string>('All');
+  const filterSheetRef = useRef<BottomSheetModal>(null);
+  const mapRef = useRef<MapView>(null);
 
-  const highlightedForms = useMemo(() => {
+  // Location filter state (only location, no status filter)
+  const [selectedLocation, setSelectedLocation] = useState<{
+    region?: string;
+    province?: string;
+    municipality?: string;
+  }>({});
+
+  // Map states
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  // Request location permissions and get user location
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Denied', 'Location permission is required to show your position on the map.');
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({});
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+      } catch (error) {
+        console.error('Error getting location:', error);
+      }
+    })();
+  }, []);
+
+  // Extract all unique locations from projects and forms for filter options
+  const locationOptions = useMemo(() => {
+    const locations: Array<{
+      region?: string;
+      province?: string;
+      municipality?: string;
+      barangay?: string;
+    }> = [];
+
+    projects.forEach((project) => {
+      project.forms.forEach((form) => {
+        locations.push({
+          region: project.region || form.region,
+          province: project.province || form.data.locationProvince,
+          municipality: project.municipality || form.data.locationMunicipality,
+          barangay: project.barangay || form.data.locationBarangay,
+        });
+      });
+    });
+
+    standaloneDrafts.forEach((form) => {
+      locations.push({
+        region: form.region,
+        province: form.data.locationProvince,
+        municipality: form.data.locationMunicipality,
+        barangay: form.data.locationBarangay,
+      });
+    });
+
+    return locations;
+  }, [projects, standaloneDrafts]);
+
+  // Combine all forms (linked + standalone) with coordinates from SQLite
+  const allForms = useMemo(() => {
     const linked = projects.flatMap((project) =>
       project.forms.map((form) => ({
         id: form.id,
         projectName: project.title,
         barangay: project.barangay ?? form.data.locationBarangay,
         municipality: project.municipality ?? form.data.locationMunicipality,
+        province: project.province ?? form.data.locationProvince,
+        region: project.region ?? form.region,
         status: form.status,
         updatedAt: form.updatedAt,
-        zone: project.zone ?? 'Unassigned',
-      })),
+        latitude: project.latitude,
+        longitude: project.longitude,
+      }))
     );
+
     const unlinked = standaloneDrafts.map((form) => ({
       id: form.id,
       projectName: form.data.nameOfProject,
       barangay: form.data.locationBarangay,
       municipality: form.data.locationMunicipality,
+      province: form.data.locationProvince,
+      region: form.region,
       status: form.status,
       updatedAt: form.updatedAt,
-      zone: 'Standalone' as const,
+      latitude: undefined,
+      longitude: undefined,
     }));
-    const combined = [...linked, ...unlinked];
-    if (selectedZone === 'All') {
-      return combined;
+
+    return [...linked, ...unlinked];
+  }, [projects, standaloneDrafts]);
+
+  // Apply location filters only
+  const filteredForms = useMemo(() => {
+    return allForms.filter((form) => {
+      // Location filters
+      if (selectedLocation.region && form.region?.toLowerCase() !== selectedLocation.region.toLowerCase()) {
+        return false;
+      }
+      if (
+        selectedLocation.province &&
+        form.province?.toLowerCase() !== selectedLocation.province.toLowerCase()
+      ) {
+        return false;
+      }
+      if (
+        selectedLocation.municipality &&
+        form.municipality?.toLowerCase() !== selectedLocation.municipality.toLowerCase()
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [allForms, selectedLocation]);
+
+  // Prepare markers from filtered forms with valid coordinates
+  const mapMarkers = useMemo(() => {
+    return filteredForms
+      .filter((form) => form.latitude && form.longitude)
+      .map((form) => ({
+        id: form.id,
+        latitude: parseFloat(form.latitude!),
+        longitude: parseFloat(form.longitude!),
+        projectName: form.projectName,
+        barangay: form.barangay,
+        municipality: form.municipality,
+        status: form.status,
+      }));
+  }, [filteredForms]);
+
+  const handleFilterApply = (location: { region?: string; province?: string; municipality?: string }) => {
+    setSelectedLocation(location);
+  };
+
+  const openFilterSheet = () => {
+    filterSheetRef.current?.present();
+  };
+
+  const centerOnUserLocation = () => {
+    if (userLocation && mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.5,
+          longitudeDelta: 0.5,
+        },
+        1000
+      );
+    } else {
+      Alert.alert('Location Unavailable', 'Unable to get your current location.');
     }
-    return combined.filter((item) => item.zone.toLowerCase() === selectedZone.toLowerCase());
-  }, [projects, standaloneDrafts, selectedZone]);
+  };
+
+  const handleMarkerPress = (marker: any) => {
+    console.log('Marker pressed:', marker);
+    // TODO: Navigate to form detail or show info
+  };
 
   return (
-    <Screen scroll>
-      <View
-        style={[
-          styles.mapCard,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            shadowColor: mode === 'dark' ? '#000' : '#2c3a57',
-          },
-        ]}
-      >
-        <View style={styles.mapHeader}>
-          <Text style={[styles.mapLabel, { color: colors.textPrimary }]}>FMR Locator</Text>
-          <Text style={[styles.mapSubtitle, { color: colors.textMuted }]}>
-            Check barangays needing validation and sync progress.
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Map Container */}
+      <View style={styles.mapContainer}>
+        <LocatorMap mapRef={mapRef} data={mapMarkers} handleMarkerPress={handleMarkerPress} />
+
+        {/* Floating Filter Button */}
+        <View style={styles.floatingControls}>
+          <TouchableOpacity
+            style={[styles.filterFloatingButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={openFilterSheet}
+            activeOpacity={0.9}
+          >
+            <Ionicons name="options" size={20} color={colors.primary} />
+            <Text style={[styles.filterFloatingText, { color: colors.textPrimary }]}>
+              {selectedLocation.municipality || selectedLocation.province || selectedLocation.region || 'Filter Location'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Center on Location Button */}
+          <TouchableOpacity
+            style={[styles.locationButton, { backgroundColor: colors.primary }]}
+            onPress={centerOnUserLocation}
+            activeOpacity={0.9}
+          >
+            <Ionicons name="locate" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Marker Count Badge */}
+        <View style={[styles.countBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="location" size={16} color={colors.primary} />
+          <Text style={[styles.countText, { color: colors.textPrimary }]}>
+            {mapMarkers.length} FMR{mapMarkers.length !== 1 ? 's' : ''}
           </Text>
         </View>
-        <View style={[styles.mapPlaceholder, { backgroundColor: colors.surfaceMuted }]}>
-          <Ionicons name="map" size={42} color={colors.textMuted} />
-          <Text style={[styles.mapPlaceholderText, { color: colors.textMuted }]}>Interactive map coming soon</Text>
-        </View>
-        <TouchableOpacity style={[styles.mapButton, { backgroundColor: colors.secondary }]}>
-          <Ionicons name="compass" size={16} color={colors.primary} />
-          <Text style={[styles.mapButtonText, { color: colors.primary }]}>Center on current location</Text>
-        </TouchableOpacity>
       </View>
 
-      <Section title="Quick Filters">
-        <View style={styles.filterWrap}>
-          {zones.map((option) => (
-            <FilterChip
-              key={option}
-              label={option}
-              active={option === selectedZone}
-              onPress={() => setSelectedZone(option)}
-            />
-          ))}
-        </View>
-        <View style={styles.filterRow}>
-          <View style={[styles.filterIndicator, { backgroundColor: colors.primary }]} />
-          <Text style={[styles.filterText, { color: colors.textMuted }]}>
-            Showing barangays within 15km radius
-          </Text>
-        </View>
-      </Section>
-
-      <Section title="Nearby Projects">
-        {highlightedForms.map((form) => (
-          <View key={form.id} style={[styles.nearbyCard, { borderColor: colors.border }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.nearbyTitle, { color: colors.textPrimary }]}>{form.projectName}</Text>
-              <Text style={[styles.nearbySubtitle, { color: colors.textPrimary }]}>
-                {form.barangay}, {form.municipality}
-              </Text>
-              <Text style={[styles.nearbyMeta, { color: colors.textMuted }]}>
-                Last updated {new Date(form.updatedAt).toLocaleDateString()}
-              </Text>
-            </View>
-            <StatusBadge status={form.status} />
-          </View>
-        ))}
-      </Section>
-    </Screen>
+      {/* Filter Bottom Sheet - Location Only */}
+      <LocationFilterBottomSheet
+        ref={filterSheetRef}
+        activeRegionFilter={selectedLocation}
+        onApply={handleFilterApply}
+        snapPoints={['60%']}
+        locationOptions={locationOptions}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  mapCard: {
-    borderRadius: 20,
-    padding: spacing.xl,
-    gap: spacing.md,
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    borderWidth: 1,
+  container: {
+    flex: 1,
   },
-  mapHeader: {
-    gap: spacing.xs,
+  mapContainer: {
+    flex: 1,
+    position: 'relative',
   },
-  mapLabel: {
-    fontFamily: fonts.semibold,
-    fontSize: 20,
+  floatingControls: {
+    position: 'absolute',
+    top: spacing.lg,
+    left: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    zIndex: 10,
   },
-  mapSubtitle: {
-    fontFamily: fonts.regular,
-    lineHeight: 20,
-  },
-  mapPlaceholder: {
-    borderRadius: 16,
-    paddingVertical: spacing.xxl,
+  filterFloatingButton: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 999,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  mapPlaceholderText: {
-    fontFamily: fonts.medium,
+  filterFloatingText: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    flex: 1,
   },
-  mapButton: {
-    flexDirection: 'row',
-    gap: spacing.xs,
+  locationButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  countBadge: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: 999,
-    alignSelf: 'flex-start',
-  },
-  mapButtonText: {
-    fontFamily: fonts.semibold,
-  },
-  filterWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  filterIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
-  },
-  filterText: {
-    fontFamily: fonts.regular,
-  },
-  nearbyCard: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: spacing.lg,
-    flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  nearbyTitle: {
+  countText: {
     fontFamily: fonts.semibold,
-    fontSize: 16,
-  },
-  nearbySubtitle: {
-    fontFamily: fonts.regular,
-    marginTop: 4,
-  },
-  nearbyMeta: {
-    fontFamily: fonts.regular,
-    marginTop: 2,
+    fontSize: 14,
   },
 });
