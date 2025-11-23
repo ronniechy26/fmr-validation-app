@@ -25,15 +25,24 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const statusStyle = mode === 'dark' ? 'light-content' : 'dark-content';
   const defaultTop = insets.top || (Platform.OS === 'android' ? spacing.md : spacing.sm);
-  const bottomPadding = (insets.bottom || spacing.md) + 90;
+  const bottomPadding = noBottomPadding ? 0 : (insets.bottom || spacing.md) + 90;
   const topPadding = applyTopInset ? defaultTop : spacing.md;
+
+  const containerStyle = [
+    styles.safeArea,
+    { backgroundColor: colors.secondary, paddingTop: topPadding },
+    style,
+  ];
+
+  const innerContentStyle = [
+    styles.content,
+    { paddingBottom: bottomPadding },
+    contentContainerStyle,
+  ];
 
   if (scroll) {
     return (
-      <SafeAreaView
-        edges={['left', 'right', 'bottom']}
-        style={[styles.safeArea, { backgroundColor: colors.secondary, paddingTop: topPadding }, style]}
-      >
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={containerStyle}>
         <StatusBar
           barStyle={statusStyle}
           backgroundColor={colors.secondary}
@@ -43,7 +52,7 @@ export function Screen({
         />
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }, contentContainerStyle]}
+          contentContainerStyle={innerContentStyle}
         >
           {children}
         </ScrollView>
@@ -52,16 +61,7 @@ export function Screen({
   }
 
   return (
-    <SafeAreaView
-      edges={['left', 'right', 'bottom']}
-      style={[
-        styles.safeArea,
-        styles.content,
-        { backgroundColor: colors.secondary, paddingTop: topPadding },
-        !noBottomPadding && { paddingBottom: bottomPadding },
-        style,
-      ]}
-    >
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={[containerStyle, innerContentStyle]}>
       <StatusBar
         barStyle={statusStyle}
         backgroundColor={colors.secondary}
