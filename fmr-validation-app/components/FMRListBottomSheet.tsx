@@ -154,7 +154,7 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
   };
 
   const resolveProfile = (mode: 'driving' | 'bike' | 'foot') =>
-    mode === 'bike' ? 'cycling' : mode === 'foot' ? 'walking' : 'driving';
+    mode === 'bike' ? 'bike' : mode === 'foot' ? 'foot' : 'car';
 
   const getRoute = async (
     userLoc: { latitude: number; longitude: number },

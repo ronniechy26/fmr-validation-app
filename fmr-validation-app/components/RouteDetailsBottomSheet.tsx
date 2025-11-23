@@ -1,5 +1,6 @@
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, useMemo } from 'react';
+import type React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
@@ -7,12 +8,25 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
 
+type RouteStep = {
+  distance?: number;
+  duration?: number;
+  name?: string;
+  maneuver?: {
+    type?: string;
+    modifier?: string;
+    instruction?: string;
+  };
+};
+
+type RouteMode = 'driving' | 'bike' | 'foot';
+
 interface RouteDetails {
-  mode: 'driving' | 'bike' | 'foot';
+  mode: RouteMode;
   distance: number;
   duration: number;
   summary?: string;
-  steps?: any[];
+  steps?: RouteStep[];
   projectName: string;
 }
 
@@ -21,7 +35,7 @@ interface RouteDetailsBottomSheetProps {
   snapPoints: string[];
   index?: number;
   isLoading?: boolean;
-  onChangeMode?: (mode: 'driving' | 'bike' | 'foot') => void;
+  onChangeMode?: (mode: RouteMode) => void;
   onClearRoute?: () => void;
 }
 
@@ -42,7 +56,7 @@ export const RouteDetailsBottomSheet = forwardRef(function RouteDetailsSheet(
   }, [route]);
 
   const modeLabel = route?.mode === 'bike' ? 'Bike' : route?.mode === 'foot' ? 'Foot' : 'Car';
-  const modeButtons = [
+  const modeButtons: { label: string; value: RouteMode; icon: keyof typeof Ionicons.glyphMap }[] = [
     { label: 'Car', value: 'driving', icon: 'car' as const },
     { label: 'Bike', value: 'bike', icon: 'bicycle' as const },
     { label: 'Foot', value: 'foot', icon: 'walk' as const },
@@ -163,30 +177,29 @@ export const RouteDetailsBottomSheet = forwardRef(function RouteDetailsSheet(
             </View>
 
             {route.steps?.length ? (
-              route.steps.map((step: any, idx: number) => {
+              route.steps.map((step: RouteStep, idx: number) => {
                 const instruction = step.maneuver?.instruction || step.name || 'Continue';
                 const distance = ((step.distance ?? 0) / 1000).toFixed(2);
                 const duration = Math.round((step.duration ?? 0) / 60);
                 const maneuverIcon = () => {
                   const type = (step.maneuver?.type ?? '').toLowerCase();
-                  return (
-                    {
-                      depart: <FontAwesome5 name="location-arrow" size={18} color={colors.primary} />,
-                      arrive: <FontAwesome5 name="map-marker-alt" size={18} color={colors.primary} />,
-                      'new name': <FontAwesome5 name="road" size={18} color={colors.primary} />,
-                      merge: <FontAwesome5 name="random" size={18} color={colors.primary} />,
-                      'on ramp': <FontAwesome5 name="sign-in-alt" size={18} color={colors.primary} />,
-                      'off ramp': <FontAwesome5 name="sign-out-alt" size={18} color={colors.primary} />,
-                      fork: <FontAwesome5 name="code-branch" size={18} color={colors.primary} />,
-                      'end of road': <FontAwesome5 name="flag-checkered" size={18} color={colors.primary} />,
-                      'use lane': <FontAwesome5 name="grip-lines" size={18} color={colors.primary} />,
-                      continue: <FontAwesome5 name="arrow-up" size={18} color={colors.primary} />,
-                      roundabout: <FontAwesome5 name="sync-alt" size={18} color={colors.primary} />,
-                      rotary: <FontAwesome5 name="circle-notch" size={18} color={colors.primary} />,
-                      'roundabout turn': <FontAwesome5 name="redo" size={18} color={colors.primary} />,
-                      notification: <FontAwesome5 name="info-circle" size={18} color={colors.primary} />,
-                    } as Record<string, JSX.Element>
-                  )[type] ?? <FontAwesome5 name="question-circle" size={18} color={colors.primary} />;
+                  const map: Record<string, React.ReactElement> = {
+                    depart: <FontAwesome5 name="location-arrow" size={18} color={colors.primary} />,
+                    arrive: <FontAwesome5 name="map-marker-alt" size={18} color={colors.primary} />,
+                    'new name': <FontAwesome5 name="road" size={18} color={colors.primary} />,
+                    merge: <FontAwesome5 name="random" size={18} color={colors.primary} />,
+                    'on ramp': <FontAwesome5 name="sign-in-alt" size={18} color={colors.primary} />,
+                    'off ramp': <FontAwesome5 name="sign-out-alt" size={18} color={colors.primary} />,
+                    fork: <FontAwesome5 name="code-branch" size={18} color={colors.primary} />,
+                    'end of road': <FontAwesome5 name="flag-checkered" size={18} color={colors.primary} />,
+                    'use lane': <FontAwesome5 name="grip-lines" size={18} color={colors.primary} />,
+                    continue: <FontAwesome5 name="arrow-up" size={18} color={colors.primary} />,
+                    roundabout: <FontAwesome5 name="sync-alt" size={18} color={colors.primary} />,
+                    rotary: <FontAwesome5 name="circle-notch" size={18} color={colors.primary} />,
+                    'roundabout turn': <FontAwesome5 name="redo" size={18} color={colors.primary} />,
+                    notification: <FontAwesome5 name="info-circle" size={18} color={colors.primary} />,
+                  };
+                  return map[type] ?? <FontAwesome5 name="question-circle" size={18} color={colors.primary} />;
                 };
 
                 const modifierIcon =

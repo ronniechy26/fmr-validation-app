@@ -265,9 +265,10 @@ export function LocatorScreen() {
 
   const refetchRoute = async (mode: 'driving' | 'bike' | 'foot') => {
     if (!activeRoute || !userLocation || !osrmUrl) return;
+    const profile = mode === 'bike' ? 'bike' : mode === 'foot' ? 'foot' : 'car';
     try {
       setRouteLoading(true);
-      const url = `${osrmUrl}/${mode}/${userLocation.longitude},${userLocation.latitude};${activeRoute.targetLongitude},${activeRoute.targetLatitude}`;
+      const url = `${osrmUrl}/${profile}/${userLocation.longitude},${userLocation.latitude};${activeRoute.targetLongitude},${activeRoute.targetLatitude}`;
       const response = await axios.get(url, {
         params: {
           overview: 'full',
