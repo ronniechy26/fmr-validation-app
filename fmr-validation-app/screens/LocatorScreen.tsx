@@ -30,6 +30,7 @@ export function LocatorScreen() {
   const listSheetRef = useRef<BottomSheetModal>(null);
   const routeSheetRef = useRef<BottomSheetModal>(null);
   const mapRef = useRef<MapView>(null);
+  const locationWatcher = useRef<Location.LocationSubscription | null>(null);
   const [activeRoute, setActiveRoute] = useState<{
     coordinates: { latitude: number; longitude: number }[];
     mode: 'driving' | 'bike' | 'foot';
@@ -50,9 +51,10 @@ export function LocatorScreen() {
   // Map states
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  // Request location permissions and get user location
+  // Request location permissions and keep user location updated
   useEffect(() => {
-    (async () => {
+    let isMounted = true;
+    const startWatching = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -61,14 +63,39 @@ export function LocatorScreen() {
         }
 
         const location = await Location.getCurrentPositionAsync({});
-        setUserLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        });
+        if (isMounted) {
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        }
+
+        locationWatcher.current = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Highest,
+            distanceInterval: 5,
+            timeInterval: 2000,
+          },
+          (loc) => {
+            if (!isMounted) return;
+            setUserLocation({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+          },
+        );
       } catch (error) {
         console.error('Error getting location:', error);
       }
-    })();
+    };
+
+    startWatching();
+
+    return () => {
+      isMounted = false;
+      locationWatcher.current?.remove();
+      locationWatcher.current = null;
+    };
   }, []);
 
   // Extract all unique locations from projects and forms for filter options
@@ -302,6 +329,21 @@ export function LocatorScreen() {
       );
     }
   }, [mapMarkers]);
+
+  // Gently follow the user when navigating for a Waze-like feel
+  useEffect(() => {
+    if (mapRef.current && userLocation && activeRoute) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.08,
+          longitudeDelta: 0.08,
+        },
+        500,
+      );
+    }
+  }, [userLocation, activeRoute]);
 
   const handleFilterApply = (location: LocatorFilter) => {
     setSelectedLocation(location);
