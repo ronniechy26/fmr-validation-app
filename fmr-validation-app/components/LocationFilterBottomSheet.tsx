@@ -1,7 +1,7 @@
 import { SheetBackdrop } from '@/components/SheetBackdrop';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
-import { RegionFilter } from '@/types/filters';
+import { LocatorFilter, RegionFilter } from '@/types/filters';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, useEffect, useMemo, useState } from 'react';
@@ -12,13 +12,14 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  TextInput,
   View,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 
 interface LocationFilterBottomSheetProps {
-  activeRegionFilter?: RegionFilter;
-  onApply: (regionFilter: RegionFilter) => void;
+  activeFilter?: LocatorFilter;
+  onApply: (regionFilter: LocatorFilter) => void;
   snapPoints: string[];
   locationOptions?: RegionFilter[];
   index?: number;
@@ -26,7 +27,7 @@ interface LocationFilterBottomSheetProps {
 
 export const LocationFilterBottomSheet = forwardRef(function LocationFilterSheet(
   {
-    activeRegionFilter,
+    activeFilter,
     onApply,
     snapPoints,
     locationOptions = [],
@@ -40,8 +41,11 @@ export const LocationFilterBottomSheet = forwardRef(function LocationFilterSheet
   const [isLoading, setIsLoading] = useState(false);
 
   const [selectedRegion, setSelectedRegion] = useState<RegionFilter>({
-    ...(activeRegionFilter ?? {}),
+    region: activeFilter?.region,
+    province: activeFilter?.province,
+    municipality: activeFilter?.municipality,
   });
+  const [searchQuery, setSearchQuery] = useState(activeFilter?.searchQuery ?? '');
 
   const regionOptions = useMemo(() => {
     return Array.from(
@@ -80,8 +84,13 @@ export const LocationFilterBottomSheet = forwardRef(function LocationFilterSheet
   }, [locationOptions, selectedRegion.province]);
 
   useEffect(() => {
-    setSelectedRegion({ ...(activeRegionFilter ?? {}) });
-  }, [activeRegionFilter]);
+    setSelectedRegion({
+      region: activeFilter?.region,
+      province: activeFilter?.province,
+      municipality: activeFilter?.municipality,
+    });
+    setSearchQuery(activeFilter?.searchQuery ?? '');
+  }, [activeFilter]);
 
   const close = () => {
     if (!ref || typeof ref === 'function') return;
@@ -91,13 +100,15 @@ export const LocationFilterBottomSheet = forwardRef(function LocationFilterSheet
   const handleApply = () => {
     setIsLoading(true);
     setTimeout(() => {
-      onApply(selectedRegion);
+      onApply({ ...selectedRegion, searchQuery: searchQuery.trim() || undefined });
       setIsLoading(false);
       close();
     }, 500);
   };
 
   const handleClear = () => {
+    setSelectedRegion({});
+    setSearchQuery('');
     onApply({});
     close();
   };
@@ -252,6 +263,40 @@ export const LocationFilterBottomSheet = forwardRef(function LocationFilterSheet
         {/* Divider */}
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
+        {/* Search */}
+        <View style={styles.searchContainer}>
+          <Text style={[styles.inputLabel, { color: colors.textMuted }]}>Search</Text>
+          <View
+            style={[
+              styles.searchBar,
+              {
+                backgroundColor: colors.surface,
+                borderColor: searchQuery ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Ionicons name="search" size={16} color={colors.textMuted} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+              placeholder="Search by project name or ABEMIS ID"
+              placeholderTextColor={colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
         {/* Location Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -367,6 +412,23 @@ const styles = StyleSheet.create({
   section: {
     gap: spacing.md,
     marginBottom: spacing.xxl,
+  },
+  searchContainer: {
+    marginBottom: spacing.lg,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: 15,
   },
   sectionHeader: {
     flexDirection: 'row',

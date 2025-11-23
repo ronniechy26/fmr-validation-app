@@ -19,6 +19,7 @@ import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { LocatorFilter } from '@/types/filters';
 
 export function LocatorScreen() {
   const { colors } = useThemeMode();
@@ -28,11 +29,7 @@ export function LocatorScreen() {
   const mapRef = useRef<MapView>(null);
 
   // Location filter state (only location, no status filter)
-  const [selectedLocation, setSelectedLocation] = useState<{
-    region?: string;
-    province?: string;
-    municipality?: string;
-  }>({});
+  const [selectedLocation, setSelectedLocation] = useState<LocatorFilter>({});
 
   // Map states
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -93,6 +90,8 @@ export function LocatorScreen() {
     const projectMarkers = projects.map((project) => ({
       id: project.id,
       projectName: project.title,
+      abemisId: project.abemisId,
+      projectCode: project.projectCode,
       barangay: project.barangay,
       municipality: project.municipality,
       province: project.province,
@@ -106,8 +105,12 @@ export function LocatorScreen() {
 
   // Apply location filters - only show markers when a filter is applied
   const filteredProjects = useMemo(() => {
-    // If no filter is applied, return empty array (show no markers)
-    const hasFilter = selectedLocation.region || selectedLocation.province || selectedLocation.municipality;
+    const query = selectedLocation.searchQuery?.trim().toLowerCase() ?? '';
+    const hasLocationFilter = Boolean(
+      selectedLocation.region || selectedLocation.province || selectedLocation.municipality,
+    );
+    const hasFilter = hasLocationFilter || Boolean(query);
+
     if (!hasFilter) {
       return [];
     }
@@ -130,6 +133,15 @@ export function LocatorScreen() {
         return false;
       }
 
+      if (query) {
+        const matchesQuery = [project.projectName, project.abemisId]
+          .filter(Boolean)
+          .some((value) => value?.toLowerCase().includes(query));
+        if (!matchesQuery) {
+          return false;
+        }
+      }
+
       return true;
     });
   }, [allProjects, selectedLocation]);
@@ -143,8 +155,12 @@ export function LocatorScreen() {
         latitude: parseFloat(project.latitude!),
         longitude: parseFloat(project.longitude!),
         projectName: project.projectName,
+        projectCode: project.projectCode,
+        abemisId: project.abemisId,
         barangay: project.barangay || '',
         municipality: project.municipality || '',
+        province: project.province || '',
+        region: project.region || '',
         status: 'Synced' as const, // Default status for display purposes only
       }));
   }, [filteredProjects]);
@@ -176,7 +192,7 @@ export function LocatorScreen() {
     }
   }, [mapMarkers]);
 
-  const handleFilterApply = (location: { region?: string; province?: string; municipality?: string }) => {
+  const handleFilterApply = (location: LocatorFilter) => {
     setSelectedLocation(location);
   };
 
@@ -210,9 +226,18 @@ export function LocatorScreen() {
   };
 
   const handleListItemPress = (item: any) => {
-    console.log('List item pressed:', item);
-    // TODO: Navigate to form detail or zoom to marker
-    listSheetRef.current?.dismiss();
+    const target = mapMarkers.find((marker) => marker.id === item.id);
+    if (target && mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: target.latitude,
+          longitude: target.longitude,
+          latitudeDelta: 0.3,
+          longitudeDelta: 0.3,
+        },
+        800,
+      );
+    }
   };
 
   return (
@@ -260,7 +285,7 @@ export function LocatorScreen() {
       {/* Filter Bottom Sheet - Location Only */}
       <LocationFilterBottomSheet
         ref={filterSheetRef}
-        activeRegionFilter={selectedLocation}
+        activeFilter={selectedLocation}
         onApply={handleFilterApply}
         snapPoints={['70%']}
         locationOptions={locationOptions}

@@ -10,6 +10,13 @@ export interface RegionFilter {
 }
 
 /**
+ * Locator filter type that supports location fields and text search
+ */
+export interface LocatorFilter extends RegionFilter {
+  searchQuery?: string;
+}
+
+/**
  * Key filter type for filtering projects by attributes
  */
 export type KeyFilter = 'all' | 'withForms' | 'withoutForms' | 'withGeotags' | 'withDocs';
@@ -22,6 +29,10 @@ export interface FMRItem {
   projectName: string;
   barangay: string;
   municipality: string;
+  province?: string;
+  region?: string;
+  projectCode?: string;
+  abemisId?: string;
   status: FormStatus;
   latitude?: number;
   longitude?: number;
