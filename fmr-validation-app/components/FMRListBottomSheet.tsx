@@ -1,5 +1,4 @@
 import { SheetBackdrop } from '@/components/SheetBackdrop';
-import { StatusBadge } from '@/components/StatusBadge';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
 import { FMRItem } from '@/types/filters';
@@ -50,24 +49,21 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
       onPress={() => onItemPress?.(item)}
       activeOpacity={0.7}
     >
-      <View style={styles.itemContent}>
-        <View style={styles.itemHeader}>
-          <View style={[styles.iconBadge, { backgroundColor: heroTint }]}>
-            <Ionicons name="location" size={16} color={accent} />
-          </View>
-          <View style={styles.itemInfo}>
-            <Text style={[styles.itemTitle, { color: colors.textPrimary }]} numberOfLines={2}>
-              {item.projectName}
+      <View style={styles.itemHeader}>
+        <View style={[styles.iconBadge, { backgroundColor: heroTint }]}>
+          <Ionicons name="location" size={16} color={accent} />
+        </View>
+        <View style={styles.itemInfo}>
+          <Text style={[styles.itemTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+            {item.projectName}
+          </Text>
+          <View style={styles.itemLocation}>
+            <Ionicons name="pin-outline" size={14} color={colors.textMuted} />
+            <Text style={[styles.itemLocationText, { color: colors.textMuted }]} numberOfLines={1}>
+              {item.barangay}, {item.municipality}
             </Text>
-            <View style={styles.itemLocation}>
-              <Ionicons name="pin-outline" size={14} color={colors.textMuted} />
-              <Text style={[styles.itemLocationText, { color: colors.textMuted }]} numberOfLines={1}>
-                {item.barangay}, {item.municipality}
-              </Text>
-            </View>
           </View>
         </View>
-        <StatusBadge status={item.status} />
       </View>
     </TouchableOpacity>
   );
@@ -187,12 +183,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: spacing.md,
     borderWidth: 1,
-  },
-  itemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
   },
   itemHeader: {
     flexDirection: 'row',
