@@ -1,4 +1,5 @@
-import { FilterBottomSheet } from '@/components/FilterBottomSheet';
+import { ProjectFilterBottomSheet } from '@/components/ProjectFilterBottomSheet';
+import { DraftFilterBottomSheet } from '@/components/DraftFilterBottomSheet';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { annexForms } from '@/constants/annexes';
@@ -50,6 +51,7 @@ export function FormListScreen() {
   const [keyFilter, setKeyFilter] = useState<'all' | 'withForms' | 'withoutForms' | 'withGeotags' | 'withDocs'>('all');
   const [regionFilter, setRegionFilter] = useState<{ region?: string; province?: string; municipality?: string }>({});
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const draftBottomSheetRef = useRef<BottomSheetModal>(null);
   const { colors, mode } = useThemeMode();
   const { loading, projects: cachedProjects, standaloneDrafts, deleteDraft, syncDrafts, refresh } = useOfflineData();
   const insets = useSafeAreaInsets();
@@ -57,10 +59,15 @@ export function FormListScreen() {
   const [deleteInFlight, setDeleteInFlight] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const filterSnapPoints = useMemo(() => ['50%', '70%', '90%'], []);
+  const draftFilterSnapPoints = useMemo(() => ['40%'], []);
   const PAGE_SIZE = 20;
 
   const openFilters = () => {
-    bottomSheetRef.current?.present();
+    if (activeTab === 'projects') {
+      bottomSheetRef.current?.present();
+    } else {
+      draftBottomSheetRef.current?.present();
+    }
   };
 
   const normalizedProjects = useMemo(() => cachedProjects.map(normalizeProjectForDisplay), [cachedProjects]);
@@ -88,9 +95,7 @@ export function FormListScreen() {
       const matchesQuery = query
         ? searchableFields(project).some((value) => value.includes(query))
         : true;
-      const matchesStatus =
-        activeFilter === 'All' ||
-        project.forms.some((form) => form.status === activeFilter);
+      // Removed status filter - projects don't have status, only forms do
       const hasForms = (project.forms?.length ?? 0) > 0;
       const hasGeotags = (project.geotags?.length ?? 0) > 0;
       const hasDocs = (project.proposalDocuments?.length ?? 0) > 0;
@@ -109,9 +114,9 @@ export function FormListScreen() {
           (project.municipality ?? '')
             .toLowerCase()
             .includes(regionFilter.municipality.toLowerCase()));
-      return matchesQuery && matchesStatus && matchesKey && matchesRegion;
+      return matchesQuery && matchesKey && matchesRegion;
     });
-  }, [activeFilter, keyFilter, normalizedProjects, regionFilter, searchQuery]);
+  }, [keyFilter, normalizedProjects, regionFilter, searchQuery]);
 
   useEffect(() => {
     setPage(1);
@@ -297,7 +302,6 @@ export function FormListScreen() {
   };
 
   const listBottomSpacer = (insets.bottom || spacing.lg) + spacing.xxl;
-  const filterDisabled = activeTab === 'drafts';
   const loadMore = () => {
     if (activeTab !== 'projects') return;
     if (projects.length < filteredProjects.length) {
@@ -359,10 +363,8 @@ export function FormListScreen() {
             style={[
               styles.filterToggle,
               { borderColor: colors.border, backgroundColor: colors.surface },
-              filterDisabled ? { opacity: 0.5 } : null,
             ]}
-            onPress={filterDisabled ? undefined : openFilters}
-            disabled={filterDisabled}
+            onPress={openFilters}
           >
             <Ionicons name="options" size={18} color={colors.primary} />
           </TouchableOpacity>
@@ -595,18 +597,26 @@ export function FormListScreen() {
         )}
 
       </Screen>
-      <FilterBottomSheet
-        index={3}
+      <ProjectFilterBottomSheet
+        index={2}
         ref={bottomSheetRef}
         snapPoints={filterSnapPoints}
-        activeFilter={activeFilter}
         activeKeyFilter={keyFilter}
         activeRegionFilter={regionFilter}
         locationOptions={locationOptions}
-        onApply={(status, key, region) => {
-          setActiveFilter(status);
+        onApply={(key, region) => {
           setKeyFilter(key);
           setRegionFilter(region);
+        }}
+      />
+
+      <DraftFilterBottomSheet
+        index={1}
+        ref={draftBottomSheetRef}
+        snapPoints={draftFilterSnapPoints}
+        activeFilter={activeFilter}
+        onApply={(filter) => {
+          setActiveFilter(filter);
         }}
       />
 
@@ -728,6 +738,12 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontFamily: fonts.semibold,
     fontSize: 14,
+  },
+  statusFilters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   list: {
     flex: 1,
