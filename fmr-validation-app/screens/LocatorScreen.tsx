@@ -14,19 +14,35 @@ import * as Location from 'expo-location';
 import { LocationFilterBottomSheet } from '@/components/LocationFilterBottomSheet';
 import { FMRListBottomSheet } from '@/components/FMRListBottomSheet';
 import LocatorMap from '@/components/LocatorMap';
+import RouteDetailsBottomSheet from '@/components/RouteDetailsBottomSheet';
 import { fonts, spacing } from '@/theme';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { LocatorFilter } from '@/types/filters';
+import axios from 'axios';
 
 export function LocatorScreen() {
   const { colors } = useThemeMode();
   const { projects, standaloneDrafts } = useOfflineData();
   const filterSheetRef = useRef<BottomSheetModal>(null);
   const listSheetRef = useRef<BottomSheetModal>(null);
+  const routeSheetRef = useRef<BottomSheetModal>(null);
   const mapRef = useRef<MapView>(null);
+  const [activeRoute, setActiveRoute] = useState<{
+    coordinates: { latitude: number; longitude: number }[];
+    mode: 'driving' | 'bike' | 'foot';
+    distance: number;
+    duration: number;
+    projectName: string;
+    summary?: string;
+    steps?: any[];
+    targetLatitude: number;
+    targetLongitude: number;
+  } | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  const osrmUrl = process.env.EXPO_PUBLIC_OSRM_ROUTE_API;
 
   // Location filter state (only location, no status filter)
   const [selectedLocation, setSelectedLocation] = useState<LocatorFilter>({});
@@ -83,6 +99,28 @@ export function LocatorScreen() {
 
     return locations;
   }, [projects, standaloneDrafts]);
+
+  const fitRouteBounds = (coordinates: { latitude: number; longitude: number }[]) => {
+    if (!mapRef.current || coordinates.length === 0) return;
+    const lats = coordinates.map((c) => c.latitude);
+    const lngs = coordinates.map((c) => c.longitude);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    const latPadding = (maxLat - minLat) * 0.2 || 0.1;
+    const lngPadding = (maxLng - minLng) * 0.2 || 0.1;
+
+    mapRef.current.animateToRegion(
+      {
+        latitude: (minLat + maxLat) / 2,
+        longitude: (minLng + maxLng) / 2,
+        latitudeDelta: Math.max((maxLat - minLat) + latPadding, 0.1),
+        longitudeDelta: Math.max((maxLng - minLng) + lngPadding, 0.1),
+      },
+      800,
+    );
+  };
 
   // Combine all projects with their coordinates for map display
   const allProjects = useMemo(() => {
@@ -171,6 +209,69 @@ export function LocatorScreen() {
       }));
   }, [filteredProjects]);
 
+  const handleRouteReady = (payload: {
+    mode: 'driving' | 'bike' | 'foot';
+    distance: number;
+    duration: number;
+    coordinates: { latitude: number; longitude: number }[];
+    projectName: string;
+    summary?: string;
+    steps?: any[];
+    targetLatitude: number;
+    targetLongitude: number;
+  }) => {
+    setActiveRoute(payload);
+    if (payload.coordinates.length > 0) {
+      fitRouteBounds(payload.coordinates);
+    }
+    routeSheetRef.current?.present();
+  };
+
+  const handleRoutePress = () => {
+    if (!activeRoute) return;
+    routeSheetRef.current?.present();
+  };
+
+  const refetchRoute = async (mode: 'driving' | 'bike' | 'foot') => {
+    if (!activeRoute || !userLocation || !osrmUrl) return;
+    try {
+      setRouteLoading(true);
+      const url = `${osrmUrl}/${mode}/${userLocation.longitude},${userLocation.latitude};${activeRoute.targetLongitude},${activeRoute.targetLatitude}`;
+      const response = await axios.get(url, {
+        params: {
+          overview: 'full',
+          geometries: 'geojson',
+          steps: true,
+        },
+      });
+      const route = response.data?.routes?.[0];
+      if (!route) {
+        Alert.alert('Route not found', 'No route was returned for this selection.');
+        return;
+      }
+      const coordinates =
+        route.geometry?.coordinates?.map(
+          ([longitude, latitude]: [number, number]) => ({ latitude, longitude }),
+        ) ?? [];
+      const updated = {
+        ...activeRoute,
+        mode,
+        distance: route.distance,
+        duration: route.duration,
+        coordinates,
+        summary: route.legs?.[0]?.summary,
+        steps: route.legs?.[0]?.steps,
+      };
+      setActiveRoute(updated);
+      if (coordinates.length > 0) fitRouteBounds(coordinates);
+    } catch (error) {
+      console.error('osrm:route:refetch', error);
+      Alert.alert('Directions error', 'Unable to update route. Please try again.');
+    } finally {
+      setRouteLoading(false);
+    }
+  };
+
   // Auto-fit map to show all markers when filter is applied
   useEffect(() => {
     if (mapRef.current && mapMarkers.length > 0) {
@@ -250,7 +351,14 @@ export function LocatorScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Map Container */}
       <View style={styles.mapContainer}>
-        <LocatorMap mapRef={mapRef} data={mapMarkers} handleMarkerPress={handleMarkerPress} />
+        <LocatorMap
+          mapRef={mapRef}
+          data={mapMarkers}
+          handleMarkerPress={handleMarkerPress}
+          routePath={activeRoute?.coordinates}
+          routeMode={activeRoute?.mode}
+          onRoutePress={handleRoutePress}
+        />
 
         {/* Floating Filter Button */}
         <View style={styles.floatingControls}>
@@ -302,7 +410,17 @@ export function LocatorScreen() {
         ref={listSheetRef}
         data={mapMarkers}
         onItemPress={handleListItemPress}
+        onRouteReady={handleRouteReady}
         snapPoints={['70%', '90%']}
+        userLocation={userLocation}
+      />
+
+      <RouteDetailsBottomSheet
+        ref={routeSheetRef}
+        route={activeRoute}
+        snapPoints={['45%', '70%']}
+        isLoading={routeLoading}
+        onChangeMode={refetchRoute}
       />
     </SafeAreaView>
   );

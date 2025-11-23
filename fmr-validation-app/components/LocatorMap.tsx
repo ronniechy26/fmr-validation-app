@@ -16,7 +16,7 @@
  * - Markers are color-coded based on FMR status (Draft, Pending Sync, Synced, Error).
  */
 
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE, Polyline } from 'react-native-maps';
 import { StyleSheet, Platform } from 'react-native';
 import { useCallback } from 'react';
 
@@ -48,9 +48,12 @@ interface LocatorMapProps {
     municipality: string;
     status: 'Draft' | 'Pending Sync' | 'Synced' | 'Error';
   }>;
+  routePath?: Array<{ latitude: number; longitude: number }>;
+  routeMode?: 'driving' | 'bike' | 'foot';
+  onRoutePress?: () => void;
 }
 
-const LocatorMap = ({ handleMarkerPress, mapRef, data = [] }: LocatorMapProps) => {
+const LocatorMap = ({ handleMarkerPress, mapRef, data = [], routePath, routeMode = 'driving', onRoutePress }: LocatorMapProps) => {
   // Function to animate the map to the initial region when the map is ready
   const onMapReady = useCallback(() => {
     if (mapRef.current && data.length > 0) {
@@ -89,6 +92,16 @@ const LocatorMap = ({ handleMarkerPress, mapRef, data = [] }: LocatorMapProps) =
       zoomEnabled={true}
       onMapReady={onMapReady}
     >
+      {routePath && routePath.length > 1 && (
+        <Polyline
+          coordinates={routePath}
+          strokeWidth={6}
+          strokeColor={routeMode === 'bike' ? '#10b981' : routeMode === 'foot' ? '#f97316' : '#3b82f6'}
+          tappable
+          onPress={onRoutePress}
+        />
+      )}
+
       {/* Render markers for each FMR project */}
       {data.map((marker) => (
         <Marker

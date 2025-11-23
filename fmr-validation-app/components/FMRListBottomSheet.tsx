@@ -2,24 +2,54 @@ import { SheetBackdrop } from '@/components/SheetBackdrop';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
 import { FMRItem } from '@/types/filters';
+import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
-import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { BottomSheetModal, BottomSheetScrollView, BottomSheetView } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 interface FMRListBottomSheetProps {
   data: FMRItem[];
   onItemPress?: (item: FMRItem) => void;
+  onRouteReady?: (payload: {
+    mode: 'driving' | 'bike' | 'foot';
+    distance: number;
+    duration: number;
+    coordinates: { latitude: number; longitude: number }[];
+    summary?: string;
+    steps?: any[];
+    projectName: string;
+    projectId: string;
+    projectCode?: string;
+    abemisId?: string;
+    municipality?: string;
+    province?: string;
+    region?: string;
+    barangay?: string;
+    targetLatitude: number;
+    targetLongitude: number;
+  }) => void;
   snapPoints: string[];
   index?: number;
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
 export const FMRListBottomSheet = forwardRef(function FMRListSheet(
   {
     data,
     onItemPress,
+    onRouteReady,
     snapPoints,
     index = 1,
+    userLocation,
   }: FMRListBottomSheetProps,
   ref: ForwardedRef<BottomSheetModal>,
 ) {
@@ -28,6 +58,13 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
   const heroTint = mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(31,75,143,0.08)';
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'detail'>('list');
+  const [routing, setRouting] = useState(false);
+  const osrmUrl = process.env.EXPO_PUBLIC_OSRM_ROUTE_API;
+  const modeOptions: { label: string; value: 'driving' | 'bike' | 'foot'; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { label: 'Car', value: 'driving', icon: 'car' },
+    { label: 'Bike', value: 'bike', icon: 'bicycle' },
+    { label: 'Foot', value: 'foot', icon: 'walk' },
+  ];
 
   useEffect(() => {
     if (data.length === 0) {
@@ -116,6 +153,83 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
     );
   };
 
+  const getRoute = async (
+    userLoc: { latitude: number; longitude: number },
+    marker: FMRItem,
+    mode: 'driving' | 'bike' | 'foot',
+  ) => {
+    if (!osrmUrl) {
+      throw new Error('OSRM API URL is not configured.');
+    }
+    const url = `${osrmUrl}/${mode}/${userLoc.longitude},${userLoc.latitude};${marker.longitude},${marker.latitude}`;
+    const response = await axios.get(url, {
+      params: {
+        overview: 'full',
+        geometries: 'geojson',
+        steps: true,
+      },
+    });
+    return response.data;
+  };
+
+  const formatDistance = (meters: number) => `${(meters / 1000).toFixed(2)} km`;
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `${minutes} min`;
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hrs}h ${mins}m`;
+  };
+
+  const startRouting = async (mode: 'driving' | 'bike' | 'foot') => {
+    if (!selectedItem || !selectedItem.latitude || !selectedItem.longitude) {
+      Alert.alert('Directions unavailable', 'This project is missing coordinates.');
+      return;
+    }
+    if (!userLocation) {
+      Alert.alert('Directions unavailable', 'We need your current location to calculate a route.');
+      return;
+    }
+    try {
+      setRouting(true);
+      const data = await getRoute(userLocation, selectedItem, mode);
+      const route = data?.routes?.[0];
+      if (!route) {
+        Alert.alert('Route not found', 'No route was returned for this selection.');
+        return;
+      }
+      const coordinates =
+        route.geometry?.coordinates?.map(
+          ([longitude, latitude]: [number, number]) => ({ latitude, longitude }),
+        ) ?? [];
+
+      onRouteReady?.({
+        mode,
+        distance: route.distance,
+        duration: route.duration,
+        coordinates,
+        summary: route.legs?.[0]?.summary,
+        steps: route.legs?.[0]?.steps,
+        projectName: selectedItem.projectName,
+        projectId: selectedItem.id,
+        projectCode: selectedItem.projectCode,
+        abemisId: selectedItem.abemisId,
+        municipality: selectedItem.municipality,
+        province: selectedItem.province,
+        region: selectedItem.region,
+        barangay: selectedItem.barangay,
+        targetLatitude: selectedItem.latitude!,
+        targetLongitude: selectedItem.longitude!,
+      });
+      close();
+    } catch (error) {
+      console.error('osrm:route', error);
+      Alert.alert('Directions error', 'Unable to fetch route. Please try again online.');
+    } finally {
+      setRouting(false);
+    }
+  };
+
   const renderItem = (item: FMRItem, index: number) => {
     return (
       <View key={item.id}>
@@ -163,86 +277,119 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
       backgroundStyle={{ backgroundColor: colors.surface }}
       handleIndicatorStyle={{ backgroundColor: colors.border, width: 40 }}
     >
-      <BottomSheetScrollView 
-        contentContainerStyle={styles.scrollContent} 
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: heroTint }]}>
-              <Ionicons name="list-outline" size={22} color={accent} />
-            </View>
-            <View style={styles.headerText}>
-              <Text style={[styles.title, { color: colors.textPrimary }]}>FMR Projects</Text>
-              <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                {data.length} project{data.length !== 1 ? 's' : ''} found
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={[styles.closeButton, { backgroundColor: colors.surfaceMuted }]}
-            onPress={close}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="close" size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Divider */}
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-        {/* List */}
-        {view === 'list' && (
-          <>
-            {data.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="map-outline" size={48} color={colors.textMuted} />
-                <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                  No FMR projects found
+      <BottomSheetView style={styles.container}>
+        <BottomSheetScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: heroTint }]}>
+                <Ionicons name="list-outline" size={22} color={accent} />
+              </View>
+              <View style={styles.headerText}>
+                <Text style={[styles.title, { color: colors.textPrimary }]}>FMR Projects</Text>
+                <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+                  {data.length} project{data.length !== 1 ? 's' : ''} found
                 </Text>
               </View>
-            ) : (
-              data.map((item, index) => renderItem(item, index))
-            )}
-          </>
-        )}
-
-        {/* Detail View */}
-        {view === 'detail' && selectedItem && (
-          <View>
+            </View>
             <TouchableOpacity
-              style={[styles.backRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onPress={handleBackToList}
-              activeOpacity={0.7}
+              style={[styles.closeButton, { backgroundColor: colors.surfaceMuted }]}
+              onPress={close}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
-              <Text style={[styles.backText, { color: colors.textPrimary }]}>Back to list</Text>
+              <Ionicons name="close" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
-
-            <View style={[styles.detailHeaderCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={[styles.iconBadge, { backgroundColor: heroTint }]}>
-                <Ionicons name="location" size={20} color={accent} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.detailTitle, { color: colors.textPrimary }]} numberOfLines={2}>
-                  {selectedItem.projectName}
-                </Text>
-                <Text style={[styles.detailSub, { color: colors.textMuted }]} numberOfLines={2}>
-                  {selectedItem.barangay ? `${selectedItem.barangay}, ` : ''}{selectedItem.municipality}
-                </Text>
-              </View>
-            </View>
-
-            {renderDetails(selectedItem)}
           </View>
-        )}
-      </BottomSheetScrollView>
+
+          {/* Divider */}
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          {/* List */}
+          {view === 'list' && (
+            <>
+              {data.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="map-outline" size={48} color={colors.textMuted} />
+                  <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                    No FMR projects found
+                  </Text>
+                </View>
+              ) : (
+                data.map((item, index) => renderItem(item, index))
+              )}
+            </>
+          )}
+
+          {/* Detail View */}
+          {view === 'detail' && selectedItem && (
+            <View>
+              <TouchableOpacity
+                style={[styles.backRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                onPress={handleBackToList}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
+                <Text style={[styles.backText, { color: colors.textPrimary }]}>Back to list</Text>
+              </TouchableOpacity>
+
+              <View style={[styles.detailHeaderCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={[styles.iconBadge, { backgroundColor: heroTint }]}>
+                  <Ionicons name="location" size={20} color={accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.detailTitle, { color: colors.textPrimary }]} numberOfLines={2}>
+                    {selectedItem.projectName}
+                  </Text>
+                  <Text style={[styles.detailSub, { color: colors.textMuted }]} numberOfLines={2}>
+                    {selectedItem.barangay ? `${selectedItem.barangay}, ` : ''}{selectedItem.municipality}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.modeCard, { borderColor: colors.border, backgroundColor: colors.surfaceMuted }]}>
+                <View style={styles.modeHeader}>
+                  <Text style={[styles.modeTitle, { color: colors.textPrimary }]}>Choose travel mode</Text>
+                  {routing && <ActivityIndicator size="small" color={colors.primary} />}
+                </View>
+                <View style={styles.modeButtons}>
+                  {modeOptions.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[
+                        styles.modeButton,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                          opacity: routing ? 0.6 : 1,
+                        },
+                      ]}
+                      disabled={routing}
+                      onPress={() => startRouting(opt.value)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name={opt.icon} size={16} color={colors.textPrimary} />
+                      <Text style={[styles.modeLabel, { color: colors.textPrimary }]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {renderDetails(selectedItem)}
+            </View>
+          )}
+        </BottomSheetScrollView>
+      </BottomSheetView>
     </BottomSheetModal>
   );
 });
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   scrollContent: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxl,
@@ -400,6 +547,69 @@ const styles = StyleSheet.create({
   detailSub: {
     fontFamily: fonts.medium,
     fontSize: 14,
+  },
+  directionButton: {
+    marginBottom: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: 14,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  directionText: {
+    color: '#fff',
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+  },
+  routeSummary: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  routeTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+  },
+  routeMeta: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    marginTop: spacing.xs,
+  },
+  modeCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  modeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modeTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+  },
+  modeButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  modeButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  modeLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
   },
   backRow: {
     flexDirection: 'row',
