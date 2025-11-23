@@ -22,10 +22,11 @@ interface RouteDetailsBottomSheetProps {
   index?: number;
   isLoading?: boolean;
   onChangeMode?: (mode: 'driving' | 'bike' | 'foot') => void;
+  onClearRoute?: () => void;
 }
 
 export const RouteDetailsBottomSheet = forwardRef(function RouteDetailsSheet(
-  { route, snapPoints, index = 1, isLoading = false, onChangeMode }: RouteDetailsBottomSheetProps,
+  { route, snapPoints, index = 1, isLoading = false, onChangeMode, onClearRoute }: RouteDetailsBottomSheetProps,
   ref: ForwardedRef<BottomSheetModal>,
 ) {
   const { colors } = useThemeMode();
@@ -68,6 +69,17 @@ export const RouteDetailsBottomSheet = forwardRef(function RouteDetailsSheet(
               </Text>
             </View>
           </View>
+          {route && (
+            <TouchableOpacity
+              style={[styles.clearButton, { borderColor: colors.border }]}
+              onPress={onClearRoute}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close-circle" size={16} color={colors.textPrimary} />
+              <Text style={[styles.clearText, { color: colors.textPrimary }]}>Clear</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -211,6 +223,7 @@ export const RouteDetailsBottomSheet = forwardRef(function RouteDetailsSheet(
                 <Text style={[styles.emptyText, { color: colors.textMuted }]}>No step data</Text>
               </View>
             )}
+
           </>
         )}
       </BottomSheetScrollView>
@@ -359,6 +372,19 @@ const styles = StyleSheet.create({
   emptyText: {
     fontFamily: fonts.medium,
     fontSize: 14,
+  },
+  clearButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  clearText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
   },
 });
 

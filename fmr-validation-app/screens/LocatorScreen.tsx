@@ -232,6 +232,10 @@ export function LocatorScreen() {
     routeSheetRef.current?.present();
   };
 
+  const handleClearRoute = () => {
+    setActiveRoute(null);
+  };
+
   const refetchRoute = async (mode: 'driving' | 'bike' | 'foot') => {
     if (!activeRoute || !userLocation || !osrmUrl) return;
     try {
@@ -421,6 +425,7 @@ export function LocatorScreen() {
         snapPoints={['45%', '70%']}
         isLoading={routeLoading}
         onChangeMode={refetchRoute}
+        onClearRoute={handleClearRoute}
       />
     </SafeAreaView>
   );

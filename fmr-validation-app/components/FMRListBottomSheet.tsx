@@ -153,6 +153,9 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
     );
   };
 
+  const resolveProfile = (mode: 'driving' | 'bike' | 'foot') =>
+    mode === 'bike' ? 'cycling' : mode === 'foot' ? 'walking' : 'driving';
+
   const getRoute = async (
     userLoc: { latitude: number; longitude: number },
     marker: FMRItem,
@@ -161,7 +164,8 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
     if (!osrmUrl) {
       throw new Error('OSRM API URL is not configured.');
     }
-    const url = `${osrmUrl}/${mode}/${userLoc.longitude},${userLoc.latitude};${marker.longitude},${marker.latitude}`;
+    const profile = resolveProfile(mode);
+    const url = `${osrmUrl}/${profile}/${userLoc.longitude},${userLoc.latitude};${marker.longitude},${marker.latitude}`;
     const response = await axios.get(url, {
       params: {
         overview: 'full',
@@ -170,15 +174,6 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
       },
     });
     return response.data;
-  };
-
-  const formatDistance = (meters: number) => `${(meters / 1000).toFixed(2)} km`;
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.round(seconds / 60);
-    if (minutes < 60) return `${minutes} min`;
-    const hrs = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hrs}h ${mins}m`;
   };
 
   const startRouting = async (mode: 'driving' | 'bike' | 'foot') => {
