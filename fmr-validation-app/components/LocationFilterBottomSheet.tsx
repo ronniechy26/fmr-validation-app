@@ -1,6 +1,7 @@
 import { SheetBackdrop } from '@/components/SheetBackdrop';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
+import { RegionFilter } from '@/types/filters';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, useEffect, useMemo, useState } from 'react';
@@ -14,8 +15,6 @@ import {
   View,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-
-type RegionFilter = { region?: string; province?: string; municipality?: string };
 
 interface LocationFilterBottomSheetProps {
   activeRegionFilter?: RegionFilter;
@@ -39,21 +38,20 @@ export const LocationFilterBottomSheet = forwardRef(function LocationFilterSheet
   const accent = colors.primary;
   const heroTint = mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(31,75,143,0.08)';
   const [isLoading, setIsLoading] = useState(false);
+
   const [selectedRegion, setSelectedRegion] = useState<RegionFilter>({
     ...(activeRegionFilter ?? {}),
   });
 
-  const regionOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          locationOptions
-            .map((item) => item.region?.trim())
-            .filter((value): value is string => Boolean(value)),
-        ),
-      ).sort(),
-    [locationOptions],
-  );
+  const regionOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        locationOptions
+          .map((item) => item.region?.trim())
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort();
+  }, [locationOptions]);
 
   const provinceOptions = useMemo(() => {
     const source = selectedRegion.region

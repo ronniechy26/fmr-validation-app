@@ -7,12 +7,13 @@ import { useThemeMode } from '@/providers/ThemeProvider';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { fonts, spacing } from '@/theme';
 import { FormRecord, FormRoutePayload, ProjectRecord } from '@/types/forms';
+import { KeyFilter, RegionFilter } from '@/types/filters';
 import { FormStatus } from '@/types/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { Alert, Animated, Easing, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FlashList } from '@shopify/flash-list';
@@ -48,8 +49,8 @@ export function FormListScreen() {
   const [activeFilter, setActiveFilter] = useState<(typeof filters)[number]>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
-  const [keyFilter, setKeyFilter] = useState<'all' | 'withForms' | 'withoutForms' | 'withGeotags' | 'withDocs'>('all');
-  const [regionFilter, setRegionFilter] = useState<{ region?: string; province?: string; municipality?: string }>({});
+  const [keyFilter, setKeyFilter] = useState<KeyFilter>('all');
+  const [regionFilter, setRegionFilter] = useState<RegionFilter>({});
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const draftBottomSheetRef = useRef<BottomSheetModal>(null);
   const { colors, mode } = useThemeMode();
@@ -738,12 +739,6 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontFamily: fonts.semibold,
     fontSize: 14,
-  },
-  statusFilters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
   },
   list: {
     flex: 1,

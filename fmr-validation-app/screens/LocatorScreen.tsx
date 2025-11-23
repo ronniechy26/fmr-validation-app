@@ -12,18 +12,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView from 'react-native-maps';
 import * as Location from 'expo-location';
 import { LocationFilterBottomSheet } from '@/components/LocationFilterBottomSheet';
+import { FMRListBottomSheet } from '@/components/FMRListBottomSheet';
 import LocatorMap from '@/components/LocatorMap';
 import { fonts, spacing } from '@/theme';
 import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { FormStatus } from '@/types/theme';
 
 export function LocatorScreen() {
-  const { colors, mode } = useThemeMode();
+  const { colors } = useThemeMode();
   const { projects, standaloneDrafts } = useOfflineData();
   const filterSheetRef = useRef<BottomSheetModal>(null);
+  const listSheetRef = useRef<BottomSheetModal>(null);
   const mapRef = useRef<MapView>(null);
 
   // Location filter state (only location, no status filter)
@@ -63,103 +64,117 @@ export function LocatorScreen() {
       region?: string;
       province?: string;
       municipality?: string;
-      barangay?: string;
     }> = [];
 
+    // Add locations from projects
     projects.forEach((project) => {
-      project.forms.forEach((form) => {
-        locations.push({
-          region: project.region || form.region,
-          province: project.province || form.data.locationProvince,
-          municipality: project.municipality || form.data.locationMunicipality,
-          barangay: project.barangay || form.data.locationBarangay,
-        });
+      locations.push({
+        region: project.region,
+        province: project.province,
+        municipality: project.municipality,
       });
     });
 
+    // Add locations from standalone drafts
     standaloneDrafts.forEach((form) => {
       locations.push({
         region: form.region,
         province: form.data.locationProvince,
         municipality: form.data.locationMunicipality,
-        barangay: form.data.locationBarangay,
       });
     });
 
     return locations;
   }, [projects, standaloneDrafts]);
 
-  // Combine all forms (linked + standalone) with coordinates from SQLite
-  const allForms = useMemo(() => {
-    const linked = projects.flatMap((project) =>
-      project.forms.map((form) => ({
-        id: form.id,
-        projectName: project.title,
-        barangay: project.barangay ?? form.data.locationBarangay,
-        municipality: project.municipality ?? form.data.locationMunicipality,
-        province: project.province ?? form.data.locationProvince,
-        region: project.region ?? form.region,
-        status: form.status,
-        updatedAt: form.updatedAt,
-        latitude: project.latitude,
-        longitude: project.longitude,
-      }))
-    );
-
-    const unlinked = standaloneDrafts.map((form) => ({
-      id: form.id,
-      projectName: form.data.nameOfProject,
-      barangay: form.data.locationBarangay,
-      municipality: form.data.locationMunicipality,
-      province: form.data.locationProvince,
-      region: form.region,
-      status: form.status,
-      updatedAt: form.updatedAt,
-      latitude: undefined,
-      longitude: undefined,
+  // Combine all projects with their coordinates for map display
+  const allProjects = useMemo(() => {
+    // Map projects to marker data (without status - projects don't have status)
+    const projectMarkers = projects.map((project) => ({
+      id: project.id,
+      projectName: project.title,
+      barangay: project.barangay,
+      municipality: project.municipality,
+      province: project.province,
+      region: project.region,
+      latitude: project.latitude,
+      longitude: project.longitude,
     }));
 
-    return [...linked, ...unlinked];
-  }, [projects, standaloneDrafts]);
+    return projectMarkers;
+  }, [projects]);
 
-  // Apply location filters only
-  const filteredForms = useMemo(() => {
-    return allForms.filter((form) => {
+  // Apply location filters - only show markers when a filter is applied
+  const filteredProjects = useMemo(() => {
+    // If no filter is applied, return empty array (show no markers)
+    const hasFilter = selectedLocation.region || selectedLocation.province || selectedLocation.municipality;
+    if (!hasFilter) {
+      return [];
+    }
+
+    return allProjects.filter((project) => {
       // Location filters
-      if (selectedLocation.region && form.region?.toLowerCase() !== selectedLocation.region.toLowerCase()) {
+      if (selectedLocation.region && project.region?.toLowerCase() !== selectedLocation.region.toLowerCase()) {
         return false;
       }
       if (
         selectedLocation.province &&
-        form.province?.toLowerCase() !== selectedLocation.province.toLowerCase()
+        project.province?.toLowerCase() !== selectedLocation.province.toLowerCase()
       ) {
         return false;
       }
       if (
         selectedLocation.municipality &&
-        form.municipality?.toLowerCase() !== selectedLocation.municipality.toLowerCase()
+        project.municipality?.toLowerCase() !== selectedLocation.municipality.toLowerCase()
       ) {
         return false;
       }
 
       return true;
     });
-  }, [allForms, selectedLocation]);
+  }, [allProjects, selectedLocation]);
 
-  // Prepare markers from filtered forms with valid coordinates
+  // Prepare markers from filtered projects with valid coordinates
   const mapMarkers = useMemo(() => {
-    return filteredForms
-      .filter((form) => form.latitude && form.longitude)
-      .map((form) => ({
-        id: form.id,
-        latitude: parseFloat(form.latitude!),
-        longitude: parseFloat(form.longitude!),
-        projectName: form.projectName,
-        barangay: form.barangay,
-        municipality: form.municipality,
-        status: form.status,
+    return filteredProjects
+      .filter((project) => project.latitude && project.longitude)
+      .map((project) => ({
+        id: project.id,
+        latitude: parseFloat(project.latitude!),
+        longitude: parseFloat(project.longitude!),
+        projectName: project.projectName,
+        barangay: project.barangay || '',
+        municipality: project.municipality || '',
+        status: 'Synced' as const, // Default status for display purposes only
       }));
-  }, [filteredForms]);
+  }, [filteredProjects]);
+
+  // Auto-fit map to show all markers when filter is applied
+  useEffect(() => {
+    if (mapRef.current && mapMarkers.length > 0) {
+      // Calculate bounds to fit all markers
+      const lats = mapMarkers.map((m) => m.latitude);
+      const lngs = mapMarkers.map((m) => m.longitude);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs);
+      const maxLng = Math.max(...lngs);
+
+      // Add padding to the bounds
+      const latPadding = (maxLat - minLat) * 0.2 || 0.1;
+      const lngPadding = (maxLng - minLng) * 0.2 || 0.1;
+
+      mapRef.current.animateToRegion(
+        {
+          latitude: (minLat + maxLat) / 2,
+          longitude: (minLng + maxLng) / 2,
+          latitudeDelta: Math.max((maxLat - minLat) + latPadding, 0.1),
+          longitudeDelta: Math.max((maxLng - minLng) + lngPadding, 0.1),
+        },
+        1000
+      );
+    }
+  }, [mapMarkers]);
 
   const handleFilterApply = (location: { region?: string; province?: string; municipality?: string }) => {
     setSelectedLocation(location);
@@ -167,6 +182,10 @@ export function LocatorScreen() {
 
   const openFilterSheet = () => {
     filterSheetRef.current?.present();
+  };
+
+  const openListSheet = () => {
+    listSheetRef.current?.present();
   };
 
   const centerOnUserLocation = () => {
@@ -188,6 +207,12 @@ export function LocatorScreen() {
   const handleMarkerPress = (marker: any) => {
     console.log('Marker pressed:', marker);
     // TODO: Navigate to form detail or show info
+  };
+
+  const handleListItemPress = (item: any) => {
+    console.log('List item pressed:', item);
+    // TODO: Navigate to form detail or zoom to marker
+    listSheetRef.current?.dismiss();
   };
 
   return (
@@ -219,13 +244,17 @@ export function LocatorScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Marker Count Badge */}
-        <View style={[styles.countBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {/* Marker Count Badge - Now Clickable */}
+        <TouchableOpacity
+          style={[styles.countBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={openListSheet}
+          activeOpacity={0.8}
+        >
           <Ionicons name="location" size={16} color={colors.primary} />
           <Text style={[styles.countText, { color: colors.textPrimary }]}>
-            {mapMarkers.length} FMR{mapMarkers.length !== 1 ? 's' : ''}
+            {mapMarkers.length} Project{mapMarkers.length !== 1 ? 's' : ''}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Filter Bottom Sheet - Location Only */}
@@ -233,8 +262,16 @@ export function LocatorScreen() {
         ref={filterSheetRef}
         activeRegionFilter={selectedLocation}
         onApply={handleFilterApply}
-        snapPoints={['60%']}
+        snapPoints={['70%']}
         locationOptions={locationOptions}
+      />
+
+      {/* FMR List Bottom Sheet */}
+      <FMRListBottomSheet
+        ref={listSheetRef}
+        data={mapMarkers}
+        onItemPress={handleListItemPress}
+        snapPoints={['70%', '90%']}
       />
     </SafeAreaView>
   );

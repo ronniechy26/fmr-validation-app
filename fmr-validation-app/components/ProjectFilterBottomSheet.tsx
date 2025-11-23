@@ -1,6 +1,7 @@
 import { SheetBackdrop } from '@/components/SheetBackdrop';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
+import { KeyFilter, RegionFilter } from '@/types/filters';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, useEffect, useMemo, useState } from 'react';
@@ -14,9 +15,6 @@ import {
   View,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-
-type KeyFilter = 'all' | 'withForms' | 'withoutForms' | 'withGeotags' | 'withDocs';
-type RegionFilter = { region?: string; province?: string; municipality?: string };
 
 interface ProjectFilterBottomSheetProps {
   activeKeyFilter: KeyFilter;
