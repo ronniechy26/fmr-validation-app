@@ -5,7 +5,7 @@ import { FMRItem } from '@/types/filters';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ForwardedRef, forwardRef, useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface FMRListBottomSheetProps {
   data: FMRItem[];
@@ -90,6 +90,28 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
             </Text>
           </View>
         ))}
+
+        {item.geotags && item.geotags.length > 0 && (
+          <View style={styles.geotagSection}>
+            <Text style={[styles.geotagTitle, { color: colors.textPrimary }]}>Geotag Photos</Text>
+            <View style={styles.geotagGrid}>
+              {item.geotags.map((tag) => (
+                <View key={tag.id} style={[styles.geotagCard, { borderColor: colors.border }]}>
+                  <Image
+                    source={{ uri: tag.url }}
+                    style={styles.geotagImage}
+                    resizeMode="cover"
+                  />
+                  {tag.photoName ? (
+                    <Text style={[styles.geotagLabel, { color: colors.textMuted }]} numberOfLines={1}>
+                      {tag.photoName}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -339,6 +361,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     textAlign: 'right',
+  },
+  geotagSection: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  geotagTitle: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+  },
+  geotagGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  geotagCard: {
+    width: '48%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  geotagImage: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#0f172a0d',
+  },
+  geotagLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   detailTitle: {
     fontFamily: fonts.bold,

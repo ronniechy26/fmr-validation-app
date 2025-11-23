@@ -98,6 +98,11 @@ export function LocatorScreen() {
       region: project.region,
       latitude: project.latitude,
       longitude: project.longitude,
+      geotags: project.geotags?.map((tag) => ({
+        id: tag.id,
+        url: tag.url,
+        photoName: tag.photoName,
+      })),
     }));
 
     return projectMarkers;
@@ -161,6 +166,7 @@ export function LocatorScreen() {
         municipality: project.municipality || '',
         province: project.province || '',
         region: project.region || '',
+        geotags: project.geotags,
         status: 'Synced' as const, // Default status for display purposes only
       }));
   }, [filteredProjects]);

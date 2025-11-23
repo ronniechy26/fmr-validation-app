@@ -33,6 +33,7 @@ export interface FMRItem {
   region?: string;
   projectCode?: string;
   abemisId?: string;
+  geotags?: { id: string; url: string; photoName?: string }[];
   status: FormStatus;
   latitude?: number;
   longitude?: number;
