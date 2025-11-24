@@ -2,9 +2,7 @@ import { SheetBackdrop } from '@/components/SheetBackdrop';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
 import { FMRItem } from '@/types/filters';
-import axios from 'axios';
-import { Ionicons } from '@expo/vector-icons';
-import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { fetchRoute } from '@/lib/routing';
 import { ForwardedRef, forwardRef, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,6 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { Ionicons } from '@expo/vector-icons';
 
 interface FMRListBottomSheetProps {
   data: FMRItem[];
@@ -59,7 +59,6 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [routing, setRouting] = useState(false);
-  const osrmUrl = process.env.EXPO_PUBLIC_OSRM_ROUTE_API;
   const modeOptions: { label: string; value: 'driving' | 'bike' | 'foot'; icon: keyof typeof Ionicons.glyphMap }[] = [
     { label: 'Car', value: 'driving', icon: 'car' },
     { label: 'Bike', value: 'bike', icon: 'bicycle' },
@@ -153,29 +152,6 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
     );
   };
 
-  const resolveProfile = (mode: 'driving' | 'bike' | 'foot') =>
-    mode === 'bike' ? 'bike' : mode === 'foot' ? 'foot' : 'car';
-
-  const getRoute = async (
-    userLoc: { latitude: number; longitude: number },
-    marker: FMRItem,
-    mode: 'driving' | 'bike' | 'foot',
-  ) => {
-    if (!osrmUrl) {
-      throw new Error('OSRM API URL is not configured.');
-    }
-    const profile = resolveProfile(mode);
-    const url = `${osrmUrl}/${profile}/${userLoc.longitude},${userLoc.latitude};${marker.longitude},${marker.latitude}`;
-    const response = await axios.get(url, {
-      params: {
-        overview: 'full',
-        geometries: 'geojson',
-        steps: true,
-      },
-    });
-    return response.data;
-  };
-
   const startRouting = async (mode: 'driving' | 'bike' | 'foot') => {
     if (!selectedItem || !selectedItem.latitude || !selectedItem.longitude) {
       Alert.alert('Directions unavailable', 'This project is missing coordinates.');
@@ -187,24 +163,14 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
     }
     try {
       setRouting(true);
-      const data = await getRoute(userLocation, selectedItem, mode);
-      const route = data?.routes?.[0];
+      const route = await fetchRoute(userLocation, { latitude: selectedItem.latitude, longitude: selectedItem.longitude }, mode);
       if (!route) {
-        Alert.alert('Route not found', 'No route was returned for this selection.');
-        return;
+        return; // fetchRoute already shows an alert on error
       }
-      const coordinates =
-        route.geometry?.coordinates?.map(
-          ([longitude, latitude]: [number, number]) => ({ latitude, longitude }),
-        ) ?? [];
 
       onRouteReady?.({
         mode,
-        distance: route.distance,
-        duration: route.duration,
-        coordinates,
-        summary: route.legs?.[0]?.summary,
-        steps: route.legs?.[0]?.steps,
+        ...route,
         projectName: selectedItem.projectName,
         projectId: selectedItem.id,
         projectCode: selectedItem.projectCode,
@@ -218,6 +184,7 @@ export const FMRListBottomSheet = forwardRef(function FMRListSheet(
       });
       close();
     } catch (error) {
+      // This catch block may not be necessary if fetchRoute handles all errors
       console.error('osrm:route', error);
       Alert.alert('Directions error', 'Unable to fetch route. Please try again online.');
     } finally {

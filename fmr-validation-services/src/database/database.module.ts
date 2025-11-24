@@ -37,4 +37,4 @@ import { AbemisService } from '../shared/abemis.service';
   providers: [SeedService, AbemisService],
   exports: [TypeOrmModule],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}

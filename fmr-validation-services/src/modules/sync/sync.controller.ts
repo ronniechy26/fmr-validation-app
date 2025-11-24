@@ -4,7 +4,7 @@ import { Public } from '../auth/jwt-auth.guard';
 
 @Controller('sync')
 export class SyncController {
-  constructor(private readonly syncService: SyncService) { }
+  constructor(private readonly syncService: SyncService) {}
 
   @Public()
   @Get('snapshot')

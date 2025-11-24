@@ -54,7 +54,7 @@ export class FmrRepository {
     private readonly projectsRepo: Repository<ProjectEntity>,
     @InjectRepository(FormRecordEntity)
     private readonly formsRepo: Repository<FormRecordEntity>,
-  ) { }
+  ) {}
 
   async getProjects(
     filter: ProjectFilterOptions = {},
@@ -149,8 +149,8 @@ export class FmrRepository {
     if (payload.linkedProjectId !== undefined) {
       existing.project = payload.linkedProjectId
         ? await this.projectsRepo.findOne({
-          where: { id: payload.linkedProjectId },
-        })
+            where: { id: payload.linkedProjectId },
+          })
         : null;
     }
     if (payload.annexTitle) existing.annexTitle = payload.annexTitle;
@@ -218,11 +218,13 @@ export class FmrRepository {
   async upsertFormFromClient(record: FormRecord): Promise<FlattenedFormRecord> {
     const project = record.linkedProjectId
       ? await this.projectsRepo.findOne({
-        where: { id: record.linkedProjectId },
-      })
+          where: { id: record.linkedProjectId },
+        })
       : null;
     const existing = await this.formsRepo.findOne({ where: { id: record.id } });
-    const incomingLastTouch = record.lastTouch ? new Date(record.lastTouch) : new Date();
+    const incomingLastTouch = record.lastTouch
+      ? new Date(record.lastTouch)
+      : new Date();
 
     // Conflict Resolution: Last Write Wins
     // If server has a newer version, ignore this update (or we could merge, but LWW is safer for now)
@@ -317,13 +319,13 @@ export class FmrRepository {
     const query = filter.search?.trim().toLowerCase();
     const queryOk = query
       ? [
-        form.projectName ?? '',
-        form.data.nameOfProject,
-        form.locationBarangay ?? '',
-        form.locationMunicipality ?? '',
-        form.annexTitle,
-        form.data.agriCommodities,
-      ].some((value) => value.toLowerCase().includes(query))
+          form.projectName ?? '',
+          form.data.nameOfProject,
+          form.locationBarangay ?? '',
+          form.locationMunicipality ?? '',
+          form.annexTitle,
+          form.data.agriCommodities,
+        ].some((value) => value.toLowerCase().includes(query))
       : true;
     return statusOk && annexOk && projectOk && abemisOk && queryOk;
   }
@@ -429,16 +431,16 @@ export class FmrRepository {
         : true;
       const matchesQuery = query
         ? [
-          project.title,
-          project.barangay,
-          project.municipality,
-          project.province,
-          form.annexTitle,
-          form.data.nameOfProject,
-          form.data.agriCommodities,
-        ]
-          .filter(Boolean)
-          .some((value) => (value ?? '').toLowerCase().includes(query))
+            project.title,
+            project.barangay,
+            project.municipality,
+            project.province,
+            form.annexTitle,
+            form.data.nameOfProject,
+            form.data.agriCommodities,
+          ]
+            .filter(Boolean)
+            .some((value) => (value ?? '').toLowerCase().includes(query))
         : true;
       return matchesStatus && matchesAnnex && matchesQuery;
     });

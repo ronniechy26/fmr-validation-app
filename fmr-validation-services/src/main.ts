@@ -7,4 +7,7 @@ async function bootstrap() {
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
 }
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('Error during application bootstrap', err);
+  process.exit(1);
+});

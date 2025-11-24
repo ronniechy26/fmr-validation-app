@@ -10,7 +10,6 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView from 'react-native-maps';
-import * as Location from 'expo-location';
 import { LocationFilterBottomSheet } from '@/components/LocationFilterBottomSheet';
 import { FMRListBottomSheet } from '@/components/FMRListBottomSheet';
 import LocatorMap from '@/components/LocatorMap';
@@ -20,17 +19,26 @@ import { useOfflineData } from '@/providers/OfflineDataProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
-import { LocatorFilter } from '@/types/filters';
-import axios from 'axios';
+import { FMRItem, LocatorFilter } from '@/types/filters';
+import { fetchRoute } from '@/lib/routing';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { useProjectFilter } from '@/hooks/useProjectFilter';
+
+type FilterableProject = Parameters<typeof useProjectFilter>[0][number];
+type MarkerItem = FMRItem & { latitude: number; longitude: number };
+
+const toNumericCoordinate = (value?: string | number | null) => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 export function LocatorScreen() {
   const { colors } = useThemeMode();
   const { projects, standaloneDrafts } = useOfflineData();
-  const filterSheetRef = useRef<BottomSheetModal>(null);
-  const listSheetRef = useRef<BottomSheetModal>(null);
-  const routeSheetRef = useRef<BottomSheetModal>(null);
-  const mapRef = useRef<MapView>(null);
-  const locationWatcher = useRef<Location.LocationSubscription | null>(null);
+  const filterSheetRef = useRef<BottomSheetModal | null>(null);
+  const listSheetRef = useRef<BottomSheetModal | null>(null);
+  const routeSheetRef = useRef<BottomSheetModal | null>(null);
+  const mapRef = useRef<MapView | null>(null);
   const [activeRoute, setActiveRoute] = useState<{
     coordinates: { latitude: number; longitude: number }[];
     mode: 'driving' | 'bike' | 'foot';
@@ -43,62 +51,10 @@ export function LocatorScreen() {
     targetLongitude: number;
   } | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
-  const osrmUrl = process.env.EXPO_PUBLIC_OSRM_ROUTE_API;
-
-  // Location filter state (only location, no status filter)
   const [selectedLocation, setSelectedLocation] = useState<LocatorFilter>({});
 
-  // Map states
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const userLocation = useUserLocation();
 
-  // Request location permissions and keep user location updated
-  useEffect(() => {
-    let isMounted = true;
-    const startWatching = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission Denied', 'Location permission is required to show your position on the map.');
-          return;
-        }
-
-        const location = await Location.getCurrentPositionAsync({});
-        if (isMounted) {
-          setUserLocation({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          });
-        }
-
-        locationWatcher.current = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Highest,
-            distanceInterval: 5,
-            timeInterval: 2000,
-          },
-          (loc) => {
-            if (!isMounted) return;
-            setUserLocation({
-              latitude: loc.coords.latitude,
-              longitude: loc.coords.longitude,
-            });
-          },
-        );
-      } catch (error) {
-        console.error('Error getting location:', error);
-      }
-    };
-
-    startWatching();
-
-    return () => {
-      isMounted = false;
-      locationWatcher.current?.remove();
-      locationWatcher.current = null;
-    };
-  }, []);
-
-  // Extract all unique locations from projects and forms for filter options
   const locationOptions = useMemo(() => {
     const locations: Array<{
       region?: string;
@@ -106,7 +62,6 @@ export function LocatorScreen() {
       municipality?: string;
     }> = [];
 
-    // Add locations from projects
     projects.forEach((project) => {
       locations.push({
         region: project.region,
@@ -115,7 +70,6 @@ export function LocatorScreen() {
       });
     });
 
-    // Add locations from standalone drafts
     standaloneDrafts.forEach((form) => {
       locations.push({
         region: form.region,
@@ -149,104 +103,45 @@ export function LocatorScreen() {
     );
   };
 
-  // Combine all projects with their coordinates for map display
-  const allProjects = useMemo(() => {
-    // Map projects to marker data (without status - projects don't have status)
-    const projectMarkers = projects.map((project) => ({
+  const allProjects = useMemo<FilterableProject[]>(() => {
+    return projects.map((project) => ({
       id: project.id,
       projectName: project.title,
-      abemisId: project.abemisId,
+      abemisId: project.abemisId ?? undefined,
       projectCode: project.projectCode,
       barangay: project.barangay,
       municipality: project.municipality,
       province: project.province,
       region: project.region,
-      latitude: project.latitude,
-      longitude: project.longitude,
-      geotags: project.geotags?.map((tag) => ({
-        id: tag.id,
-        url: tag.url,
-        photoName: tag.photoName,
-      })),
+      latitude: toNumericCoordinate(project.latitude),
+      longitude: toNumericCoordinate(project.longitude),
     }));
-
-    return projectMarkers;
   }, [projects]);
 
-  // Apply location filters - only show markers when a filter is applied
-  const filteredProjects = useMemo(() => {
-    const query = selectedLocation.searchQuery?.trim().toLowerCase() ?? '';
-    const hasLocationFilter = Boolean(
-      selectedLocation.region || selectedLocation.province || selectedLocation.municipality,
-    );
-    const hasFilter = hasLocationFilter || Boolean(query);
+  const filteredProjects = useProjectFilter(allProjects, selectedLocation);
 
-    if (!hasFilter) {
-      return [];
-    }
-
-    return allProjects.filter((project) => {
-      // Location filters
-      if (selectedLocation.region && project.region?.toLowerCase() !== selectedLocation.region.toLowerCase()) {
-        return false;
-      }
-      if (
-        selectedLocation.province &&
-        project.province?.toLowerCase() !== selectedLocation.province.toLowerCase()
-      ) {
-        return false;
-      }
-      if (
-        selectedLocation.municipality &&
-        project.municipality?.toLowerCase() !== selectedLocation.municipality.toLowerCase()
-      ) {
-        return false;
-      }
-
-      if (query) {
-        const matchesQuery = [project.projectName, project.abemisId]
-          .filter(Boolean)
-          .some((value) => value?.toLowerCase().includes(query));
-        if (!matchesQuery) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [allProjects, selectedLocation]);
-
-  // Prepare markers from filtered projects with valid coordinates
-  const mapMarkers = useMemo(() => {
+  const mapMarkers = useMemo<MarkerItem[]>(() => {
     return filteredProjects
-      .filter((project) => project.latitude && project.longitude)
+      .filter(
+        (project): project is typeof project & { latitude: number; longitude: number } =>
+          typeof project.latitude === 'number' && typeof project.longitude === 'number',
+      )
       .map((project) => ({
         id: project.id,
-        latitude: parseFloat(project.latitude!),
-        longitude: parseFloat(project.longitude!),
+        latitude: project.latitude,
+        longitude: project.longitude,
         projectName: project.projectName,
         projectCode: project.projectCode,
-        abemisId: project.abemisId,
+        abemisId: project.abemisId ?? undefined,
         barangay: project.barangay || '',
         municipality: project.municipality || '',
         province: project.province || '',
         region: project.region || '',
-        geotags: project.geotags,
-        status: 'Synced' as const, // Default status for display purposes only
+        status: 'Synced' as const,
       }));
   }, [filteredProjects]);
 
-  const handleRouteReady = (payload: {
-    mode: 'driving' | 'bike' | 'foot';
-    distance: number;
-    duration: number;
-    coordinates: { latitude: number; longitude: number }[];
-    projectName: string;
-    summary?: string;
-    steps?: any[];
-    targetLatitude: number;
-    targetLongitude: number;
-  }) => {
+  const handleRouteReady = (payload: any) => {
     setActiveRoute(payload);
     if (payload.coordinates.length > 0) {
       fitRouteBounds(payload.coordinates);
@@ -264,58 +159,37 @@ export function LocatorScreen() {
   };
 
   const refetchRoute = async (mode: 'driving' | 'bike' | 'foot') => {
-    if (!activeRoute || !userLocation || !osrmUrl) return;
-    const profile = mode === 'bike' ? 'bike' : mode === 'foot' ? 'foot' : 'car';
-    try {
-      setRouteLoading(true);
-      const url = `${osrmUrl}/${profile}/${userLocation.longitude},${userLocation.latitude};${activeRoute.targetLongitude},${activeRoute.targetLatitude}`;
-      const response = await axios.get(url, {
-        params: {
-          overview: 'full',
-          geometries: 'geojson',
-          steps: true,
-        },
-      });
-      const route = response.data?.routes?.[0];
-      if (!route) {
-        Alert.alert('Route not found', 'No route was returned for this selection.');
-        return;
-      }
-      const coordinates =
-        route.geometry?.coordinates?.map(
-          ([longitude, latitude]: [number, number]) => ({ latitude, longitude }),
-        ) ?? [];
+    if (!activeRoute || !userLocation) return;
+
+    setRouteLoading(true);
+    const route = await fetchRoute(
+      userLocation,
+      { latitude: activeRoute.targetLatitude, longitude: activeRoute.targetLongitude },
+      mode
+    );
+    setRouteLoading(false);
+
+    if (route) {
       const updated = {
         ...activeRoute,
         mode,
-        distance: route.distance,
-        duration: route.duration,
-        coordinates,
-        summary: route.legs?.[0]?.summary,
-        steps: route.legs?.[0]?.steps,
+        ...route,
       };
       setActiveRoute(updated);
-      if (coordinates.length > 0) fitRouteBounds(coordinates);
-    } catch (error) {
-      console.error('osrm:route:refetch', error);
-      Alert.alert('Directions error', 'Unable to update route. Please try again.');
-    } finally {
-      setRouteLoading(false);
+      if (route.coordinates.length > 0) {
+        fitRouteBounds(route.coordinates);
+      }
     }
   };
 
-  // Auto-fit map to show all markers when filter is applied
   useEffect(() => {
     if (mapRef.current && mapMarkers.length > 0) {
-      // Calculate bounds to fit all markers
       const lats = mapMarkers.map((m) => m.latitude);
       const lngs = mapMarkers.map((m) => m.longitude);
       const minLat = Math.min(...lats);
       const maxLat = Math.max(...lats);
       const minLng = Math.min(...lngs);
       const maxLng = Math.max(...lngs);
-
-      // Add padding to the bounds
       const latPadding = (maxLat - minLat) * 0.2 || 0.1;
       const lngPadding = (maxLng - minLng) * 0.2 || 0.1;
 
@@ -331,7 +205,6 @@ export function LocatorScreen() {
     }
   }, [mapMarkers]);
 
-  // Gently follow the user when navigating for a Waze-like feel
   useEffect(() => {
     if (mapRef.current && userLocation && activeRoute) {
       mapRef.current.animateToRegion(

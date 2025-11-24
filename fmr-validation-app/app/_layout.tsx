@@ -1,7 +1,7 @@
 import { AuthProvider, useAuth } from '@/providers/AuthProvider';
 import { ThemeProvider, useThemeMode } from '@/providers/ThemeProvider';
 import { OfflineDataProvider } from '@/providers/OfflineDataProvider';
-import { fonts, spacing } from '@/theme';
+import { fonts } from '@/theme';
 import { useEffect, useState } from 'react';
 import {
   Nunito_400Regular,
@@ -11,7 +11,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/nunito';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { Stack, useRouter, useSegments, SplashScreen } from 'expo-router';
+import { Stack, useRouter, SplashScreen } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 // eslint-disable-next-line import/no-duplicates
 import 'react-native-gesture-handler';
@@ -94,7 +94,7 @@ function RootLayoutNav() {
         router.replace('/onboarding-welcome');
       }, 100);
     }
-  }, [onboardingComplete, authLoading]);
+  }, [onboardingComplete, authLoading, router]);
 
   if (onboardingComplete === null || authLoading) {
     return (

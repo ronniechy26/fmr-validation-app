@@ -39,7 +39,7 @@ const statusColors = {
 interface LocatorMapProps {
   handleMarkerPress?: (marker: any) => void;
   mapRef: React.RefObject<MapView | null>;
-  data?: Array<{
+  data?: {
     id: string;
     latitude: number;
     longitude: number;
@@ -47,8 +47,8 @@ interface LocatorMapProps {
     barangay: string;
     municipality: string;
     status: 'Draft' | 'Pending Sync' | 'Synced' | 'Error';
-  }>;
-  routePath?: Array<{ latitude: number; longitude: number }>;
+  }[];
+  routePath?: { latitude: number; longitude: number }[];
   routeMode?: 'driving' | 'bike' | 'foot';
   onRoutePress?: () => void;
 }
