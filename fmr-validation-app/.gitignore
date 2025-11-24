@@ -11,6 +11,8 @@ expo-env.d.ts
 .env.test.local
 .env.production.local
 .env.local
+.env.production
+.env.development
 
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 

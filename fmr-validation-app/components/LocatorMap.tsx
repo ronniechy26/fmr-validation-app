@@ -125,6 +125,7 @@ export default LocatorMap;
 // Styles for the map container
 const styles = StyleSheet.create({
   map: {
+    flex : 1,
     width: '100%',
     height: '100%',
   },
