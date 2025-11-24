@@ -260,41 +260,39 @@ export function OfflineDataProvider({ children, ready = true }: { children: Reac
     initialLoadRef.current = true;
     setLoading(true);
 
-    // Defer initial refresh to prevent blocking login UI
-    const timer = setTimeout(async () => {
+    // Load cached data immediately for instant UI feedback
+    (async () => {
       try {
-        // Check if we have recent data (synced within last 5 minutes)
-        // This prevents double-sync after onboarding which already downloads data
+        // Always load cache first - this is fast and provides immediate data
+        const cached = await loadSnapshot();
+        logger.info('offline', 'cache-loaded-immediate', {
+          projects: cached.projects.length,
+          drafts: cached.standaloneDrafts.length
+        });
+        setSnapshot(cached);
+        setLoading(false);
+
+        // Then check if we need to sync in the background
         const lastSync = await getLastProjectsSyncTimestamp();
         const FIVE_MINUTES = 5 * 60 * 1000;
         const isFresh = lastSync && (Date.now() - lastSync) < FIVE_MINUTES;
 
-        logger.info('offline', 'initial-load', {
+        logger.info('offline', 'initial-load-check', {
           isFresh,
           lastSync,
           timeSinceSync: lastSync ? Date.now() - lastSync : null
         });
 
-        if (isFresh) {
-          // Load from cache only, no network sync needed
-          const cached = await loadSnapshot();
-          logger.info('offline', 'cache-loaded', {
-            projects: cached.projects.length,
-            drafts: cached.standaloneDrafts.length
-          });
-          setSnapshot(cached);
-          setLoading(false);
-        } else {
-          // Data is stale or missing, perform sync
-          logger.info('offline', 'performing-sync', { reason: 'stale-data' });
+        if (!isFresh) {
+          // Data is stale or missing, perform background sync
+          logger.info('offline', 'background-sync-start', { reason: 'stale-data' });
           refresh({ silent: true, formsOnly: true });
         }
       } catch (error) {
         logger.error('offline', 'initial-load-error', { error: String(error) });
         setLoading(false);
       }
-    }, 100);
-    return () => clearTimeout(timer);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 

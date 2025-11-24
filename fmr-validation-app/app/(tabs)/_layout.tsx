@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '@/theme';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { useAuth } from '@/providers/AuthProvider';
-import { TouchableOpacity, View, StyleSheet } from 'react-native';
+import { TouchableOpacity, View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
@@ -12,7 +12,16 @@ export default function TabsLayout() {
   const { isSignedIn, loading: authLoading } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, 12);
+  
+  // Calculate proper bottom spacing for both iOS and Android
+  const bottomInset = Platform.select({
+    ios: insets.bottom > 0 ? insets.bottom : 12,
+    android: insets.bottom > 0 ? insets.bottom + 8 : 12, // Add extra padding if nav buttons exist
+    default: 12,
+  });
+  
+  const tabBarHeight = 60 + bottomInset;
+  
   const AddButton = () => (
     <TouchableOpacity
       style={styles.addButtonWrapper}
@@ -40,13 +49,19 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
+          borderTopWidth: 1,
           paddingBottom: bottomInset,
-          paddingTop: 2,
-          height: 56 + bottomInset,
+          paddingTop: 8,
+          height: tabBarHeight,
+          position: 'absolute',
         },
         tabBarLabelStyle: {
           fontFamily: fonts.medium,
           fontSize: 12,
+          marginBottom: Platform.select({ ios: 0, android: 4 }),
+        },
+        tabBarIconStyle: {
+          marginTop: Platform.select({ ios: 0, android: 4 }),
         },
       }}
     >
@@ -104,7 +119,8 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   addButtonWrapper: {
-    top: -30,
+    flex: 1,
+    top: -28,
     justifyContent: 'center',
     alignItems: 'center',
   },

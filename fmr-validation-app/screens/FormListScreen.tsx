@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FlashList } from '@shopify/flash-list';
@@ -402,7 +402,14 @@ export function FormListScreen() {
           })}
         </View>
 
-        {activeTab === 'projects' ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textMuted }]}>
+              Loading {activeTab === 'projects' ? 'FMR projects' : 'standalone drafts'}...
+            </Text>
+          </View>
+        ) : activeTab === 'projects' ? (
           <FlashList
             data={projects}
             keyExtractor={(item) => item.id}
@@ -739,6 +746,13 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontFamily: fonts.semibold,
     fontSize: 14,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xxl,
   },
   list: {
     flex: 1,
