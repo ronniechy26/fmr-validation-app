@@ -11,7 +11,7 @@ fmr-validation-app/ios
 fmr-validation-app/.expo
 fmr-validation-app/node_modules
 fmr-validation-app/.git
-fmr-validation-app/.vs-code
+fmr-validation-app/.vscode
 
 # Common build outputs
 fmr-validation-app/dist
