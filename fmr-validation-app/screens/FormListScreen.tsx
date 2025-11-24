@@ -732,8 +732,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: spacing.xs,
     gap: spacing.xs,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
   },
   tabButton: {
     flex: 1,

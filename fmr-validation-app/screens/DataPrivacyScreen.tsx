@@ -39,7 +39,7 @@ export function DataPrivacyScreen() {
       <Text style={[styles.title, { color: colors.textPrimary }]}>Data Privacy Policy</Text>
 
       <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-        We are committed to protecting your privacy and ensuring the security of your data. The information collected in this survey will be used solely for the Knowledge Census of Agricultural Mechanization and Infrastructure. We will not share your responses with any third parties without your explicit consent, except as required by law. Specifically, we adhere to the principles of the Data Privacy Act of 2012 (Republic Act No. 10173), which includes:
+        We are committed to protecting your privacy and ensuring the security of your data. The information collected in this survey will be used solely for the FMR Validation App. We will not share your data with any third parties without your explicit consent, except as required by law. Specifically, we adhere to the principles of the Data Privacy Act of 2012 (Republic Act No. 10173), which includes:
       </Text>
 
       <View style={styles.principlesContainer}>
