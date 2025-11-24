@@ -314,22 +314,38 @@ export function FormListScreen() {
     <>
       <Screen noBottomPadding>
 
-        <View style={styles.topBanner}>
-          <View style={styles.heroBrand}>
-            <View style={[styles.heroLogo, { backgroundColor: colors.secondary }]}>
-              <Ionicons name="leaf" size={16} color={colors.primary} />
+        <View
+          style={[
+            styles.headerGradient,
+            { backgroundColor: colors.primary }
+          ]}
+        >
+          <View style={styles.topBanner}>
+            <View style={styles.heroBrand}>
+              <View style={styles.heroLogoWrapper}>
+                <View style={[styles.heroLogo, { backgroundColor: 'rgba(255, 255, 255, 0.95)' }]}>
+                  <Ionicons name="leaf" size={24} color={colors.primary} />
+                </View>
+              </View>
+              <View style={styles.brandText}>
+                <Text style={styles.appTitle}>FMR Validation</Text>
+                <Text style={styles.appSubtitle}>Field Monitoring & Reporting</Text>
+              </View>
             </View>
-            <View>
-              <Text style={[styles.appTitle, { color: colors.textPrimary }]}>FMR Validation</Text>
-              <Text style={[styles.appSubtitle, { color: colors.textMuted }]}>Field Monitoring & Reporting</Text>
-            </View>
+            <TouchableOpacity
+              onPress={() => router.push('/settings')}
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: mode === 'dark' ? '#f59e0b' : '#fb923c',
+                  borderColor: mode === 'dark' ? '#fbbf24' : '#fdba74',
+                }
+              ]}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.avatarText}>MP</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            onPress={() => router.push('/settings')}
-            style={[styles.avatar, { backgroundColor: colors.primary, borderColor: colors.secondary }]}
-          >
-            <Text style={styles.avatarText}>MP</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.searchRow}>
@@ -649,44 +665,79 @@ export function FormListScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerGradient: {
+    borderRadius: 24,
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
   topBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
   },
   heroBrand: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
+    flex: 1,
+  },
+  heroLogoWrapper: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderRadius: 18,
   },
   heroLogo: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: '#e0e7ff',
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  brandText: {
+    gap: 2,
+    flex: 1,
   },
   appTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 17,
+    fontFamily: fonts.bold,
+    fontSize: 20,
+    letterSpacing: -0.3,
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   appSubtitle: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    letterSpacing: 0.3,
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 2.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
   },
   avatarText: {
-    fontFamily: fonts.semibold,
+    fontFamily: fonts.bold,
+    fontSize: 16,
     color: '#fff',
+    letterSpacing: 0.5,
   },
   filterBar: {
     flexDirection: 'row',
