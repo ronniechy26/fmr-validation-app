@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Alert, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView from 'react-native-maps';
 import { LocationFilterBottomSheet } from '@/components/LocationFilterBottomSheet';
@@ -295,14 +295,16 @@ export function LocatorScreen() {
             </Text>
           </TouchableOpacity>
 
-          {/* Center on Location Button */}
-          <TouchableOpacity
-            style={[styles.locationButton, { backgroundColor: colors.primary }]}
-            onPress={centerOnUserLocation}
-            activeOpacity={0.9}
-          >
-            <Ionicons name="locate" size={24} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.locationStack}>
+            {/* Center on Location Button */}
+            <TouchableOpacity
+              style={[styles.locationButton, { backgroundColor: colors.primary }]}
+              onPress={centerOnUserLocation}
+              activeOpacity={0.9}
+            >
+              <Ionicons name="locate" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Marker Count Badge - Now Clickable */}
@@ -312,7 +314,8 @@ export function LocatorScreen() {
             {
               backgroundColor: colors.surface,
               borderColor: colors.border,
-              bottom: spacing.xxl + (insets.bottom || spacing.sm),
+              bottom: (spacing.xxl + spacing.xxl + spacing.lg) + (insets.bottom || spacing.sm),
+              left: spacing.xs,
             },
           ]}
           onPress={openListSheet}
@@ -323,6 +326,19 @@ export function LocatorScreen() {
             {mapMarkers.length} Project{mapMarkers.length !== 1 ? 's' : ''}
           </Text>
         </TouchableOpacity>
+
+        {/* Brand badge */}
+        <Image
+          source={require('../assets/images/bafe_logo.png')}
+          style={[
+            styles.brandLogo,
+            {
+              bottom: spacing.sm + (insets.bottom || spacing.md),
+              right: spacing.lg,
+            },
+          ]}
+          resizeMode="contain"
+        />
       </View>
 
       {/* Filter Bottom Sheet - Location Only */}
@@ -373,6 +389,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     zIndex: 10,
   },
+  locationStack: {
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
   filterFloatingButton: {
     flex: 1,
     flexDirection: 'row',
@@ -407,8 +427,6 @@ const styles = StyleSheet.create({
   },
   countBadge: {
     position: 'absolute',
-    bottom: spacing.lg,
-    right: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -425,5 +443,10 @@ const styles = StyleSheet.create({
   countText: {
     fontFamily: fonts.semibold,
     fontSize: 14,
+  },
+  brandLogo: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
   },
 });
