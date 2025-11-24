@@ -8,7 +8,7 @@
 
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView from 'react-native-maps';
 import { LocationFilterBottomSheet } from '@/components/LocationFilterBottomSheet';
 import { FMRListBottomSheet } from '@/components/FMRListBottomSheet';
@@ -54,6 +54,8 @@ export function LocatorScreen() {
   const [selectedLocation, setSelectedLocation] = useState<LocatorFilter>({});
 
   const userLocation = useUserLocation();
+  const insets = useSafeAreaInsets();
+  const tabBarInset = spacing.xl + (insets.bottom || spacing.md);
 
   const locationOptions = useMemo(() => {
     const locations: Array<{
@@ -268,9 +270,9 @@ export function LocatorScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Map Container */}
-      <View style={styles.mapContainer}>
+      <View style={[styles.mapContainer, { paddingBottom: tabBarInset }]}>
         <LocatorMap
           mapRef={mapRef}
           data={mapMarkers}
@@ -305,7 +307,14 @@ export function LocatorScreen() {
 
         {/* Marker Count Badge - Now Clickable */}
         <TouchableOpacity
-          style={[styles.countBadge, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={[
+            styles.countBadge,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              bottom: spacing.xxl + (insets.bottom || spacing.sm),
+            },
+          ]}
           onPress={openListSheet}
           activeOpacity={0.8}
         >
