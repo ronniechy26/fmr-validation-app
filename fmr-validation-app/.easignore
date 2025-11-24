@@ -1,0 +1,53 @@
+# Exclude native folders and local Expo cache
+android
+ios
+.expo
+node_modules
+.git
+
+# Common build outputs
+dist
+build
+web-build
+
+# Drop Markdown/docs from the build context
+*.md
+**/*.md
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+app-example
+
+# nativewind-env.d.ts
+
+/ios
+/android

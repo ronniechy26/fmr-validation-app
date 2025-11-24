@@ -1,0 +1,54 @@
+# Restrict upload to the Expo app workspace only
+*
+!.gitignore
+!.easignore
+!/fmr-validation-app
+!/fmr-validation-app/**
+
+# Exclude native folders and local Expo cache inside the app
+fmr-validation-app/android
+fmr-validation-app/ios
+fmr-validation-app/.expo
+fmr-validation-app/node_modules
+fmr-validation-app/.git
+fmr-validation-app/.vs-code
+
+# Common build outputs
+fmr-validation-app/dist
+fmr-validation-app/build
+fmr-validation-app/web-build
+
+# Drop Markdown/docs from the build context
+fmr-validation-app/*.md
+fmr-validation-app/**/*.md
+
+# Expo
+fmr-validation-app/expo-env.d.ts
+
+# Native
+fmr-validation-app/*.orig.*
+fmr-validation-app/*.jks
+fmr-validation-app/*.p8
+fmr-validation-app/*.p12
+fmr-validation-app/*.key
+fmr-validation-app/*.mobileprovision
+
+# debug
+fmr-validation-app/npm-debug.*
+fmr-validation-app/yarn-debug.*
+fmr-validation-app/yarn-error.*
+
+# macOS
+fmr-validation-app/.DS_Store
+fmr-validation-app/*.pem
+
+# local env files
+fmr-validation-app/.env*.local
+
+# typescript
+fmr-validation-app/*.tsbuildinfo
+
+fmr-validation-app/app-example
+
+# nativewind-env.d.ts
+fmr-validation-app/nativewind-env.d.ts
