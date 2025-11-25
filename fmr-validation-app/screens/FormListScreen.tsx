@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FlashList } from '@shopify/flash-list';
@@ -324,7 +324,11 @@ export function FormListScreen() {
             <View style={styles.heroBrand}>
               <View style={styles.heroLogoWrapper}>
                 <View style={[styles.heroLogo, { backgroundColor: 'rgba(255, 255, 255, 0.95)' }]}>
-                  <Ionicons name="leaf" size={24} color={colors.primary} />
+                  <Image
+                    source={require('../assets/images/fmr-app-logo.png')}
+                    style={styles.heroLogoImage}
+                    resizeMode="contain"
+                  />
                 </View>
               </View>
               <View style={styles.brandText}>
@@ -700,6 +704,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  heroLogoImage: {
+    width: 50,
+    height: 50,
   },
   brandText: {
     gap: 2,

@@ -12,7 +12,7 @@ import {
 } from '@expo-google-fonts/nunito';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack, SplashScreen, useSegments, Redirect } from 'expo-router';
-import { ActivityIndicator, StyleSheet, View, Text, Animated } from 'react-native';
+import { ActivityIndicator, StyleSheet, View, Text, Animated, Image } from 'react-native';
 // eslint-disable-next-line import/no-duplicates
 import 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -56,18 +56,19 @@ function LoadingScreen() {
 
   return (
     <View style={[styles.loader, { backgroundColor: colors.background }]}>
-      <Animated.View
-        style={[
-          styles.loaderContent,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: pulseAnim }]
-          }
-        ]}
-      >
-        <View style={[styles.logoContainer, { backgroundColor: colors.secondary }]}>
-          <Ionicons name="leaf" size={48} color={colors.primary} />
-        </View>
+      <Animated.View style={[styles.loaderContent, { opacity: fadeAnim }]}>
+        <Animated.View
+          style={[
+            styles.logoContainer,
+            { backgroundColor: colors.secondary, transform: [{ scale: pulseAnim }] },
+          ]}
+        >
+          <Image
+            source={require('../assets/images/fmr-app-logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </Animated.View>
       </Animated.View>
 
       <Animated.View style={{ opacity: fadeAnim }}>
@@ -301,6 +302,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
+  },
+  logoImage: {
+    width: 72,
+    height: 72,
   },
   loaderTitle: {
     fontFamily: fonts.bold,

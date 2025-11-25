@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, Image } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
@@ -60,8 +60,11 @@ export function LoginScreen() {
     <Screen scroll style={{ paddingBottom: spacing.xl }}>
       <View style={styles.hero}>
         <View style={[styles.logoBadge, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-          <Ionicons name="leaf" size={32} color={colors.primary} />
-          <Text style={[styles.logoText, { color: colors.textPrimary }]}>FMR</Text>
+          <Image
+            source={require('../assets/images/fmr-app-logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
         <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>FMR Validation Portal</Text>
         <Text style={[styles.heroSubtitle, { color: colors.textMuted }]}>
@@ -173,12 +176,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
   },
-  logoText: {
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    letterSpacing: 1,
+  logoImage: {
+    width: 72,
+    height: 72,
   },
   heroTitle: {
     fontFamily: fonts.bold,

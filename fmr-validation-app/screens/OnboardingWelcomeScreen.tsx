@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useThemeMode } from '@/providers/ThemeProvider';
 import { fonts, spacing } from '@/theme';
@@ -17,7 +17,11 @@ export function OnboardingWelcomeScreen() {
     <Screen scroll style={styles.container} contentContainerStyle={styles.scrollContent}>
       <View style={styles.header}>
         <View style={[styles.logoBadge, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
-          <Ionicons name="leaf" size={64} color={colors.primary} />
+          <Image
+            source={require('../assets/images/fmr-app-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
         </View>
 
         <View style={styles.titleContainer}>
@@ -112,6 +116,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 5,
+  },
+  logo: {
+    width: 84,
+    height: 84,
   },
   titleContainer: {
     alignItems: 'center',
