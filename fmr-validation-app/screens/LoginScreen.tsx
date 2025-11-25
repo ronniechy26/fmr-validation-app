@@ -12,7 +12,7 @@ export function LoginScreen() {
   const { colors } = useThemeMode();
   const { signIn, isSignedIn, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -20,7 +20,7 @@ export function LoginScreen() {
 
   useEffect(() => {
     loadRememberPrefs().then((prefs) => {
-      if (prefs.email) setEmail(prefs.email);
+      if (prefs.email) setUsername(prefs.email); // Using email field for username storage
       if (typeof prefs.remember === 'boolean') setRememberMe(prefs.remember);
     }).catch(() => null);
   }, []);
@@ -32,16 +32,16 @@ export function LoginScreen() {
   }, [isSignedIn, router]);
 
   const handleSubmit = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('Enter your email and password.');
+    if (!username.trim() || !password.trim()) {
+      setError('Enter your username and password.');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      await signIn(email.trim(), password, { remember: rememberMe });
+      await signIn(username.trim(), password, { remember: rememberMe });
       if (rememberMe) {
-        await saveRememberPrefs({ email: email.trim(), remember: true });
+        await saveRememberPrefs({ email: username.trim(), remember: true }); // Store username in email field
       } else {
         await clearRememberPrefs();
       }
@@ -69,19 +69,18 @@ export function LoginScreen() {
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Welcome back</Text>
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.textMuted }]}>Email Address</Text>
+          <Text style={[styles.label, { color: colors.textMuted }]}>Username</Text>
           <TextInput
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@email.com"
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Enter your username"
             placeholderTextColor={colors.textMuted}
-            keyboardType="email-address"
             style={[
               styles.input,
               { borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.secondary },
             ]}
             autoCapitalize="none"
-            autoComplete="email"
+            autoComplete="username"
           />
         </View>
         <View style={styles.field}>

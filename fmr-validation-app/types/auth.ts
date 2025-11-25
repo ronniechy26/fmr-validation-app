@@ -7,7 +7,7 @@ export type SessionUser = {
 };
 
 export type LoginPayload = {
-  email: string;
+  username: string;
   password: string;
 };
 

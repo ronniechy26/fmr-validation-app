@@ -15,7 +15,7 @@ export function SettingsScreen() {
   const [offlineMode, setOfflineMode] = useState(false);
   const { mode, setMode, colors } = useThemeMode();
   const darkMode = mode === 'dark';
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const router = useRouter();
   const { refresh, lastSyncedAt } = useOfflineData();
   const [syncing, setSyncing] = useState(false);
@@ -97,13 +97,19 @@ export function SettingsScreen() {
       </Section>
 
       <Section title="Account & Support">
-        <TouchableOpacity style={styles.linkRow}>
+        <TouchableOpacity
+          style={styles.linkRow}
+          onPress={() => router.push('/profile')}
+          activeOpacity={0.7}
+        >
           <View style={[styles.linkIcon, { backgroundColor: colors.surfaceMuted }]}>
             <Ionicons name="person-circle" size={18} color={colors.primary} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>Profile</Text>
-            <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>Engr. Mark Paul C. Baldeo</Text>
+            <Text style={[styles.rowSubtitle, { color: colors.textMuted }]}>
+              {user?.name || 'View your profile'}
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>

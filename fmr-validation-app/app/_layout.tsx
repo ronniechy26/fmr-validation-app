@@ -312,6 +312,19 @@ function RootLayoutNav() {
               headerBackTitle: 'Back',
             }}
           />
+          <Stack.Screen
+            name="profile"
+            options={{
+              title: 'Profile',
+              headerShown: true,
+              headerTintColor: '#fff',
+              headerStyle: { backgroundColor: colors.primary },
+              headerTitleAlign: 'center',
+              headerTitleStyle: { fontFamily: fonts.semibold },
+              headerBackTitleStyle: { fontFamily: fonts.regular },
+              headerBackTitle: 'Back',
+            }}
+          />
         </Stack>
       </BottomSheetModalProvider>
     </OfflineDataProvider>
@@ -358,6 +371,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginTop: 24,
+    textAlign: 'center',
   },
   loaderText: {
     fontFamily: fonts.medium,
