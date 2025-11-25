@@ -26,28 +26,47 @@ export class HttpError extends Error {
 async function request<T>(path: string, options: (RequestInit & { skipAuth?: boolean }) = {}) {
   const { skipAuth, ...restOptions } = options;
   const url = `${apiBaseUrl}${path}`;
+  console.log('[API] Request:', { url, method: restOptions.method ?? 'GET', apiBaseUrl });
   logger.info('api', 'request:start', { path, method: restOptions.method ?? 'GET' });
+
   let response: Response;
   try {
-    response = await fetch(url, {
-      ...restOptions,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...(authToken && !skipAuth ? { Authorization: `Bearer ${authToken}` } : {}),
-        ...(restOptions.headers ?? {}),
-      },
-    });
+    // Add 30-second timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn('[API] Request timeout after 30s:', url);
+      controller.abort();
+    }, 30000);
+
+    try {
+      response = await fetch(url, {
+        ...restOptions,
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(authToken && !skipAuth ? { Authorization: `Bearer ${authToken}` } : {}),
+          ...(restOptions.headers ?? {}),
+        },
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
+    }
   } catch (error) {
     const fallbackMessage = (error as Error | undefined)?.message || 'Network request failed';
+    console.error('[API] Request error:', { url, error: fallbackMessage });
     logger.error('api', 'request:error', { path, error: fallbackMessage });
     throw new HttpError(fallbackMessage, 0);
   }
   if (!response.ok) {
     const message = await safeParseError(response);
+    console.warn('[API] Request failed:', { url, status: response.status, message });
     logger.warn('api', 'request:fail', { path, status: response.status, message });
     throw new HttpError(message || `Request failed with status ${response.status}`, response.status);
   }
+  console.log('[API] Request success:', { url, status: response.status });
   logger.info('api', 'request:success', { path, status: response.status });
   return (await response.json()) as T;
 }

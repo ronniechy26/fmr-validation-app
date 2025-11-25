@@ -42,34 +42,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const bootstrap = async () => {
+      console.log('[AuthProvider] Bootstrap started');
       setLoading(true);
       const cached = await loadSession<LoginResponse['user']>();
+      console.log('[AuthProvider] Cached session:', { hasCached: !!cached });
+
       if (!cached || !cached.refreshToken || !cached.refreshExpiresAt) {
+        console.log('[AuthProvider] No valid cached session, clearing');
         await clearSession();
         setLoading(false);
+        console.log('[AuthProvider] Bootstrap complete (no session)');
         return;
       }
 
       if (cached.refreshExpiresAt <= Date.now()) {
+        console.log('[AuthProvider] Refresh token expired, clearing');
         await clearSession();
         setLoading(false);
+        console.log('[AuthProvider] Bootstrap complete (expired)');
         return;
       }
 
       if (cached.expiresAt > Date.now()) {
+        console.log('[AuthProvider] Using cached session');
         setSession(cached);
         setAuthToken(cached.token);
         setLoading(false);
+        console.log('[AuthProvider] Bootstrap complete (cached)');
         return;
       }
 
       try {
+        console.log('[AuthProvider] Refreshing session');
         const refreshed = await refreshSession(cached.refreshToken);
         await persistSession(refreshed);
+        console.log('[AuthProvider] Session refreshed successfully');
       } catch (error) {
+        console.error('[AuthProvider] Refresh failed:', error);
         await clearSession();
       }
       setLoading(false);
+      console.log('[AuthProvider] Bootstrap complete (refreshed)');
     };
     bootstrap();
   }, [persistSession]);
