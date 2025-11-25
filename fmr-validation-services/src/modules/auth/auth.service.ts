@@ -69,30 +69,50 @@ export class AuthService {
   }
 
   async login(payload: LoginDto): Promise<LoginResponse> {
+    this.logger.log(`Login attempt for username: ${payload.username}`);
+
+    let abemisError: string | null = null;
+
     // Try ABEMIS authentication first
     try {
+      this.logger.log('Attempting ABEMIS authentication...');
       const abemisUser = await this.authenticateWithAbemis(payload);
       if (abemisUser) {
-        this.logger.log(`User authenticated via ABEMIS: ${abemisUser.email}`);
+        this.logger.log(`✓ User authenticated via ABEMIS: ${abemisUser.email}`);
         return this.issueTokens(abemisUser);
       }
     } catch (error) {
+      abemisError = error.message;
       this.logger.warn(
-        `ABEMIS authentication failed: ${error.message}. Falling back to local users.`,
+        `✗ ABEMIS authentication failed: ${error.message}. Falling back to local users.`,
       );
     }
 
     // Fallback to hardcoded users for testing
-    const user = this.validateLocalCredentials(payload);
-    this.logger.log(`User authenticated via local database: ${user.email}`);
-    return this.issueTokens(user);
+    this.logger.log('Attempting local user authentication...');
+    try {
+      const user = this.validateLocalCredentials(payload);
+      this.logger.log(`✓ User authenticated via local database: ${user.email}`);
+      return this.issueTokens(user);
+    } catch (localError) {
+      // If we had an ABEMIS error and local also failed, prefer the ABEMIS error
+      // unless the local error is different (but local only throws Invalid credentials)
+      if (abemisError) {
+        throw new UnauthorizedException(abemisError);
+      }
+      throw localError;
+    }
   }
 
   private async authenticateWithAbemis(
     payload: LoginDto,
-  ): Promise<SessionUser | null> {
+  ): Promise<SessionUser> {
+    const abemisUrl = `${this.abemisBaseUrl}/api/login`;
+    this.logger.log(`Calling ABEMIS API: ${abemisUrl}`);
+    this.logger.debug(`Request payload: ${JSON.stringify({ username: payload.username, password: '***' })}`);
+
     try {
-      const response = await fetch(`${this.abemisBaseUrl}/api/login`, {
+      const response = await fetch(abemisUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -104,18 +124,33 @@ export class AuthService {
         }),
       });
 
+      this.logger.log(`ABEMIS API response status: ${response.status}`);
+
       if (!response.ok) {
-        return null;
+        const errorText = await response.text();
+        let errorMessage = `Request failed with status ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.message) errorMessage = errorJson.message;
+        } catch (e) {
+          // ignore json parse error
+        }
+        this.logger.warn(`ABEMIS API returned ${response.status}: ${errorMessage}`);
+        throw new UnauthorizedException(errorMessage);
       }
 
       const data: AbemisLoginResponse = await response.json();
+      this.logger.log(`ABEMIS API response: ${JSON.stringify({ success: data.success, hasUser: !!data.user })}`);
 
       if (!data.success || !data.user) {
-        return null;
+        this.logger.warn('ABEMIS response missing success flag or user data');
+        throw new UnauthorizedException('Invalid response from ABEMIS');
       }
 
       // Map ABEMIS user to SessionUser
       const role = this.determineRole(data.user.region);
+
+      this.logger.log(`Mapped ABEMIS user: ${data.user.fullname} (${data.user.email}) - Role: ${role}`);
 
       return {
         id: `abemis-${data.user.id}`,
@@ -125,8 +160,12 @@ export class AuthService {
         region: data.user.region,
       };
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
       this.logger.error(`ABEMIS API error: ${error.message}`);
-      return null;
+      this.logger.error(`Error stack: ${error.stack}`);
+      throw new UnauthorizedException(`ABEMIS Error: ${error.message}`);
     }
   }
 

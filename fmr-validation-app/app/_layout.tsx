@@ -186,15 +186,17 @@ function RootLayoutNav() {
 
   // Force redirect if onboarding is not complete
   useEffect(() => {
-    console.log('[RootLayoutNav] Redirect check:', { onboardingComplete, authLoading });
-    if (onboardingComplete === false && !authLoading) {
+    console.log('[RootLayoutNav] Redirect check:', { onboardingComplete, authLoading, minLoadingComplete });
+
+    // Only redirect if we are done loading everything
+    if (minLoadingComplete && onboardingComplete === false && !authLoading) {
       // We use a small timeout to ensure navigation is ready
       console.log('[RootLayoutNav] Redirecting to onboarding');
       setTimeout(() => {
         router.replace('/onboarding-welcome');
       }, 100);
     }
-  }, [onboardingComplete, authLoading, router]);
+  }, [onboardingComplete, authLoading, minLoadingComplete, router]);
 
   // Show loading screen if data is not ready OR minimum display time hasn't elapsed
   console.log('[RootLayoutNav] Loading state:', {
@@ -208,18 +210,12 @@ function RootLayoutNav() {
     return <LoadingScreen />;
   }
 
-  // Determine initial route based on onboarding status and auth status
-  const getInitialRoute = () => {
-    if (!onboardingComplete) return 'onboarding-welcome';
-    if (isSignedIn) return '(tabs)';
-    return 'login';
-  };
+
 
   return (
     <OfflineDataProvider ready={onboardingComplete}>
       <BottomSheetModalProvider>
         <Stack
-          initialRouteName={getInitialRoute()}
           screenOptions={{
             headerShown: false,
           }}

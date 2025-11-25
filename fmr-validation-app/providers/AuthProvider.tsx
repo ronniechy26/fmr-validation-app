@@ -10,7 +10,7 @@ type AuthContextValue = {
   loading: boolean;
   token: string | null;
   user: LoginResponse['user'] | null;
-  signIn: (email: string, password: string, options?: { remember?: boolean }) => Promise<void>;
+  signIn: (username: string, password: string, options?: { remember?: boolean }) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -87,17 +87,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     bootstrap();
   }, [persistSession]);
 
-  const signIn = useCallback(async (email: string, password: string, options?: { remember?: boolean }) => {
+  const signIn = useCallback(async (username: string, password: string, options?: { remember?: boolean }) => {
     const startTime = Date.now();
-    logger.info('auth', 'signIn:start', { email });
+    logger.info('auth', 'signIn:start', { username });
     try {
-      const response = await login({ email, password });
+      const response = await login({ username, password });
       await persistSession(response, options?.remember ?? true);
       const duration = Date.now() - startTime;
-      logger.info('auth', 'signIn:success', { email, duration });
+      logger.info('auth', 'signIn:success', { username, duration });
     } catch (error) {
       const duration = Date.now() - startTime;
-      logger.error('auth', 'signIn:failed', { email, duration, error: String(error) });
+      logger.error('auth', 'signIn:failed', { username, duration, error: String(error) });
       throw error;
     }
   }, [persistSession]);

@@ -5,11 +5,12 @@ import { JwtAuthGuard, Public } from './jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('login')
   @Public()
   login(@Body() payload: LoginDto) {
+    console.log('AuthController received payload:', JSON.stringify(payload));
     return this.authService.login(payload);
   }
 
