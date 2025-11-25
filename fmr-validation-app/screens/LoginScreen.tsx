@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useThemeMode } from '@/providers/ThemeProvider';
@@ -14,9 +14,12 @@ export function LoginScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+
+  const passwordInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     loadRememberPrefs().then((prefs) => {
@@ -81,26 +84,48 @@ export function LoginScreen() {
             ]}
             autoCapitalize="none"
             autoComplete="username"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordInputRef.current?.focus()}
+            blurOnSubmit={false}
           />
         </View>
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.textMuted }]}>Password</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
-            style={[
-              styles.input,
-              { borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.secondary },
-            ]}
-            autoComplete="password"
-          />
+          <View style={{ justifyContent: 'center' }}>
+            <TextInput
+              ref={passwordInputRef}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry={!showPassword}
+              style={[
+                styles.input,
+                {
+                  borderColor: colors.border,
+                  color: colors.textPrimary,
+                  backgroundColor: colors.secondary,
+                  paddingRight: 40
+                },
+              ]}
+              autoComplete="password"
+              returnKeyType="go"
+              onSubmitEditing={handleSubmit}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={{ position: 'absolute', right: 12 }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={20}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
-        <TouchableOpacity style={styles.forgotButton}>
-          <Text style={[styles.forgotText, { color: colors.primary }]}>Forgot password?</Text>
-        </TouchableOpacity>
+
 
         {error ? <Text style={[styles.errorText, { color: '#c53030' }]}>{error}</Text> : null}
 
@@ -128,17 +153,7 @@ export function LoginScreen() {
           <Text style={styles.submitText}>{submitting ? 'Signing in…' : 'Sign In'}</Text>
         </TouchableOpacity>
 
-        {/* Debug Button for Onboarding Reset */}
-        <TouchableOpacity
-          style={{ alignSelf: 'center', marginTop: spacing.lg }}
-          onPress={async () => {
-            const { clearOnboardingStatus } = await import('@/storage/onboarding');
-            await clearOnboardingStatus();
-            alert('Onboarding status cleared. Please restart the app to see the onboarding flow.');
-          }}
-        >
-          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Reset Onboarding (Debug)</Text>
-        </TouchableOpacity>
+
 
       </View>
     </Screen>
@@ -204,13 +219,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     fontFamily: fonts.regular,
   },
-  forgotButton: {
-    alignSelf: 'flex-end',
-  },
-  forgotText: {
-    fontFamily: fonts.semibold,
-    fontSize: 13,
-  },
+
   submitButton: {
     borderRadius: 16,
     paddingVertical: spacing.md,

@@ -11,7 +11,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/nunito';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { Stack, useRouter, SplashScreen } from 'expo-router';
+import { Stack, SplashScreen, useSegments, Redirect } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View, Text, Animated } from 'react-native';
 // eslint-disable-next-line import/no-duplicates
 import 'react-native-gesture-handler';
@@ -125,89 +125,37 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const { colors } = useThemeMode();
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
-  const { isSignedIn, loading: authLoading } = useAuth();
-  const router = useRouter();
-  const [minLoadingComplete, setMinLoadingComplete] = useState(false);
-  const loadingStartTime = useRef<number>(Date.now());
+  const { loading: authLoading } = useAuth();
+  const segments = useSegments();
 
   const checkOnboarding = async () => {
     try {
-      console.log('[OnboardingCheck] Starting check...');
       const completed = await isOnboardingCompleted();
-      console.log('[OnboardingCheck] Status:', completed);
       setOnboardingComplete(completed);
     } catch (error) {
-      console.error('[OnboardingCheck] Error:', error);
       setOnboardingComplete(false); // Default to false on error
     }
   };
 
   useEffect(() => {
-    console.log('[RootLayoutNav] Component mounted');
-    // Delay checking onboarding to avoid conflict with AuthProvider's initial DB check
-    const timer = setTimeout(() => {
-      console.log('[RootLayoutNav] Checking onboarding after delay');
-      checkOnboarding();
-    }, 500);
-    return () => clearTimeout(timer);
+    checkOnboarding();
   }, []);
 
-  // Enforce minimum 2-second loading screen display
-  useEffect(() => {
-    const elapsed = Date.now() - loadingStartTime.current;
-    const remaining = Math.max(0, 2000 - elapsed);
-
-    console.log('[RootLayoutNav] Min loading timer:', { elapsed, remaining });
-
-    const timer = setTimeout(() => {
-      console.log('[RootLayoutNav] Min loading complete');
-      setMinLoadingComplete(true);
-    }, remaining);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Timeout fallback - if loading takes more than 10 seconds, force proceed
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      console.warn('[RootLayoutNav] Loading timeout reached! Forcing proceed...');
-      if (onboardingComplete === null) {
-        console.warn('[RootLayoutNav] Onboarding check timed out, defaulting to false');
-        setOnboardingComplete(false);
-      }
-      if (!minLoadingComplete) {
-        console.warn('[RootLayoutNav] Min loading timed out, forcing complete');
-        setMinLoadingComplete(true);
-      }
-    }, 10000); // 10 second timeout
-
-    return () => clearTimeout(timeout);
-  }, [onboardingComplete, minLoadingComplete]);
-
-  // Force redirect if onboarding is not complete
-  useEffect(() => {
-    console.log('[RootLayoutNav] Redirect check:', { onboardingComplete, authLoading, minLoadingComplete });
-
-    // Only redirect if we are done loading everything
-    if (minLoadingComplete && onboardingComplete === false && !authLoading) {
-      // We use a small timeout to ensure navigation is ready
-      console.log('[RootLayoutNav] Redirecting to onboarding');
-      setTimeout(() => {
-        router.replace('/onboarding-welcome');
-      }, 100);
-    }
-  }, [onboardingComplete, authLoading, minLoadingComplete, router]);
-
-  // Show loading screen if data is not ready OR minimum display time hasn't elapsed
-  console.log('[RootLayoutNav] Loading state:', {
-    onboardingComplete,
-    authLoading,
-    minLoadingComplete,
-    shouldShowLoading: onboardingComplete === null || authLoading || !minLoadingComplete
-  });
-
-  if (onboardingComplete === null || authLoading || !minLoadingComplete) {
+  // Show loading screen while onboarding/auth state is resolving
+  if (onboardingComplete === null || authLoading) {
     return <LoadingScreen />;
+  }
+
+  const currentRoot = segments?.[0];
+  const isOnboardingRoute = currentRoot?.startsWith('onboarding');
+  const shouldShowOnboarding = onboardingComplete === false;
+
+  if (shouldShowOnboarding && !isOnboardingRoute) {
+    return <Redirect href="/onboarding-welcome" />;
+  }
+
+  if (!shouldShowOnboarding && isOnboardingRoute) {
+    return <Redirect href="/login" />;
   }
 
 
@@ -221,9 +169,13 @@ function RootLayoutNav() {
           }}
         >
           {/* Onboarding Routes */}
-          <Stack.Screen name="onboarding-welcome" options={{ headerShown: false }} />
-          <Stack.Screen name="onboarding-privacy" options={{ headerShown: false }} />
-          <Stack.Screen name="onboarding-sync" options={{ headerShown: false }} />
+          {shouldShowOnboarding ? (
+            <>
+              <Stack.Screen name="onboarding-welcome" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding-privacy" options={{ headerShown: false }} />
+              <Stack.Screen name="onboarding-sync" options={{ headerShown: false }} />
+            </>
+          ) : null}
 
           {/* Auth Routes */}
           <Stack.Screen name="login" options={{ headerShown: false }} />
