@@ -128,6 +128,8 @@ function RootLayoutNav() {
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
   const { loading: authLoading } = useAuth();
   const segments = useSegments();
+  const [minLoadingComplete, setMinLoadingComplete] = useState(false);
+  const minTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const checkOnboarding = async () => {
     try {
@@ -140,10 +142,14 @@ function RootLayoutNav() {
 
   useEffect(() => {
     checkOnboarding();
+    minTimerRef.current = setTimeout(() => setMinLoadingComplete(true), 2000);
+    return () => {
+      if (minTimerRef.current) clearTimeout(minTimerRef.current);
+    };
   }, []);
 
   // Show loading screen while onboarding/auth state is resolving
-  if (onboardingComplete === null || authLoading) {
+  if (onboardingComplete === null || authLoading || !minLoadingComplete) {
     return <LoadingScreen />;
   }
 
